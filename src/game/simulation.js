@@ -60,8 +60,10 @@ import {
   normalizeTeamStrategy,
 } from './strategies.js'
 import { PLAYBACK_SPEEDS, ROUND_BREAK_SECONDS } from './state.js'
+import { createSeededRng } from './rng.js'
 
 export function createSimulation({ state, hud, updateHud, updatePlayerTooltip }) {
+  const rng = state.rng
   const CHAIN_STRIKE_VISUAL_DURATION = 0.52
   const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
   const CHAIN_BLOCKER_PADDING = 8
@@ -123,7 +125,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     PLAYER_POSITIONS.blue[index] = slot
     if (swapIndex > 0) PLAYER_POSITIONS.blue[swapIndex] = currentSlot
   
-    applyBluePositions({ resetSpawns: !state.running })
+    applyBluePositions({ resetSpawns: shouldPreviewSetupAtGroundLine() })
     renderSkillPanel()
     updateHud()
   }
@@ -251,6 +253,19 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
       createPlayer('red', 4, 'pompfer'),
     ]
   }
+
+  function shouldPreviewSetupAtGroundLine() {
+    return !state.running || state.roundBreakTimer > 0
+  }
+
+  function resetTeamsToGroundLinePreview() {
+    setupTeams()
+    resetJugg()
+    state.roundTime = 0
+    state.teamCallCooldowns.blue = 0
+    state.teamCallCooldowns.red = 0
+    state.jugg.cooldown = 0.45
+  }
   
   function resetJugg() {
     state.jugg.x = FIELD.width / 2
@@ -274,6 +289,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
   function beginRoundBreak(message) {
     resetNextTeamStrategies()
+    resetTeamsToGroundLinePreview()
     state.roundBreakTimer = ROUND_BREAK_SECONDS
     state.roundBreakLabel = message
     state.message = `${message} - Strategiepause ${ROUND_BREAK_SECONDS}`
@@ -288,6 +304,11 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function resetMatch() {
+    const nextRng = createSeededRng(state.matchSeed)
+    rng.seed = nextRng.seed
+    rng.state = nextRng.state
+    state.rng = rng
+    state.frameAccumulator = 0
     resetNextTeamStrategies()
     TEAM_STRATEGIES.blue = 'standard'
     TEAM_STRATEGIES.red = 'standard'
@@ -312,6 +333,24 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     hud.pauseBtn.textContent = 'Pause'
     resetRound('Bereit')
     updateHud()
+  }
+
+  function setMatchSeed(seed) {
+    state.matchSeed = String(seed)
+    const nextRng = createSeededRng(state.matchSeed)
+    rng.seed = nextRng.seed
+    rng.state = nextRng.state
+    state.rng = rng
+  }
+
+  function deterministicSnapshot() {
+    return {
+      matchSeed: state.matchSeed,
+      rng: rng.snapshot(),
+      roundTime: state.roundTime,
+      stoneCount: state.stoneCount,
+      timeLeft: state.timeLeft,
+    }
   }
   
   function setPlaybackSpeed(speed) {
@@ -572,7 +611,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     makeInactive(player, stones)
   }
   
-  const decision = createDecisionEngine({ state, attack })
+  const decision = createDecisionEngine({ state, attack, rng })
   function updateInactivePlayer(player, dt) {
     player.vx = 0
     player.vy = 0
@@ -935,8 +974,8 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   function runnerJuggContestResult(a, b) {
     const aChance = techniqueContestChance(a, b)
     const bChance = techniqueContestChance(b, a)
-    const aHits = Math.random() <= aChance
-    const bHits = Math.random() <= bChance
+    const aHits = rng.chance(aChance)
+    const bHits = rng.chance(bChance)
   
     if (aHits && !bHits) return a
     if (bHits && !aHits) return b
@@ -1038,7 +1077,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
       attacker.attackTarget = null
       if (!target) continue
   
-      if (Math.random() <= hitChance(attacker, target)) {
+      if (rng.chance(hitChance(attacker, target))) {
         hits.push({ attacker, target })
       }
     }
@@ -1207,7 +1246,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     carrier.duelCooldown = RUNNER_DUEL_COOLDOWN
     challenger.duelCooldown = RUNNER_DUEL_COOLDOWN
   
-    const challengerWins = Math.random() <= techniqueContestChance(challenger, carrier)
+    const challengerWins = rng.chance(techniqueContestChance(challenger, carrier))
     const winner = challengerWins ? challenger : carrier
     const loser = challengerWins ? carrier : challenger
     const angle = Math.atan2(loser.y - winner.y, loser.x - winner.x)
@@ -1424,14 +1463,14 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
   function burst(x, y, color, amount) {
     for (let i = 0; i < amount; i += 1) {
-      const angle = Math.random() * Math.PI * 2
-      const speed = 80 + Math.random() * 160
+      const angle = rng.range(0, Math.PI * 2)
+      const speed = rng.range(80, 240)
       state.particles.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        life: 0.35 + Math.random() * 0.35,
+        life: rng.range(0.35, 0.7),
         maxLife: 0.7,
         color,
       })
@@ -1547,11 +1586,14 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   return {
     reportFrameError,
     resetMatch,
+    renderSkillPanel,
+    deterministicSnapshot,
     setBluePompfe,
     setBluePlayerStrategy,
     setBluePosition,
     setBlueSkill,
     setBlueTeamStrategy,
+    setMatchSeed,
     setPlaybackSpeed,
     startMatch,
     togglePause,

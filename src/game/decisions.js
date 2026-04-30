@@ -37,7 +37,7 @@ const SIDE_PRESSURE_LANES = {
 }
 const MALSCHUTZ_FREE_JUGG_RANGE = 10 * FIELD.scale
 
-export function createDecisionEngine({ state, attack }) {
+export function createDecisionEngine({ state, attack, rng = state.rng }) {
   function angleDelta(target, current) {
     return Math.atan2(Math.sin(target - current), Math.cos(target - current))
   }
@@ -402,7 +402,7 @@ export function createDecisionEngine({ state, attack }) {
   }
   
   function callPerceivedBy(player, caller) {
-    return player === caller || Math.random() * 100 < player.wahrnehmung
+    return player === caller || rng.range(0, 100) < player.wahrnehmung
   }
   
   function callLabel(type) {

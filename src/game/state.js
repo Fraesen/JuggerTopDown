@@ -1,16 +1,22 @@
 import { FIELD, MATCH_SECONDS } from './config.js'
+import { createSeededRng } from './rng.js'
 
 export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2]
 export const CAMERA_MIN_ZOOM = 1
 export const CAMERA_MAX_ZOOM = 4
 export const CAMERA_ZOOM_STEP = 1.18
 export const ROUND_BREAK_SECONDS = 10
+export const SIMULATION_STEP_SECONDS = 1 / 60
+export const DEFAULT_MATCH_SEED = 'jugger-match-1'
 
-export function createInitialState() {
+export function createInitialState(seed = DEFAULT_MATCH_SEED) {
   return {
     running: false,
     paused: false,
     lastTime: 0,
+    frameAccumulator: 0,
+    matchSeed: String(seed),
+    rng: createSeededRng(seed),
     playbackSpeed: 1,
     timeLeft: MATCH_SECONDS,
     score: { blue: 0, red: 0 },

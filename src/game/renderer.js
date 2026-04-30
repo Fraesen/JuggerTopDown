@@ -179,10 +179,6 @@ export function createRenderer({ ctx, state }) {
   }
 
   function drawField() {
-    ctx.clearRect(0, 0, FIELD.width, FIELD.height)
-    ctx.fillStyle = '#0d1315'
-    ctx.fillRect(0, 0, FIELD.width, FIELD.height)
-  
     const grass = ctx.createLinearGradient(0, 0, FIELD.width, FIELD.height)
     grass.addColorStop(0, '#204b3d')
     grass.addColorStop(0.55, '#286144')

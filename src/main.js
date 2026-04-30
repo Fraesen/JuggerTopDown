@@ -1,6 +1,6 @@
 import './style.css'
 import { createRenderer } from './game/renderer.js'
-import { createInitialState } from './game/state.js'
+import { SIMULATION_STEP_SECONDS, createInitialState } from './game/state.js'
 import { createSimulation } from './game/simulation.js'
 import { mountAppShell } from './ui/appShell.js'
 import { createHudController } from './ui/hudController.js'
@@ -16,6 +16,7 @@ const simulation = createSimulation({ state, hud, updateHud, updatePlayerTooltip
 const {
   reportFrameError,
   resetMatch,
+  renderSkillPanel,
   setBluePompfe,
   setBluePlayerStrategy,
   setBluePosition,
@@ -28,10 +29,18 @@ const {
 } = simulation
 function loop(time) {
   const rawDt = Math.min(0.033, (time - state.lastTime) / 1000 || 0)
-  const dt = state.running && !state.paused ? rawDt * state.playbackSpeed : rawDt
   state.lastTime = time
   try {
-    update(dt)
+    if (state.running && !state.paused) {
+      state.frameAccumulator = Math.min(state.frameAccumulator + rawDt * state.playbackSpeed, SIMULATION_STEP_SECONDS * 12)
+      while (state.frameAccumulator >= SIMULATION_STEP_SECONDS) {
+        update(SIMULATION_STEP_SECONDS)
+        state.frameAccumulator -= SIMULATION_STEP_SECONDS
+      }
+    } else {
+      state.frameAccumulator = 0
+      update(rawDt)
+    }
     renderer.draw()
     updateHud()
   } catch (error) {

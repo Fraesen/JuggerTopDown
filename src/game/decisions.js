@@ -16,15 +16,17 @@ import {
   TEAMS,
   fieldPoint,
 } from './config.js'
-import { clamp, distance, facePoint, normalize } from './geometry.js'
+import { clamp, distance, normalize } from './geometry.js'
 import { canReceiveNewPin, isGrappling, isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot } from './players.js'
-import { attackRangeFor, canPinWithPompfe, maxPompfeAttackRange } from './pompfen.js'
+import { attackRangeFor, canPinWithPompfe, isInAttackArc, maxPompfeAttackRange } from './pompfen.js'
 
 const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
 const SIDE_PRESSURE_CURVE_STEPS = 9
 const DOUBLE_PIN_RANGE_FACTOR = 0.95
 const CHAIN_GUARD_RANGE_FACTOR = 0.9
+const FULL_TURN_SECONDS = 0.75
+const TURN_RATE = (Math.PI * 2) / FULL_TURN_SECONDS
 const SIDE_PRESSURE_LANES = {
   top: () => fieldPoint(20, 1.8).y,
   bottom: () => fieldPoint(20, FIELD.widthMeters - 1.8).y,
@@ -32,6 +34,25 @@ const SIDE_PRESSURE_LANES = {
 const MALSCHUTZ_FREE_JUGG_RANGE = 10 * FIELD.scale
 
 export function createDecisionEngine({ state, attack }) {
+  function angleDelta(target, current) {
+    return Math.atan2(Math.sin(target - current), Math.cos(target - current))
+  }
+
+  function rotateTowardAngle(player, targetAngle, dt) {
+    const delta = angleDelta(targetAngle, player.angle)
+    const step = clamp(delta, -TURN_RATE * dt, TURN_RATE * dt)
+    player.angle += step
+    return Math.abs(delta - step)
+  }
+
+  function rotateTowardPoint(player, target, dt) {
+    if (!target) return 0
+    const dx = target.x - player.x
+    const dy = target.y - player.y
+    if (Math.hypot(dx, dy) < 0.001) return 0
+    return rotateTowardAngle(player, Math.atan2(dy, dx), dt)
+  }
+
   function nearestEnemy(player, filter = () => true) {
     let best = null
     let bestDistance = Infinity
@@ -596,7 +617,9 @@ export function createDecisionEngine({ state, attack }) {
   }
 
   function canStrikeTarget(player, target, extraRange = 0) {
-    return isPompfer(player) && target?.radius && target.team !== player.team && !isInactive(target) && distance(player, target) < attackRangeFor(player, target) + extraRange
+    if (!isPompfer(player) || !target?.radius || target.team === player.team || isInactive(target)) return false
+    const range = attackRangeFor(player, target) + extraRange
+    return distance(player, target) < range && isInAttackArc(player, target, range)
   }
   
   function pinOrbitPoint(player) {
@@ -778,9 +801,6 @@ export function createDecisionEngine({ state, attack }) {
       if (canStrikeTarget(player, strikeTarget, 8)) attack(player, strikeTarget)
     }
   
-    if (!player.pinTarget) faceTarget = target
-    facePoint(player, faceTarget)
-  
     if (player.attackWindup > 0 || isGrappling(player)) {
       if (isGrappling(player)) {
         player.vx = 0
@@ -792,12 +812,14 @@ export function createDecisionEngine({ state, attack }) {
     if (player.pinTarget && target === player) {
       player.vx = 0
       player.vy = 0
+      rotateTowardPoint(player, faceTarget, dt)
       return
     }
   
     if (!player.pinTarget && distance(player, target) <= stopDistanceFor(player, target)) {
       player.vx = 0
       player.vy = 0
+      rotateTowardPoint(player, faceTarget, dt)
       return
     }
   
@@ -811,9 +833,10 @@ export function createDecisionEngine({ state, attack }) {
     const carrierBoost = state.jugg.carrier === player ? 1.13 : 1
     const pinSlowdown = player.pinTarget ? 0.18 : 1
     const speed = player.speed * carrierBoost * pinSlowdown
-  
-    player.vx = direction.x * speed
-    player.vy = direction.y * speed
+
+    if (direction.x || direction.y) rotateTowardAngle(player, Math.atan2(direction.y, direction.x), dt)
+    player.vx = Math.cos(player.angle) * speed
+    player.vy = Math.sin(player.angle) * speed
   }
 
   return {

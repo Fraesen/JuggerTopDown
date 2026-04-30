@@ -35,7 +35,7 @@ import {
   TEAMS,
   fieldPoint,
 } from './game/config.js'
-import { clamp, closestPointOnSegment, constrainToField, distance, facePoint, nearestFieldBoundary, normalize, pointInPolygon } from './game/geometry.js'
+import { clamp, closestPointOnSegment, constrainToField, distance, nearestFieldBoundary, normalize, pointInPolygon } from './game/geometry.js'
 import {
   canReceiveNewPin,
   createPlayer,
@@ -546,7 +546,6 @@ function attack(player, target = null) {
   if (player.attackCooldown > 0 || player.attackWindup > 0 || isInactive(player) || isRecoveryDashing(player) || !isPompfer(player)) return
   if (target && target.team !== player.team && !isInactive(target)) {
     player.attackTarget = target
-    facePoint(player, target)
   } else {
     player.attackTarget = null
   }

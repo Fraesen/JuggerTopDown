@@ -595,6 +595,13 @@ export function createRenderer({ ctx, state }) {
   }
   
   function draw() {
+    const camera = state.camera ?? { x: 0, y: 0, zoom: 1 }
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, FIELD.width, FIELD.height)
+    ctx.fillStyle = '#0d1315'
+    ctx.fillRect(0, 0, FIELD.width, FIELD.height)
+    ctx.save()
+    ctx.setTransform(camera.zoom, 0, 0, camera.zoom, -camera.x * camera.zoom, -camera.y * camera.zoom)
     drawField()
   
     const sortedPlayers = [...state.players].sort((a, b) => a.y - b.y)
@@ -605,9 +612,10 @@ export function createRenderer({ ctx, state }) {
     drawHoverMarker()
     drawJugg()
     drawParticles()
-    drawOverlay()
     for (const player of sortedPlayers) drawCallMissMarker(player)
     for (const player of sortedPlayers) drawCallBubble(player)
+    ctx.restore()
+    drawOverlay()
   }
 
   return { draw }

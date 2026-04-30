@@ -205,6 +205,9 @@ const hud = {
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2]
 const BLUE_POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
+const CAMERA_MIN_ZOOM = 1
+const CAMERA_MAX_ZOOM = 4
+const CAMERA_ZOOM_STEP = 1.18
 
 const state = {
   running: false,
@@ -221,6 +224,11 @@ const state = {
   stoneTimer: 0,
   stoneCount: 0,
   teamCallCooldowns: { blue: 0, red: 0 },
+  camera: {
+    x: 0,
+    y: 0,
+    zoom: 1,
+  },
   hover: {
     active: false,
     x: 0,
@@ -468,6 +476,9 @@ function resetMatch() {
   state.timeLeft = MATCH_SECONDS
   state.running = false
   state.paused = false
+  state.camera.x = 0
+  state.camera.y = 0
+  state.camera.zoom = 1
   state.stoneTimer = 0
   state.stoneCount = 0
   state.teamCallCooldowns.blue = 0
@@ -1600,6 +1611,12 @@ function formatClock(seconds) {
 }
 
 function updateMiniMap() {
+  const camera = state.camera
+  const cameraLeft = (camera.x / FIELD.width) * 100
+  const cameraTop = (camera.y / FIELD.height) * 100
+  const cameraWidth = (1 / camera.zoom) * 100
+  const cameraHeight = (1 / camera.zoom) * 100
+  const cameraBox = `<em class="camera-view" style="left:${cameraLeft}%;top:${cameraTop}%;width:${cameraWidth}%;height:${cameraHeight}%"></em>`
   const dots = state.players
     .map((player) => {
       const x = (player.x / FIELD.width) * 100
@@ -1610,7 +1627,7 @@ function updateMiniMap() {
     })
     .join('')
   const jugg = `<b style="left:${(state.jugg.x / FIELD.width) * 100}%;top:${(state.jugg.y / FIELD.height) * 100}%"></b>`
-  hud.miniMap.innerHTML = `${dots}${jugg}`
+  hud.miniMap.innerHTML = `${cameraBox}${dots}${jugg}`
 }
 
 function updateHud() {
@@ -1629,12 +1646,46 @@ function updateHud() {
   updateMiniMap()
 }
 
-function canvasPointFromEvent(event) {
+function canvasScreenPointFromEvent(event) {
   const rect = canvas.getBoundingClientRect()
   return {
     x: ((event.clientX - rect.left) / rect.width) * FIELD.width,
     y: ((event.clientY - rect.top) / rect.height) * FIELD.height,
   }
+}
+
+function canvasPointFromEvent(event) {
+  const point = canvasScreenPointFromEvent(event)
+  return {
+    x: state.camera.x + point.x / state.camera.zoom,
+    y: state.camera.y + point.y / state.camera.zoom,
+  }
+}
+
+function clampCamera() {
+  const visibleWidth = FIELD.width / state.camera.zoom
+  const visibleHeight = FIELD.height / state.camera.zoom
+  state.camera.x = clamp(state.camera.x, 0, FIELD.width - visibleWidth)
+  state.camera.y = clamp(state.camera.y, 0, FIELD.height - visibleHeight)
+}
+
+function zoomCameraAt(event) {
+  event.preventDefault()
+  const screen = canvasScreenPointFromEvent(event)
+  const before = {
+    x: state.camera.x + screen.x / state.camera.zoom,
+    y: state.camera.y + screen.y / state.camera.zoom,
+  }
+  const factor = event.deltaY < 0 ? CAMERA_ZOOM_STEP : 1 / CAMERA_ZOOM_STEP
+  const nextZoom = clamp(state.camera.zoom * factor, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM)
+  if (Math.abs(nextZoom - state.camera.zoom) < 0.001) return
+
+  state.camera.zoom = nextZoom
+  state.camera.x = before.x - screen.x / state.camera.zoom
+  state.camera.y = before.y - screen.y / state.camera.zoom
+  clampCamera()
+  updatePlayerTooltip()
+  updateHud()
 }
 
 function hoveredPlayerAt(point) {
@@ -1734,6 +1785,7 @@ function bindInput() {
     state.hover.player = null
     hud.playerTooltip.hidden = true
   })
+  canvas.addEventListener('wheel', zoomCameraAt, { passive: false })
   hud.skillList.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-player]')
     if (!button) return

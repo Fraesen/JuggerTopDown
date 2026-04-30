@@ -24,7 +24,6 @@ const POMPFEN_VISUALS = {
     handleX: 12,
     handleY: -12,
     orbitRadius: 58,
-    strikeRadius: 94,
     ballRadius: 10,
   },
 }
@@ -76,9 +75,10 @@ export function createRenderer({ ctx, state }) {
 
   function chainStrikePoint(player) {
     const visual = POMPFEN_VISUALS.chain
+    const strikeRadius = Math.max(visual.orbitRadius, pompfeFor(player).attackRange - 8)
     const target = player.chainStrikeTarget
-    const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * visual.strikeRadius
-    const targetY = target?.y ?? player.chainStrikeY ?? player.y + Math.sin(player.angle) * visual.strikeRadius
+    const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * strikeRadius
+    const targetY = target?.y ?? player.chainStrikeY ?? player.y + Math.sin(player.angle) * strikeRadius
     const dx = targetX - player.x
     const dy = targetY - player.y
     const cos = Math.cos(-player.angle)
@@ -86,7 +86,7 @@ export function createRenderer({ ctx, state }) {
     const localX = dx * cos - dy * sin
     const localY = dx * sin + dy * cos
     const distance = Math.hypot(localX, localY) || 1
-    const radius = clamp(distance, visual.orbitRadius * 0.85, visual.strikeRadius)
+    const radius = clamp(distance, visual.orbitRadius * 0.85, strikeRadius)
 
     return {
       ballX: (localX / distance) * radius,

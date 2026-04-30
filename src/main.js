@@ -35,7 +35,7 @@ import {
   TEAMS,
   fieldPoint,
 } from './game/config.js'
-import { clamp, closestPointOnSegment, constrainToField, distance, facePoint, normalize, pointInPolygon } from './game/geometry.js'
+import { clamp, closestPointOnSegment, constrainToField, distance, facePoint, nearestFieldBoundary, normalize, pointInPolygon } from './game/geometry.js'
 import {
   canReceiveNewPin,
   createPlayer,
@@ -251,11 +251,11 @@ const state = {
 const CHAIN_STRIKE_VISUAL_DURATION = 0.52
 const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
 const CHAIN_BLOCKER_PADDING = 8
+const CHAIN_BAND_END_CLEARANCE = 0.84
 const CHAIN_BAND_VISUAL = {
   handleX: 12,
   handleY: -12,
   orbitRadius: 58,
-  strikeRadius: 94,
 }
 
 function applyBlueSkills() {
@@ -557,11 +557,12 @@ function attack(player, target = null) {
 
   if (player.pompfe === 'chain') {
     const chainTarget = player.attackTarget
+    const visualRange = chainVisualStrikeRadius(player)
     player.chainStrikeTimer = CHAIN_STRIKE_VISUAL_DURATION
     player.chainStrikeDuration = CHAIN_STRIKE_VISUAL_DURATION
     player.chainStrikeTarget = chainTarget
-    player.chainStrikeX = chainTarget?.x ?? player.x + Math.cos(player.angle) * 94
-    player.chainStrikeY = chainTarget?.y ?? player.y + Math.sin(player.angle) * 94
+    player.chainStrikeX = chainTarget?.x ?? player.x + Math.cos(player.angle) * visualRange
+    player.chainStrikeY = chainTarget?.y ?? player.y + Math.sin(player.angle) * visualRange
   }
 }
 
@@ -851,10 +852,15 @@ function chainOrbitBall(player) {
   }
 }
 
+function chainVisualStrikeRadius(player) {
+  return Math.max(CHAIN_BAND_VISUAL.orbitRadius, pompfeFor(player).attackRange - 8)
+}
+
 function chainStrikeBall(player) {
   const target = player.chainStrikeTarget
-  const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * CHAIN_BAND_VISUAL.strikeRadius
-  const targetY = target?.y ?? player.chainStrikeY ?? player.y + Math.sin(player.angle) * CHAIN_BAND_VISUAL.strikeRadius
+  const strikeRadius = chainVisualStrikeRadius(player)
+  const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * strikeRadius
+  const targetY = target?.y ?? player.chainStrikeY ?? player.y + Math.sin(player.angle) * strikeRadius
   const dx = targetX - player.x
   const dy = targetY - player.y
   const cos = Math.cos(-player.angle)
@@ -862,7 +868,7 @@ function chainStrikeBall(player) {
   const localX = dx * cos - dy * sin
   const localY = dx * sin + dy * cos
   const localDistance = Math.hypot(localX, localY) || 1
-  const radius = clamp(localDistance, CHAIN_BAND_VISUAL.orbitRadius * 0.85, CHAIN_BAND_VISUAL.strikeRadius)
+  const radius = clamp(localDistance, CHAIN_BAND_VISUAL.orbitRadius * 0.85, strikeRadius)
   return {
     x: (localX / localDistance) * radius,
     y: (localY / localDistance) * radius,
@@ -905,6 +911,35 @@ function chainBandSegment(player) {
   }
 }
 
+function capPlayerVelocity(player, maxSpeed = player.speed * 1.2) {
+  const currentSpeed = Math.hypot(player.vx, player.vy)
+  if (currentSpeed <= maxSpeed || currentSpeed <= 0.001) return
+  const scale = maxSpeed / currentSpeed
+  player.vx *= scale
+  player.vy *= scale
+}
+
+function constrainMovingPlayer(player) {
+  const beforeX = player.x
+  const beforeY = player.y
+  const nearest = nearestFieldBoundary(player)
+  constrainToField(player, player.radius)
+  const wasConstrained = Math.abs(player.x - beforeX) > 0.001 || Math.abs(player.y - beforeY) > 0.001
+  if (!wasConstrained) return
+
+  const inward = normalize(FIELD.center.x - nearest.point.x, FIELD.center.y - nearest.point.y)
+  const outwardVelocity = player.vx * inward.x + player.vy * inward.y
+  if (outwardVelocity < 0) {
+    player.vx -= outwardVelocity * inward.x
+    player.vy -= outwardVelocity * inward.y
+  }
+
+  player.vx *= 0.68
+  player.vy *= 0.68
+  const maxSpeed = isRecoveryDashing(player) ? (player.recoveryDashSpeed || RECOVERY_DASH_SPEED) : player.speed * 1.15
+  capPlayerVelocity(player, maxSpeed)
+}
+
 function movePlayer(player, dt) {
   if (isRunnerInJuggContest(player)) {
     player.vx = 0
@@ -923,7 +958,7 @@ function movePlayer(player, dt) {
   const slowdown = inactiveRunnerSlowdown(player)
   player.x += player.vx * dt * slowdown
   player.y += player.vy * dt * slowdown
-  if (!canEnterFromOutsideStart(player)) constrainToField(player, player.radius)
+  if (!canEnterFromOutsideStart(player)) constrainMovingPlayer(player)
 }
 
 function canPassThroughInactive(a, b) {
@@ -970,10 +1005,12 @@ function resolveChainBandCollisions() {
 
     for (const player of state.players) {
       if (player === chainPlayer) continue
+      const bandHit = distanceToSegmentWithT(player, segment.start, segment.end)
+      if (bandHit.t >= CHAIN_BAND_END_CLEARANCE) continue
       const closest = closestPointOnSegment(player, segment.start, segment.end)
       const dx = player.x - closest.x
       const dy = player.y - closest.y
-      const d = Math.hypot(dx, dy)
+      const d = bandHit.distance
       const bandRadius = player.radius + CHAIN_BLOCKER_PADDING
       const overlap = bandRadius - d
       if (overlap <= 0) continue

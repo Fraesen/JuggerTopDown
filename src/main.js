@@ -31,6 +31,7 @@ import {
   SKILL_POINTS_PER_PLAYER,
   START_POSITIONS,
   STONE_SECONDS,
+  TEAM_LOADOUTS,
   TEAMS,
   fieldPoint,
 } from './game/config.js'
@@ -50,7 +51,7 @@ import {
   skillForPlayer,
   statsFromSkill,
 } from './game/players.js'
-import { attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor } from './game/pompfen.js'
+import { POMPFEN, attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor } from './game/pompfen.js'
 
 document.querySelector('#app').innerHTML = `
   <div class="game-shell">
@@ -146,7 +147,7 @@ document.querySelector('#app').innerHTML = `
             <span class="pin-dot"></span>
             <strong>Nahpompfen pinnen Inaktive</strong>
             <span class="pompfer-dot"></span>
-            <strong>Pompfen: Stab, Q-Tip, Schild und Kette</strong>
+            <strong>Blau waehlt Pompfen, max. 1 Kette</strong>
             <span class="technik-dot"></span>
             <strong>Schilde blocken frontal besser</strong>
             <span class="pin-dot"></span>
@@ -203,6 +204,7 @@ const hud = {
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2]
+const BLUE_POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
 
 const state = {
   running: false,
@@ -304,6 +306,41 @@ function setBluePosition(index, slot) {
   updateHud()
 }
 
+function setBluePompfe(index, pompfe) {
+  if (index <= 0 || !BLUE_POMPFEN_OPTIONS.includes(pompfe)) return
+  if (pompfe === 'chain') {
+    const existingChainIndex = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
+    if (existingChainIndex > 0 && existingChainIndex !== index) {
+      renderSkillPanel()
+      return
+    }
+  }
+
+  TEAM_LOADOUTS.blue[index] = pompfe
+  const player = state.players.find((candidate) => candidate.team === 'blue' && playerIndex(candidate) === index)
+  if (player) {
+    player.pompfe = pompfe
+    player.pompfeLabel = pompfeFor(player).label
+    player.attack = 0
+    player.attackWindup = 0
+    player.attackTarget = null
+    player.attackCooldown = 0
+    player.doubleWindow = 0
+    player.chainStrikeTimer = 0
+    player.chainStrikeTarget = null
+    for (const target of state.players) {
+      if (target.pinnedBy === player) {
+        target.pinnedBy = null
+        target.pinClaimedBy = null
+      }
+    }
+    player.pinTarget = null
+  }
+
+  renderSkillPanel()
+  updatePlayerTooltip()
+}
+
 function setBlueSkill(index, key, delta) {
   const skill = PLAYER_SKILLS.blue[index]
   const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
@@ -326,6 +363,7 @@ function setBlueSkill(index, key, delta) {
 }
 
 function renderSkillPanel() {
+  const chainOwner = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
   hud.skillList.innerHTML = PLAYER_SKILLS.blue
     .map((skill, index) => {
       const stats = statsFromSkill(skill)
@@ -333,17 +371,28 @@ function renderSkillPanel() {
       const positionControl =
         index > 0
           ? `
-          <label class="position-control">
-            <span>Position</span>
-            <select data-player="${index}" data-position>
-              ${Object.entries(POSITION_LABELS)
-                .map(
-                  ([slot, label]) =>
-                    `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`,
-                )
-                .join('')}
-            </select>
-          </label>
+          <div class="loadout-controls">
+            <label class="position-control">
+              <span>Position</span>
+              <select data-player="${index}" data-position>
+                ${Object.entries(POSITION_LABELS)
+                  .map(
+                    ([slot, label]) =>
+                      `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`,
+                  )
+                  .join('')}
+              </select>
+            </label>
+            <label class="position-control">
+              <span>Pompfe</span>
+              <select data-player="${index}" data-pompfe>
+                ${BLUE_POMPFEN_OPTIONS.map((option) => {
+                  const disabled = option === 'chain' && chainOwner > 0 && chainOwner !== index
+                  return `<option value="${option}" ${TEAM_LOADOUTS.blue[index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
+                }).join('')}
+              </select>
+            </label>
+          </div>
         `
           : ''
       return `
@@ -1691,9 +1740,14 @@ function bindInput() {
     setBlueSkill(Number(button.dataset.player), button.dataset.skill, Number(button.dataset.delta))
   })
   hud.skillList.addEventListener('change', (event) => {
-    const select = event.target.closest('select[data-position]')
-    if (!select) return
-    setBluePosition(Number(select.dataset.player), Number(select.value))
+    const positionSelect = event.target.closest('select[data-position]')
+    if (positionSelect) {
+      setBluePosition(Number(positionSelect.dataset.player), Number(positionSelect.value))
+      return
+    }
+
+    const pompfeSelect = event.target.closest('select[data-pompfe]')
+    if (pompfeSelect) setBluePompfe(Number(pompfeSelect.dataset.player), pompfeSelect.value)
   })
 }
 

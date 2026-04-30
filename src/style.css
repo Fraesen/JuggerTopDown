@@ -489,6 +489,12 @@ h1 {
   font-size: 12px;
 }
 
+.loadout-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
 .position-control {
   display: grid;
   grid-template-columns: 74px 1fr;

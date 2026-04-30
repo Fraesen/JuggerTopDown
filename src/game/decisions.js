@@ -24,6 +24,7 @@ const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
 const SIDE_PRESSURE_CURVE_STEPS = 9
 const DOUBLE_PIN_RANGE_FACTOR = 0.95
+const CHAIN_GUARD_RANGE_FACTOR = 0.9
 const SIDE_PRESSURE_LANES = {
   top: () => fieldPoint(20, 1.8).y,
   bottom: () => fieldPoint(20, FIELD.widthMeters - 1.8).y,
@@ -75,6 +76,17 @@ export function createDecisionEngine({ state, attack }) {
   
   function nearestClaimablePinTarget(player) {
     return nearestEnemy(player, (other) => canReceiveNewPin(other) && bestPinnerForTarget(other, player.team) === player)
+  }
+
+  function isChain(player) {
+    return player.pompfe === 'chain'
+  }
+
+  function vulnerableOpposingChain(player) {
+    const opposite = oppositePlayer(player)
+    if (!opposite || !isPompfer(opposite) || opposite.pompfe !== 'chain') return null
+    if (isInactive(opposite) || opposite.attackCooldown <= 0) return null
+    return opposite
   }
   
   function oppositePlayer(player) {
@@ -576,6 +588,7 @@ export function createDecisionEngine({ state, attack }) {
   function stopDistanceFor(player, target) {
     if (target === state.jugg) return isRunner(player) ? 0 : 46
     if (!target || !target.radius) return 18
+    if (isChain(player) && target.team !== player.team && !isInactive(target)) return attackRangeFor(player, target) * CHAIN_GUARD_RANGE_FACTOR
     if (isPompfer(player) && target.team !== player.team && !isInactive(target)) return attackRangeFor(player, target) * 0.78
     if (isPompfer(player) && target.team !== player.team && isInactive(target)) return PIN_RANGE * 0.7
     if (isRunner(player) && target.team !== player.team) return RUNNER_DUEL_RANGE * 0.72
@@ -630,6 +643,20 @@ export function createDecisionEngine({ state, attack }) {
     return {
       x: pinned.x + sideX * PIN_ORBIT_MAX_RADIUS,
       y: pinned.y + sideY * PIN_ORBIT_MAX_RADIUS,
+    }
+  }
+
+  function chainGuardPoint(player, watched) {
+    const guardDistance = attackRangeFor(player, watched) * CHAIN_GUARD_RANGE_FACTOR
+    const away = normalize(player.x - watched.x, player.y - watched.y)
+    const laneFallback = playerPositionSlot(player) <= 2 ? { x: 0, y: -1 } : { x: 0, y: 1 }
+    const teamFallback = player.team === 'blue' ? { x: -0.35, y: laneFallback.y } : { x: 0.35, y: laneFallback.y }
+    const fallback = normalize(teamFallback.x, teamFallback.y)
+    const dir = away.x || away.y ? away : fallback
+
+    return {
+      x: watched.x + dir.x * guardDistance,
+      y: watched.y + dir.y * guardDistance,
     }
   }
   
@@ -708,10 +735,19 @@ export function createDecisionEngine({ state, attack }) {
         target = state.jugg
       }
     } else {
-      const inactive = nearestClaimablePinTarget(player)
+      const inactive = isChain(player) ? { target: null, distance: Infinity } : nearestClaimablePinTarget(player)
       const enemy = nearestActiveEnemy
+      const exposedChain = vulnerableOpposingChain(player)
   
-      if (inactive.target && inactive.distance < 132 && !enemyCarrier) {
+      if (exposedChain) {
+        target = exposedChain
+      } else if (isChain(player) && enemy.target) {
+        target = enemy.target
+      } else if (isChain(player) && !enemy.target) {
+        const watched = nearestInactiveEnemy(player).target
+        target = watched ? chainGuardPoint(player, watched) : player
+        faceTarget = watched || target
+      } else if (inactive.target && inactive.distance < 132 && !enemyCarrier) {
         target = inactive.target
       } else if (enemyCarrier) {
         const carrier = state.jugg.carrier
@@ -738,7 +774,8 @@ export function createDecisionEngine({ state, attack }) {
         }
       }
   
-      if (canStrikeTarget(player, enemy.target, 8)) attack(player, enemy.target)
+      const strikeTarget = target?.team !== player.team && target?.radius && !isInactive(target) ? target : enemy.target
+      if (canStrikeTarget(player, strikeTarget, 8)) attack(player, strikeTarget)
     }
   
     if (!player.pinTarget) faceTarget = target

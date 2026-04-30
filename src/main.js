@@ -34,7 +34,7 @@ import {
   TEAMS,
   fieldPoint,
 } from './game/config.js'
-import { clamp, constrainToField, distance, facePoint, normalize, pointInPolygon } from './game/geometry.js'
+import { clamp, closestPointOnSegment, constrainToField, distance, facePoint, normalize, pointInPolygon } from './game/geometry.js'
 import {
   canReceiveNewPin,
   createPlayer,
@@ -149,6 +149,30 @@ document.querySelector('#app').innerHTML = `
             <strong>Pompfen: Stab, Q-Tip, Schild und Kette</strong>
             <span class="technik-dot"></span>
             <strong>Schilde blocken frontal besser</strong>
+            <span class="pin-dot"></span>
+            <strong>5 Steine inaktiv, danach kurzer Satz</strong>
+            <span class="technik-dot"></span>
+            <strong>Schlaege: Technik-Verhaeltnis entscheidet</strong>
+            <span class="match-dot"></span>
+            <strong>Schlag 0,1s, Doppelfenster 0,3s</strong>
+            <span class="match-dot"></span>
+            <strong>Cooldown verhindert Doppel</strong>
+            <span class="speed-dot"></span>
+            <strong>Laufender Schlag: -25 Prozentpunkte</strong>
+            <span class="runner-dot"></span>
+            <strong>Laeufer blocken nicht: +75 Prozentpunkte</strong>
+            <span class="jugg-dot"></span>
+            <strong>Laeufer-Duelle um Jugg per Technik</strong>
+            <span class="perception-dot"></span>
+            <strong>Calls folgen ueber Wahrnehmung</strong>
+            <span class="pompfer-dot"></span>
+            <strong>Ketten pinnen nicht und treffen nicht durch Spieler</strong>
+            <span class="pompfer-dot"></span>
+            <strong>Kettenband blockiert waehrend Rueckzug</strong>
+            <span class="pompfer-dot"></span>
+            <strong>Kettentreffer: doppelte Nachladezeit</strong>
+            <span class="pompfer-dot"></span>
+            <strong>Nahpompfen treffen Ketten immer</strong>
           </div>
         </details>
       </aside>
@@ -215,6 +239,14 @@ const state = {
 }
 
 const CHAIN_STRIKE_VISUAL_DURATION = 0.52
+const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
+const CHAIN_BLOCKER_PADDING = 8
+const CHAIN_BAND_VISUAL = {
+  handleX: 12,
+  handleY: -12,
+  orbitRadius: 58,
+  strikeRadius: 94,
+}
 
 function applyBlueSkills() {
   for (const player of state.players) {
@@ -597,7 +629,7 @@ function announceDouble(attacker, target) {
 function queueDoubleParticipant(player, stones) {
   if (!player || isInactive(player)) return
 
-  if (player.attackWindup > 0 || player.doubleWindow > 0) {
+  if (canDouble(player)) {
     player.pendingInactiveStones = Math.max(player.pendingInactiveStones, stones)
     player.vx = 0
     player.vy = 0
@@ -608,9 +640,13 @@ function queueDoubleParticipant(player, stones) {
   makeInactive(player, stones)
 }
 
+function canDouble(player) {
+  return !isInactive(player) && player.attackCooldown <= 0 && (player.attackWindup > 0 || player.doubleWindow > 0)
+}
+
 function queueInactive(player, stones = HIT_STONES, source = null) {
-  if ((player.attackWindup > 0 || player.doubleWindow > 0) && !isInactive(player)) {
-    if (source && source !== player && !isInactive(source)) {
+  if (canDouble(player)) {
+    if (source && source !== player && canDouble(source)) {
       announceDouble(source, player)
       queueDoubleParticipant(source, stones)
     }
@@ -718,6 +754,97 @@ function isRunnerInJuggContest(player) {
   return Boolean(state.jugg.contest?.runners.includes(player))
 }
 
+function distanceToSegmentWithT(point, start, end) {
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared <= 0.001) return { distance: distance(point, start), t: 0 }
+  const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared, 0, 1)
+  const x = start.x + dx * t
+  const y = start.y + dy * t
+  return {
+    distance: Math.hypot(point.x - x, point.y - y),
+    t,
+  }
+}
+
+function chainPhaseForPlayer(player) {
+  const idNumber = Number(player.id.split('-')[1]) || 0
+  return idNumber * 1.37 + (player.team === 'blue' ? 0 : Math.PI)
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+}
+
+function chainOrbitBall(player) {
+  const speed = Math.hypot(player.vx, player.vy)
+  const phase = chainPhaseForPlayer(player)
+  const direction = player.team === 'blue' ? 1 : -1
+  const frequency = speed > 20 ? 7.2 : 5.4
+  const angle = state.roundTime * frequency * direction + phase
+  const pulse = Math.sin(state.roundTime * 4 + phase) * 3
+  const radius = CHAIN_BAND_VISUAL.orbitRadius + pulse
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
+  }
+}
+
+function chainStrikeBall(player) {
+  const target = player.chainStrikeTarget
+  const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * CHAIN_BAND_VISUAL.strikeRadius
+  const targetY = target?.y ?? player.chainStrikeY ?? player.y + Math.sin(player.angle) * CHAIN_BAND_VISUAL.strikeRadius
+  const dx = targetX - player.x
+  const dy = targetY - player.y
+  const cos = Math.cos(-player.angle)
+  const sin = Math.sin(-player.angle)
+  const localX = dx * cos - dy * sin
+  const localY = dx * sin + dy * cos
+  const localDistance = Math.hypot(localX, localY) || 1
+  const radius = clamp(localDistance, CHAIN_BAND_VISUAL.orbitRadius * 0.85, CHAIN_BAND_VISUAL.strikeRadius)
+  return {
+    x: (localX / localDistance) * radius,
+    y: (localY / localDistance) * radius,
+  }
+}
+
+function chainBallLocal(player) {
+  const orbit = chainOrbitBall(player)
+  const duration = player.chainStrikeDuration || 0
+  const progress = duration > 0 && player.chainStrikeTimer > 0 ? clamp(1 - player.chainStrikeTimer / duration, 0, 1) : 1
+  if (progress >= 1) return orbit
+
+  const target = chainStrikeBall(player)
+  let mix = 0
+  if (progress < 0.4) {
+    mix = easeInOut(progress / 0.4)
+  } else if (progress < 0.78) {
+    mix = 1 - easeInOut((progress - 0.4) / 0.38)
+  }
+
+  return {
+    x: orbit.x + (target.x - orbit.x) * mix,
+    y: orbit.y + (target.y - orbit.y) * mix,
+  }
+}
+
+function localToWorld(player, point) {
+  const cos = Math.cos(player.angle)
+  const sin = Math.sin(player.angle)
+  return {
+    x: player.x + point.x * cos - point.y * sin,
+    y: player.y + point.x * sin + point.y * cos,
+  }
+}
+
+function chainBandSegment(player) {
+  return {
+    start: localToWorld(player, { x: CHAIN_BAND_VISUAL.handleX, y: CHAIN_BAND_VISUAL.handleY }),
+    end: localToWorld(player, chainBallLocal(player)),
+  }
+}
+
 function movePlayer(player, dt) {
   if (isRunnerInJuggContest(player)) {
     player.vx = 0
@@ -770,13 +897,69 @@ function separatePlayers() {
   }
 }
 
+function resolveChainBandCollisions() {
+  const chainPlayers = state.players.filter((player) => player.pompfe === 'chain' && player.chainStrikeTimer > 0 && !isInactive(player))
+  if (chainPlayers.length <= 0) return
+
+  for (const chainPlayer of chainPlayers) {
+    const segment = chainBandSegment(chainPlayer)
+    const sx = segment.end.x - segment.start.x
+    const sy = segment.end.y - segment.start.y
+    const segmentLength = Math.hypot(sx, sy)
+    if (segmentLength < 24) continue
+
+    for (const player of state.players) {
+      if (player === chainPlayer) continue
+      const closest = closestPointOnSegment(player, segment.start, segment.end)
+      const dx = player.x - closest.x
+      const dy = player.y - closest.y
+      const d = Math.hypot(dx, dy)
+      const bandRadius = player.radius + CHAIN_BLOCKER_PADDING
+      const overlap = bandRadius - d
+      if (overlap <= 0) continue
+
+      const fallback = { x: -sy / segmentLength, y: sx / segmentLength }
+      const nx = d > 0.001 ? dx / d : fallback.x
+      const ny = d > 0.001 ? dy / d : fallback.y
+      const mobility = player.pinnedBy || isGrappling(player) ? 0 : isInactive(player) ? 0.25 : 1
+      if (mobility <= 0) continue
+
+      player.x += nx * overlap * mobility
+      player.y += ny * overlap * mobility
+      const intoBand = player.vx * nx + player.vy * ny
+      if (intoBand < 0) {
+        player.vx -= intoBand * nx
+        player.vy -= intoBand * ny
+      }
+      constrainToField(player, player.radius)
+    }
+  }
+}
+
 function hitChance(attacker, target) {
+  if (attacker.pompfe !== 'chain' && target.pompfe === 'chain' && isPompfer(attacker) && isPompfer(target)) return 1
+
   const profile = pompfeFor(attacker)
   const shieldBonus = isShieldBlockFacing(target, attacker) ? pompfeFor(target).shieldBlockBonus : 0
   let chance = attacker.technik / (attacker.technik + target.technik + shieldBonus)
   if (isRunner(target)) chance += profile.runnerHitBonus
   if (attacker.attackWhileMoving) chance -= profile.runningAttackPenalty
   return clamp(chance, 0.02, 0.98)
+}
+
+function chainAttackBlocked(attacker, target) {
+  if (attacker.pompfe !== 'chain') return false
+
+  const start = { x: attacker.x, y: attacker.y }
+  const end = { x: target.x, y: target.y }
+  for (const blocker of state.players) {
+    if (blocker === attacker || blocker === target) continue
+    const hit = distanceToSegmentWithT(blocker, start, end)
+    if (hit.t <= 0.08 || hit.t >= 0.96) continue
+    if (hit.distance <= blocker.radius + CHAIN_BLOCKER_PADDING) return true
+  }
+
+  return false
 }
 
 function techniqueContestChance(challenger, defender) {
@@ -855,7 +1038,7 @@ function findStrikeTarget(attacker) {
   if (attacker.attackTarget && attacker.attackTarget.team !== attacker.team && !isInactive(attacker.attackTarget)) {
     const target = attacker.attackTarget
     const range = attackRangeFor(attacker, target)
-    if (isInAttackArc(attacker, target, range)) return target
+    if (isInAttackArc(attacker, target, range) && !chainAttackBlocked(attacker, target)) return target
   }
 
   for (const target of state.players) {
@@ -864,7 +1047,7 @@ function findStrikeTarget(attacker) {
     const range = attackRangeFor(attacker, target)
     const inArc = isInAttackArc(attacker, target, range)
     const score = d - (isRunner(target) ? 24 : 0)
-    if (d < range && inArc && score < bestScore) {
+    if (d < range && inArc && !chainAttackBlocked(attacker, target) && score < bestScore) {
       best = target
       bestScore = score
     }
@@ -888,6 +1071,9 @@ function resolveStrikeEvents(events) {
   }
 
   for (const hit of hits) {
+    if (hit.attacker.pompfe === 'chain') {
+      hit.attacker.attackCooldown = Math.max(hit.attacker.attackCooldown, ATTACK_COOLDOWN * CHAIN_HIT_COOLDOWN_MULTIPLIER)
+    }
     queueInactive(hit.target, HIT_STONES, hit.attacker)
     burst(hit.target.x, hit.target.y, TEAMS[hit.attacker.team].color, 8)
   }
@@ -1335,6 +1521,7 @@ function update(dt) {
 
   try {
     separatePlayers()
+    resolveChainBandCollisions()
     resolveStrikeEvents(strikeEvents)
     resolvePins()
     updateJugg(dt)

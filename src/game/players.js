@@ -1,6 +1,8 @@
 import {
   PLAYER_RADIUS,
   PLAYER_POSITIONS,
+  PIN_MIN_COUNTED_STONES,
+  PLAYER_STRATEGIES,
   PLAYER_SKILLS,
   SPEED_BASE,
   SPEED_PER_POINT,
@@ -34,7 +36,7 @@ export function isInactive(player) {
 }
 
 export function canReceiveNewPin(player) {
-  return player.penaltyStones > 0 && !player.pinnedBy && player.pinLock <= 0
+  return player.penaltyStones > 0 && player.countedStones >= PIN_MIN_COUNTED_STONES && !player.pinnedBy && player.pinLock <= 0
 }
 
 export function isRecoveryDashing(player) {
@@ -82,6 +84,10 @@ export function createPlayer(team, index, role) {
     positionSlot,
     pompfe,
     pompfeLabel: pompfeFor({ pompfe }).label,
+    strategy: PLAYER_STRATEGIES[team]?.[index] ?? 'none',
+    strategyTriggered: false,
+    defensiveStrategyDone: false,
+    flankTimer: 0,
     x: spawn.x,
     y: spawn.y,
     vx: 0,

@@ -32,7 +32,9 @@ import {
   START_POSITIONS,
   STONE_SECONDS,
   TEAM_LOADOUTS,
+  TEAM_STRATEGIES,
   TEAMS,
+  PLAYER_STRATEGIES,
   fieldPoint,
 } from './game/config.js'
 import { clamp, closestPointOnSegment, constrainToField, distance, nearestFieldBoundary, normalize, pointInPolygon } from './game/geometry.js'
@@ -52,6 +54,20 @@ import {
   statsFromSkill,
 } from './game/players.js'
 import { POMPFEN, attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor } from './game/pompfen.js'
+import {
+  DEFENSIVE_HIT_MODIFIER,
+  AGGRESSIVE_DOUBLE_WINDOW_FACTOR,
+  FLANK_DURATION,
+  FLANK_TRIGGER_ROUND_TIME,
+  PLAYER_STRATEGY_OPTIONS,
+  TEAM_STRATEGY_OPTIONS,
+  doubleWindowFactorFor,
+  isAggressiveStrategyPlayer,
+  isDefensiveStrategyPlayer,
+  normalizeTeamStrategy,
+  playerStrategyLabel,
+  teamStrategyLabel,
+} from './game/strategies.js'
 
 document.querySelector('#app').innerHTML = `
   <div class="game-shell">
@@ -174,6 +190,16 @@ document.querySelector('#app').innerHTML = `
             <strong>Kettentreffer: doppelte Nachladezeit</strong>
             <span class="pompfer-dot"></span>
             <strong>Nahpompfen treffen Ketten immer</strong>
+            <span class="perception-dot"></span>
+            <strong>Teamstrategien steuern das Anlaufen</strong>
+            <span class="match-dot"></span>
+            <strong>Nach Punkten: 10s Strategiepause</strong>
+            <span class="technik-dot"></span>
+            <strong>Defensiv: schwerer zu treffen, trifft aber schlechter</strong>
+            <span class="match-dot"></span>
+            <strong>Aggressiv: deutlich kleineres Doppelfenster</strong>
+            <span class="speed-dot"></span>
+            <strong>Umlaufen: nach klarem Ersttreffer in den Ruecken</strong>
           </div>
         </details>
       </aside>
@@ -208,6 +234,7 @@ const BLUE_POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
 const CAMERA_MIN_ZOOM = 1
 const CAMERA_MAX_ZOOM = 4
 const CAMERA_ZOOM_STEP = 1.18
+const ROUND_BREAK_SECONDS = 10
 
 const state = {
   running: false,
@@ -220,6 +247,9 @@ const state = {
   particles: [],
   message: 'Bereit',
   messageTimer: 0,
+  roundBreakTimer: 0,
+  roundBreakLabel: '',
+  nextTeamStrategies: { blue: 'standard', red: 'standard' },
   roundTime: 0,
   stoneTimer: 0,
   stoneCount: 0,
@@ -349,6 +379,55 @@ function setBluePompfe(index, pompfe) {
   updatePlayerTooltip()
 }
 
+function resetStrategyState(player) {
+  player.strategyTriggered = false
+  player.defensiveStrategyDone = false
+  player.flankTimer = 0
+}
+
+function applyNextTeamStrategies({ resetOpening = false } = {}) {
+  for (const team of Object.keys(TEAM_STRATEGIES)) {
+    TEAM_STRATEGIES[team] = normalizeTeamStrategy(state.nextTeamStrategies[team])
+  }
+
+  for (const player of state.players) {
+    if (resetOpening) player.openingComplete = false
+    resetStrategyState(player)
+  }
+}
+
+function resetNextTeamStrategies() {
+  state.nextTeamStrategies.blue = 'standard'
+  state.nextTeamStrategies.red = 'standard'
+}
+
+function setBlueTeamStrategy(strategy) {
+  state.nextTeamStrategies.blue = normalizeTeamStrategy(strategy)
+  if (!state.running) {
+    TEAM_STRATEGIES.blue = state.nextTeamStrategies.blue
+    for (const player of state.players) {
+      if (player.team !== 'blue') continue
+      player.openingComplete = false
+      resetStrategyState(player)
+    }
+  }
+  renderSkillPanel()
+  updatePlayerTooltip()
+}
+
+function setBluePlayerStrategy(index, strategy) {
+  const availableStrategies = playerStrategyOptionsForIndex(index)
+  if (!availableStrategies.some((option) => option.id === strategy)) strategy = 'none'
+  PLAYER_STRATEGIES.blue[index] = strategy
+  const player = state.players.find((candidate) => candidate.team === 'blue' && playerIndex(candidate) === index)
+  if (player) {
+    player.strategy = strategy
+    resetStrategyState(player)
+  }
+  renderSkillPanel()
+  updatePlayerTooltip()
+}
+
 function setBlueSkill(index, key, delta) {
   const skill = PLAYER_SKILLS.blue[index]
   const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
@@ -370,46 +449,83 @@ function setBlueSkill(index, key, delta) {
   renderSkillPanel()
 }
 
+function playerStrategyOptionsForIndex(index) {
+  return index === 0 ? PLAYER_STRATEGY_OPTIONS.filter((option) => option.id === 'none') : PLAYER_STRATEGY_OPTIONS
+}
+
 function renderSkillPanel() {
   const chainOwner = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
-  hud.skillList.innerHTML = PLAYER_SKILLS.blue
+  const currentTeamStrategy = normalizeTeamStrategy(state.nextTeamStrategies.blue)
+  const strategyControl = `
+    <article class="skill-row strategy-row">
+      <header>
+        <span>Teamstrategie naechster Zug</span>
+        <strong>${teamStrategyLabel(currentTeamStrategy)}</strong>
+      </header>
+      <label class="position-control">
+        <span>Strategie</span>
+        <select data-team-strategy>
+          ${TEAM_STRATEGY_OPTIONS.map(
+            (option) => `<option value="${option.id}" ${currentTeamStrategy === option.id ? 'selected' : ''}>${option.label}</option>`,
+          ).join('')}
+        </select>
+      </label>
+    </article>
+  `
+  const skillRows = PLAYER_SKILLS.blue
     .map((skill, index) => {
       const stats = statsFromSkill(skill)
       const spent = skill.technik + skill.geschwindigkeit + skill.wahrnehmung
-      const positionControl =
-        index > 0
-          ? `
+      const playerStrategyOptions = playerStrategyOptionsForIndex(index)
+      const currentPlayerStrategy = playerStrategyOptions.some((option) => option.id === PLAYER_STRATEGIES.blue[index])
+        ? PLAYER_STRATEGIES.blue[index]
+        : 'none'
+      const loadoutControls = `
           <div class="loadout-controls">
+            ${
+              index > 0
+                ? `
+                  <label class="position-control">
+                    <span>Position</span>
+                    <select data-player="${index}" data-position>
+                      ${Object.entries(POSITION_LABELS)
+                        .map(
+                          ([slot, label]) =>
+                            `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`,
+                        )
+                        .join('')}
+                    </select>
+                  </label>
+                  <label class="position-control">
+                    <span>Pompfe</span>
+                    <select data-player="${index}" data-pompfe>
+                      ${BLUE_POMPFEN_OPTIONS.map((option) => {
+                        const disabled = option === 'chain' && chainOwner > 0 && chainOwner !== index
+                        return `<option value="${option}" ${TEAM_LOADOUTS.blue[index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
+                      }).join('')}
+                    </select>
+                  </label>
+                `
+                : ''
+            }
             <label class="position-control">
-              <span>Position</span>
-              <select data-player="${index}" data-position>
-                ${Object.entries(POSITION_LABELS)
-                  .map(
-                    ([slot, label]) =>
-                      `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`,
-                  )
-                  .join('')}
-              </select>
-            </label>
-            <label class="position-control">
-              <span>Pompfe</span>
-              <select data-player="${index}" data-pompfe>
-                ${BLUE_POMPFEN_OPTIONS.map((option) => {
-                  const disabled = option === 'chain' && chainOwner > 0 && chainOwner !== index
-                  return `<option value="${option}" ${TEAM_LOADOUTS.blue[index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
-                }).join('')}
+              <span>Technik</span>
+              <select data-player="${index}" data-player-strategy>
+                ${playerStrategyOptions.map(
+                  (option) =>
+                    `<option value="${option.id}" ${currentPlayerStrategy === option.id ? 'selected' : ''}>${option.label}</option>`,
+                ).join('')}
               </select>
             </label>
           </div>
         `
-          : ''
       return `
         <article class="skill-row">
           <header>
             <span>${roleLabel(index)}</span>
             <strong>${spent}/${SKILL_POINTS_PER_PLAYER}</strong>
           </header>
-          ${positionControl}
+          ${loadoutControls}
           <div class="skill-control">
             <span>T</span>
             <button type="button" data-player="${index}" data-skill="technik" data-delta="-1" ${skill.technik <= 0 ? 'disabled' : ''}>-</button>
@@ -435,6 +551,7 @@ function renderSkillPanel() {
       `
     })
     .join('')
+  hud.skillList.innerHTML = strategyControl + skillRows
 }
 
 function setupTeams() {
@@ -463,19 +580,41 @@ function resetJugg() {
 }
 
 function resetRound(message = 'Los') {
+  applyNextTeamStrategies({ resetOpening: true })
   setupTeams()
   resetJugg()
+  state.roundBreakTimer = 0
   state.roundTime = 0
   state.message = message
   state.messageTimer = 1.5
 }
 
+function beginRoundBreak(message) {
+  resetNextTeamStrategies()
+  state.roundBreakTimer = ROUND_BREAK_SECONDS
+  state.roundBreakLabel = message
+  state.message = `${message} - Strategiepause ${ROUND_BREAK_SECONDS}`
+  state.messageTimer = ROUND_BREAK_SECONDS
+  state.jugg.carrier = null
+  state.jugg.contest = null
+  for (const player of state.players) {
+    player.vx = 0
+    player.vy = 0
+  }
+  renderSkillPanel()
+}
+
 function resetMatch() {
+  resetNextTeamStrategies()
+  TEAM_STRATEGIES.blue = 'standard'
+  TEAM_STRATEGIES.red = 'standard'
   state.score.blue = 0
   state.score.red = 0
   state.timeLeft = MATCH_SECONDS
   state.running = false
   state.paused = false
+  state.roundBreakTimer = 0
+  state.roundBreakLabel = ''
   state.camera.x = 0
   state.camera.y = 0
   state.camera.zoom = 1
@@ -504,6 +643,7 @@ function setPlaybackSpeed(speed) {
 
 function startMatch() {
   if (state.timeLeft <= 0 || state.score.blue >= MATCH_POINT || state.score.red >= MATCH_POINT) resetMatch()
+  if (!state.running) applyNextTeamStrategies({ resetOpening: true })
   state.running = true
   state.paused = false
   state.message = 'Spiel laeuft'
@@ -552,7 +692,7 @@ function attack(player, target = null) {
   player.attackWhileMoving = Math.hypot(player.vx, player.vy) > RUNNING_ATTACK_SPEED_THRESHOLD
   player.attack = ATTACK_DURATION
   player.attackWindup = ATTACK_DURATION
-  player.doubleWindow = DOUBLE_HIT_WINDOW
+  player.doubleWindow = DOUBLE_HIT_WINDOW * doubleWindowFactorFor(player)
 
   if (player.pompfe === 'chain') {
     const chainTarget = player.attackTarget
@@ -671,6 +811,7 @@ function makeInactive(player, stones = HIT_STONES) {
   player.callBubbleTimer = 0
   player.callBubbleText = ''
   player.callMissTimer = 0
+  player.flankTimer = 0
   player.doublePinTrapTarget = null
   player.doublePinReleaseTarget = null
   player.doublePinReleasePause = 0
@@ -704,9 +845,40 @@ function canDouble(player) {
   return !isInactive(player) && player.attackCooldown <= 0 && (player.attackWindup > 0 || player.doubleWindow > 0)
 }
 
+function canDoubleAgainst(player, source = null) {
+  if (!canDouble(player)) return false
+  if (player.attackWindup > 0) return true
+  if (source && isAggressiveStrategyPlayer(source)) {
+    return player.doubleWindow > DOUBLE_HIT_WINDOW * (1 - AGGRESSIVE_DOUBLE_WINDOW_FACTOR)
+  }
+  return true
+}
+
+function oppositePlayerFor(player) {
+  const enemyTeam = player.team === 'blue' ? 'red' : 'blue'
+  const index = playerIndex(player)
+  return state.players.find((other) => other.team === enemyTeam && playerIndex(other) === index)
+}
+
+function enemyRunnerInOwnHalfFor(player) {
+  const enemyRunner = state.players.find((other) => other.team !== player.team && isRunner(other) && !isInactive(other))
+  if (!enemyRunner) return false
+  return player.team === 'blue' ? enemyRunner.x < FIELD.center.x : enemyRunner.x > FIELD.center.x
+}
+
+function defensiveBindingActiveFor(player) {
+  if (!isDefensiveStrategyPlayer(player) || player.defensiveStrategyDone) return false
+  const opponent = oppositePlayerFor(player)
+  if ((opponent && isInactive(opponent)) || enemyRunnerInOwnHalfFor(player)) {
+    player.defensiveStrategyDone = true
+    return false
+  }
+  return Boolean(opponent && !isInactive(opponent))
+}
+
 function queueInactive(player, stones = HIT_STONES, source = null) {
-  if (canDouble(player)) {
-    if (source && source !== player && canDouble(source)) {
+  if (canDoubleAgainst(player, source)) {
+    if (source && source !== player && canDoubleAgainst(source, player)) {
       announceDouble(source, player)
       queueDoubleParticipant(source, stones)
     }
@@ -1036,11 +1208,22 @@ function hitChance(attacker, target) {
   if (attacker.pompfe !== 'chain' && target.pompfe === 'chain' && isPompfer(attacker) && isPompfer(target)) return 1
 
   const profile = pompfeFor(attacker)
-  const shieldBonus = isShieldBlockFacing(target, attacker) ? pompfeFor(target).shieldBlockBonus : 0
+  const backHit = isBackHit(attacker, target)
+  const shieldBonus = !backHit && isShieldBlockFacing(target, attacker) ? pompfeFor(target).shieldBlockBonus : 0
   let chance = attacker.technik / (attacker.technik + target.technik + shieldBonus)
   if (isRunner(target)) chance += profile.runnerHitBonus
   if (attacker.attackWhileMoving) chance -= profile.runningAttackPenalty
+  if (isDefensiveStrategyPlayer(attacker) && !attacker.defensiveStrategyDone) chance -= DEFENSIVE_HIT_MODIFIER
+  if (isDefensiveStrategyPlayer(target) && !target.defensiveStrategyDone) chance -= DEFENSIVE_HIT_MODIFIER
+  if (backHit) chance *= 2
   return clamp(chance, 0.02, 0.98)
+}
+
+function isBackHit(attacker, target) {
+  const hitAngle = Math.atan2(attacker.y - target.y, attacker.x - target.x)
+  const rearAngle = target.angle + Math.PI
+  const rearDelta = Math.abs(Math.atan2(Math.sin(hitAngle - rearAngle), Math.cos(hitAngle - rearAngle)))
+  return rearDelta < 1.05
 }
 
 function chainAttackBlocked(attacker, target) {
@@ -1152,6 +1335,17 @@ function findStrikeTarget(attacker) {
   return best
 }
 
+function triggerFlankStrategy(attacker, target) {
+  if (!attacker || !target || attacker.strategy !== 'flank' || attacker.strategyTriggered) return
+  if (!isPompfer(attacker) || state.roundTime > FLANK_TRIGGER_ROUND_TIME) return
+  if (canDoubleAgainst(target, attacker)) return
+
+  attacker.strategyTriggered = true
+  attacker.flankTimer = FLANK_DURATION
+  attacker.callBubbleText = 'Umlaufen!'
+  attacker.callBubbleTimer = 1
+}
+
 function resolveStrikeEvents(events) {
   const hits = []
 
@@ -1170,6 +1364,7 @@ function resolveStrikeEvents(events) {
     if (hit.attacker.pompfe === 'chain') {
       hit.attacker.attackCooldown = Math.max(hit.attacker.attackCooldown, ATTACK_COOLDOWN * CHAIN_HIT_COOLDOWN_MULTIPLIER)
     }
+    triggerFlankStrategy(hit.attacker, hit.target)
     queueInactive(hit.target, HIT_STONES, hit.attacker)
     burst(hit.target.x, hit.target.y, TEAMS[hit.attacker.team].color, 8)
   }
@@ -1192,6 +1387,8 @@ function resolvePins() {
       !isPompfer(pinner) ||
       !canPinWithPompfe(pinner) ||
       isInactive(pinner) ||
+      defensiveBindingActiveFor(pinner) ||
+      pinner.flankTimer > 0 ||
       pinner.callType === 'hilfmir' ||
       pinner.doublePinReleasePause > 0 ||
       target.team === pinner.team ||
@@ -1210,6 +1407,8 @@ function resolvePins() {
 
   for (const pinner of state.players) {
     if (!isPompfer(pinner) || !canPinWithPompfe(pinner) || isInactive(pinner)) continue
+    if (defensiveBindingActiveFor(pinner)) continue
+    if (pinner.flankTimer > 0) continue
     if (pinner.callType === 'hilfmir') continue
     if (pinner.doublePinReleasePause > 0 || pinner.doublePinTrapTarget) continue
     if (assignedPinners.has(pinner)) continue
@@ -1495,7 +1694,7 @@ function checkScoring() {
       return
     }
 
-    resetRound(state.message)
+    beginRoundBreak(state.message)
   }
 }
 
@@ -1516,6 +1715,28 @@ function updateTimers(dt) {
     state.message = state.score.blue === state.score.red ? 'Unentschieden' : state.score.blue > state.score.red ? 'Blau gewinnt' : 'Rot gewinnt'
     state.messageTimer = 99
   }
+}
+
+function updateRoundBreak(dt) {
+  if (state.roundBreakTimer <= 0) return false
+  const realDt = dt / Math.max(state.playbackSpeed, 0.001)
+  state.roundBreakTimer = Math.max(0, state.roundBreakTimer - realDt)
+  const seconds = Math.ceil(state.roundBreakTimer)
+  state.message = seconds > 0 ? `${state.roundBreakLabel} - Strategiepause ${seconds}` : 'Neuer Zug'
+  state.messageTimer = 0.4
+
+  for (const player of state.players) {
+    player.vx = 0
+    player.vy = 0
+  }
+
+  if (state.roundBreakTimer <= 0) {
+    state.roundBreakLabel = ''
+    resetRound('Neuer Zug')
+  }
+
+  updateParticles(dt)
+  return true
 }
 
 function burst(x, y, color, amount) {
@@ -1551,6 +1772,8 @@ function update(dt) {
     return
   }
 
+  if (updateRoundBreak(dt)) return
+
   updateTimers(dt)
   state.teamCallCooldowns.blue = Math.max(0, state.teamCallCooldowns.blue - dt)
   state.teamCallCooldowns.red = Math.max(0, state.teamCallCooldowns.red - dt)
@@ -1574,6 +1797,7 @@ function update(dt) {
       player.callTimer = Math.max(0, player.callTimer - dt)
       player.callBubbleTimer = Math.max(0, player.callBubbleTimer - dt)
       player.callMissTimer = Math.max(0, player.callMissTimer - dt)
+      player.flankTimer = Math.max(0, player.flankTimer - dt)
       player.doublePinReleasePause = Math.max(0, player.doublePinReleasePause - dt)
       if (player.callBubbleTimer <= 0) player.callBubbleText = ''
       if (player.callTimer <= 0) {
@@ -1674,7 +1898,7 @@ function updateHud() {
   hud.blueScore.textContent = state.score.blue
   hud.redScore.textContent = state.score.red
   hud.clock.textContent = formatClock(state.timeLeft)
-  hud.matchState.textContent = state.paused ? 'Pause' : state.running ? 'Autobattler live' : state.message
+  hud.matchState.textContent = state.paused ? 'Pause' : state.roundBreakTimer > 0 ? 'Strategiepause' : state.running ? 'Autobattler live' : state.message
   hud.possession.textContent = possession
   hud.pins.textContent = pinCount
   hud.inactive.textContent = inactiveCount
@@ -1776,6 +2000,7 @@ function updatePlayerTooltip() {
     <div><span>Wahrnehmung</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} SP</small></div>
     <div><span>Pompfe</span><strong>${pompfe ? pompfe.label : 'Jugg'}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
     <div><span>Position</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? `Slot ${playerPositionSlot(player)}` : 'Laeufer'}</small></div>
+    <div><span>Strategie</span><strong>${playerStrategyLabel(player.strategy ?? 'none')}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
     <div><span>Status</span><strong>${inactive ? 'inaktiv' : 'aktiv'}</strong><small>${statusDetail}</small></div>
   `
   hud.playerTooltip.hidden = false
@@ -1828,9 +2053,21 @@ function bindInput() {
     setBlueSkill(Number(button.dataset.player), button.dataset.skill, Number(button.dataset.delta))
   })
   hud.skillList.addEventListener('change', (event) => {
+    const teamStrategySelect = event.target.closest('select[data-team-strategy]')
+    if (teamStrategySelect) {
+      setBlueTeamStrategy(teamStrategySelect.value)
+      return
+    }
+
     const positionSelect = event.target.closest('select[data-position]')
     if (positionSelect) {
       setBluePosition(Number(positionSelect.dataset.player), Number(positionSelect.value))
+      return
+    }
+
+    const playerStrategySelect = event.target.closest('select[data-player-strategy]')
+    if (playerStrategySelect) {
+      setBluePlayerStrategy(Number(playerStrategySelect.dataset.player), playerStrategySelect.value)
       return
     }
 

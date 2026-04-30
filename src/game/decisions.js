@@ -19,12 +19,16 @@ import {
 import { clamp, distance, normalize } from './geometry.js'
 import { canReceiveNewPin, isGrappling, isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot } from './players.js'
 import { attackRangeFor, canPinWithPompfe, isInAttackArc, maxPompfeAttackRange } from './pompfen.js'
+import { isDefensiveStrategyPlayer, openingStrategyPoint, teamStrategy } from './strategies.js'
 
 const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
 const SIDE_PRESSURE_CURVE_STEPS = 9
 const DOUBLE_PIN_RANGE_FACTOR = 0.95
 const CHAIN_GUARD_RANGE_FACTOR = 0.9
+const CHAIN_COOLDOWN_THREAT_RANGE = 260
+const CHAIN_COOLDOWN_RETREAT_DISTANCE = 170
+const FLANK_CURVE_REACHED_DISTANCE = 38
 const FULL_TURN_SECONDS = 0.75
 const TURN_RATE = (Math.PI * 2) / FULL_TURN_SECONDS
 const SIDE_PRESSURE_LANES = {
@@ -77,6 +81,8 @@ export function createDecisionEngine({ state, attack }) {
       canPinWithPompfe(player) &&
       !isInactive(player) &&
       !player.pinTarget &&
+      !defensiveBindingActive(player) &&
+      player.flankTimer <= 0 &&
       player.callType !== 'hilfmir' &&
       player.doublePinReleasePause <= 0 &&
       !player.doublePinTrapTarget
@@ -115,6 +121,24 @@ export function createDecisionEngine({ state, attack }) {
     const enemyTeam = player.team === 'blue' ? 'red' : 'blue'
     return state.players.find((other) => other.team === enemyTeam && playerIndex(other) === index)
   }
+
+  function enemyRunnerInOwnHalf(player) {
+    const enemyRunner = state.players.find((other) => other.team !== player.team && isRunner(other) && !isInactive(other))
+    if (!enemyRunner) return false
+    return player.team === 'blue' ? enemyRunner.x < FIELD.center.x : enemyRunner.x > FIELD.center.x
+  }
+
+  function defensiveBindingActive(player) {
+    if (!isDefensiveStrategyPlayer(player) || player.defensiveStrategyDone) return false
+
+    const opponent = oppositePlayer(player)
+    if ((opponent && isInactive(opponent)) || enemyRunnerInOwnHalf(player)) {
+      player.defensiveStrategyDone = true
+      return false
+    }
+
+    return Boolean(opponent && !isInactive(opponent))
+  }
   
   function openingFanPoint(player) {
     const slot = playerPositionSlot(player)
@@ -125,12 +149,16 @@ export function createDecisionEngine({ state, attack }) {
   
   function openingRushTarget(player) {
     if (player.openingComplete) return null
-    if (state.roundTime > OPENING_RUSH_SECONDS || state.jugg.carrier) {
+    const strategyPoint = openingStrategyPoint(player)
+    const openingDuration = strategyPoint ? OPENING_RUSH_SECONDS * 1.25 : OPENING_RUSH_SECONDS
+    if (state.roundTime > openingDuration || state.jugg.carrier) {
       player.openingComplete = true
       return null
     }
   
-    const fanPoint = openingFanPoint(player)
+    const fanPoint = strategyPoint || openingFanPoint(player)
+    if (isRunner(player) && teamStrategy(player.team) === 'wide_line') return fanPoint
+
     if (distance(player, fanPoint) <= OPENING_FAN_REACHED_RADIUS) {
       player.openingComplete = true
       return null
@@ -682,6 +710,82 @@ export function createDecisionEngine({ state, attack }) {
       y: watched.y + dir.y * guardDistance,
     }
   }
+
+  function chainCooldownThreat(chainPlayer) {
+    if (!isChain(chainPlayer) || chainPlayer.attackCooldown <= 0) return null
+
+    return state.players
+      .filter((enemy) => enemy.team !== chainPlayer.team && isPompfer(enemy) && !isInactive(enemy))
+      .map((enemy) => {
+        const d = distance(chainPlayer, enemy)
+        const towardChain = normalize(chainPlayer.x - enemy.x, chainPlayer.y - enemy.y)
+        const closingSpeed = enemy.vx * towardChain.x + enemy.vy * towardChain.y
+        return { enemy, distance: d, closingSpeed }
+      })
+      .filter(({ distance: d, closingSpeed }) => d < CHAIN_COOLDOWN_THREAT_RANGE && closingSpeed > 24)
+      .sort((a, b) => a.distance - b.distance)[0]?.enemy
+  }
+
+  function chainRetreatPoint(chainPlayer, threat) {
+    const away = normalize(chainPlayer.x - threat.x, chainPlayer.y - threat.y)
+    const ownMal = TEAMS[chainPlayer.team].mal
+    const towardOwnSide = normalize(ownMal.x - chainPlayer.x, ownMal.y - chainPlayer.y)
+    const laneBias = playerPositionSlot(chainPlayer) <= 2 ? { x: 0, y: -0.25 } : { x: 0, y: 0.25 }
+    const fallback = chainPlayer.team === 'blue' ? { x: -1, y: laneBias.y } : { x: 1, y: laneBias.y }
+    const retreat = normalize(away.x * 1.25 + towardOwnSide.x * 0.55 + laneBias.x, away.y * 1.25 + towardOwnSide.y * 0.55 + laneBias.y)
+
+    return {
+      x: chainPlayer.x + (retreat.x || fallback.x) * CHAIN_COOLDOWN_RETREAT_DISTANCE,
+      y: chainPlayer.y + (retreat.y || fallback.y) * CHAIN_COOLDOWN_RETREAT_DISTANCE,
+    }
+  }
+
+  function flankStrategyTarget(player) {
+    const flanks = state.players
+      .filter((enemy) => enemy.team !== player.team && !isInactive(enemy))
+      .map((enemy) => {
+        const range = attackRangeFor(player, enemy) * 0.72
+        const point = {
+          x: clamp(enemy.x - Math.cos(enemy.angle) * range, fieldPoint(1, 10).x, fieldPoint(FIELD.lengthMeters - 1, 10).x),
+          y: clamp(enemy.y - Math.sin(enemy.angle) * range, fieldPoint(20, 1.2).y, fieldPoint(20, FIELD.widthMeters - 1.2).y),
+        }
+        return { enemy, point, score: distance(player, point) - (isRunner(enemy) ? 20 : 0) }
+      })
+      .sort((a, b) => a.score - b.score)
+    const flank = flanks[0]
+    const laneOffset = playerPositionSlot(player) <= 2 ? -54 : 54
+    const fallback = fieldPoint(player.team === 'blue' ? 30 : 10, playerPositionSlot(player) <= 2 ? 5.4 : 14.6)
+
+    if (!flank) return { point: fallback, enemy: null }
+
+    const side = playerPositionSlot(player) <= 2 ? 'top' : 'bottom'
+    const sideY = side === 'top' ? fieldPoint(20, 1.6).y : fieldPoint(20, FIELD.widthMeters - 1.6).y
+    const entry = {
+      x: player.x + (flank.point.x - player.x) * 0.42,
+      y: sideY,
+    }
+    const curvePoint = Math.abs(player.y - sideY) > FLANK_CURVE_REACHED_DISTANCE ? entry : flank.point
+
+    return {
+      point:
+        Math.abs(curvePoint.y - flank.enemy.y) < 1
+          ? { x: curvePoint.x, y: clamp(curvePoint.y + laneOffset * 0.15, fieldPoint(20, 1.2).y, fieldPoint(20, FIELD.widthMeters - 1.2).y) }
+          : curvePoint,
+      enemy: flank.enemy,
+    }
+  }
+
+  function flankPathBlocker(player, flankPoint) {
+    return state.players
+      .filter((enemy) => enemy.team !== player.team && !isInactive(enemy))
+      .map((enemy) => ({
+        enemy,
+        pathDistance: distanceToSegment(enemy, player, flankPoint),
+        playerDistance: distance(player, enemy),
+      }))
+      .filter(({ enemy, pathDistance }) => pathDistance <= Math.max(PLAYER_RADIUS * 1.8, attackRangeFor(player, enemy) * 0.72))
+      .sort((a, b) => a.playerDistance - b.playerDistance)[0]?.enemy
+  }
   
   function updateAi(player, dt = 0) {
     const team = TEAMS[player.team]
@@ -699,7 +803,14 @@ export function createDecisionEngine({ state, attack }) {
       player.sidePressureFailedSide = null
     }
   
-    if (player.pinTarget && player.callType === 'hilfmir' && callTarget) {
+    if (player.flankTimer > 0 && isPompfer(player)) {
+      const flank = flankStrategyTarget(player)
+      target = flank.point
+      faceTarget = flank.enemy || target
+      const blocker = flankPathBlocker(player, flank.point)
+      const strikeTarget = blocker || flank.enemy || nearestActiveEnemy.target
+      if (canStrikeTarget(player, strikeTarget, 8)) attack(player, strikeTarget)
+    } else if (player.pinTarget && player.callType === 'hilfmir' && callTarget) {
       player.pinTarget = null
       target = callTarget
       faceTarget = callTarget
@@ -714,7 +825,7 @@ export function createDecisionEngine({ state, attack }) {
       }
     } else if (player.pinTarget) {
       target = pinOrbitPoint(player) || player
-      faceTarget = player.pinTarget
+      faceTarget = nearestActiveEnemy.target || player.pinTarget
       if (canStrikeTarget(player, nearestActiveEnemy.target, 8)) {
         target = nearestActiveEnemy.target
         faceTarget = nearestActiveEnemy.target
@@ -761,8 +872,17 @@ export function createDecisionEngine({ state, attack }) {
       const inactive = isChain(player) ? { target: null, distance: Infinity } : nearestClaimablePinTarget(player)
       const enemy = nearestActiveEnemy
       const exposedChain = vulnerableOpposingChain(player)
-  
-      if (exposedChain) {
+      const bindOpponent = defensiveBindingActive(player) ? oppositePlayer(player) : null
+      const chainThreat = chainCooldownThreat(player)
+
+      if (bindOpponent) {
+        target = bindOpponent
+        faceTarget = bindOpponent
+        if (canStrikeTarget(player, bindOpponent, 8)) attack(player, bindOpponent)
+      } else if (chainThreat) {
+        target = chainRetreatPoint(player, chainThreat)
+        faceTarget = chainThreat
+      } else if (exposedChain) {
         target = exposedChain
       } else if (isChain(player) && enemy.target) {
         target = enemy.target
@@ -833,6 +953,13 @@ export function createDecisionEngine({ state, attack }) {
     const carrierBoost = state.jugg.carrier === player ? 1.13 : 1
     const pinSlowdown = player.pinTarget ? 0.18 : 1
     const speed = player.speed * carrierBoost * pinSlowdown
+
+    if (player.pinTarget) {
+      player.vx = direction.x * speed
+      player.vy = direction.y * speed
+      rotateTowardPoint(player, faceTarget, dt)
+      return
+    }
 
     if (direction.x || direction.y) rotateTowardAngle(player, Math.atan2(direction.y, direction.x), dt)
     player.vx = Math.cos(player.angle) * speed

@@ -88,6 +88,7 @@ export const HIT_STONES = 5
 export const RECOVERY_DASH_DURATION = 0.24
 export const RECOVERY_DASH_SPEED = 315
 export const PIN_RANGE = 64
+export const PIN_MIN_COUNTED_STONES = 3
 export const PIN_ORBIT_MIN_RADIUS = 38
 export const PIN_ORBIT_MAX_RADIUS = 60
 export const PIN_ORBIT_SPEED_FACTOR = 0.36
@@ -140,4 +141,14 @@ export const PLAYER_SKILLS = {
 export const TEAM_LOADOUTS = {
   blue: ['runner', 'shield', 'qtip', 'staff', 'chain'],
   red: ['runner', 'shield', 'qtip', 'staff', 'chain'],
+}
+
+export const TEAM_STRATEGIES = {
+  blue: 'standard',
+  red: 'standard',
+}
+
+export const PLAYER_STRATEGIES = {
+  blue: ['none', 'none', 'none', 'none', 'none'],
+  red: ['none', 'none', 'none', 'none', 'none'],
 }

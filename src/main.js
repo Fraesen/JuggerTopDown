@@ -1,128 +1,56 @@
 import './style.css'
-
-const FIELD = {
-  width: 1280,
-  height: 640,
-  lengthMeters: 40,
-  widthMeters: 20,
-  groundLineMeters: 10,
-  malDistanceMeters: 2,
-  scale: 30,
-  originX: 40,
-  originY: 20,
-  malRadius: 16,
-}
-
-FIELD.center = { x: FIELD.width / 2, y: FIELD.height / 2 }
-
-const TEAMS = {
-  blue: {
-    name: 'Blau',
-    color: '#21a8a3',
-    dark: '#116d76',
-    spawnX: fieldPoint(6, 10).x,
-    mal: fieldPoint(2, 10),
-    attackMal: fieldPoint(38, 10),
-  },
-  red: {
-    name: 'Rot',
-    color: '#dd614a',
-    dark: '#8f382c',
-    spawnX: fieldPoint(34, 10).x,
-    mal: fieldPoint(38, 10),
-    attackMal: fieldPoint(2, 10),
-  },
-}
-
-const FIELD_POLYGON = [
-  fieldPoint(0, 5),
-  fieldPoint(5, 0),
-  fieldPoint(35, 0),
-  fieldPoint(40, 5),
-  fieldPoint(40, 15),
-  fieldPoint(35, 20),
-  fieldPoint(5, 20),
-  fieldPoint(0, 15),
-]
-
-const START_POSITIONS = {
-  blue: [
-    fieldPoint(0.65, 10.0),
-    fieldPoint(0.65, 6.0),
-    fieldPoint(0.65, 8.0),
-    fieldPoint(0.65, 12.0),
-    fieldPoint(0.65, 14.0),
-  ],
-  red: [
-    fieldPoint(39.35, 10.0),
-    fieldPoint(39.35, 6.0),
-    fieldPoint(39.35, 8.0),
-    fieldPoint(39.35, 12.0),
-    fieldPoint(39.35, 14.0),
-  ],
-}
-
-const PLAYER_RADIUS = 17
-const JUGG_RADIUS = 11
-const MATCH_SECONDS = 180
-const MATCH_POINT = 3
-const STONE_SECONDS = 1.5
-const HIT_STONES = 5
-const RECOVERY_DASH_DURATION = 0.24
-const RECOVERY_DASH_SPEED = 315
-const PIN_RANGE = 64
-const PIN_ORBIT_MIN_RADIUS = 38
-const PIN_ORBIT_MAX_RADIUS = 60
-const PIN_ORBIT_SPEED_FACTOR = 0.36
-const ATTACK_DURATION = 0.1
-const DOUBLE_HIT_WINDOW = 0.3
-const ATTACK_COOLDOWN = 0.72
-const ATTACK_RANGE = 70
-const ATTACK_ARC = 0.95
-const CLOSE_STRIKE_RANGE = 46
-const RUNNER_STRIKE_RANGE_BONUS = 14
-const RUNNING_ATTACK_SPEED_THRESHOLD = 12
-const RUNNING_ATTACK_PENALTY = 0.25
-const RUNNER_TARGET_BONUS = 0.75
-const OPENING_RUSH_SECONDS = 2.8
-const OPENING_FAN_REACHED_RADIUS = 30
-const CARRIER_PRESSURE_COUNT = 2
-const RUNNER_DUEL_RANGE = 48
-const RUNNER_DUEL_COOLDOWN = 0.8
-const RUNNER_GRAPPLE_RANGE = 42
-const RUNNER_GRAPPLE_BREAK_RANGE = 68
-const SKILL_POINTS_PER_PLAYER = 6
-const TECHNIK_BASE = 30
-const TECHNIK_PER_POINT = 10
-const SPEED_BASE = 40
-const SPEED_PER_POINT = 8
-const WAHRNEHMUNG_BASE = 30
-const WAHRNEHMUNG_PER_POINT = 10
-const CALL_DURATION = 1.8
-const CALL_BUBBLE_DURATION = 1.15
-const CALL_COOLDOWN = 2.2
-const CALL_CORRIDOR_LENGTH = 250
-const CALL_CORRIDOR_WIDTH = 92
-const DOUBLE_PIN_CALL_RANGE = 116
-const DOUBLE_PIN_TRAP_DURATION = STONE_SECONDS * 2.4
-const DOUBLE_PIN_RELEASE_PAUSE = STONE_SECONDS * 0.9
-
-const PLAYER_SKILLS = {
-  blue: [
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 2, geschwindigkeit: 3, wahrnehmung: 1 },
-    { technik: 4, geschwindigkeit: 1, wahrnehmung: 1 },
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 3, geschwindigkeit: 2, wahrnehmung: 1 },
-  ],
-  red: [
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 2, geschwindigkeit: 3, wahrnehmung: 1 },
-    { technik: 4, geschwindigkeit: 1, wahrnehmung: 1 },
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 3, geschwindigkeit: 2, wahrnehmung: 1 },
-  ],
-}
+import { createRenderer } from './game/renderer.js'
+import { createDecisionEngine } from './game/decisions.js'
+import {
+  ATTACK_COOLDOWN,
+  ATTACK_DURATION,
+  DOUBLE_HIT_WINDOW,
+  DOUBLE_PIN_RELEASE_PAUSE,
+  FIELD,
+  HIT_STONES,
+  JUGG_RADIUS,
+  MATCH_POINT,
+  MATCH_SECONDS,
+  PIN_ORBIT_MAX_RADIUS,
+  PIN_ORBIT_MIN_RADIUS,
+  PIN_ORBIT_SPEED_FACTOR,
+  PIN_RANGE,
+  POSITION_LABELS,
+  PLAYER_POSITIONS,
+  PLAYER_RADIUS,
+  PLAYER_SKILLS,
+  RECOVERY_DASH_DURATION,
+  RECOVERY_DASH_SPEED,
+  RUNNER_DUEL_COOLDOWN,
+  RUNNER_DUEL_RANGE,
+  RUNNER_GRAPPLE_BREAK_RANGE,
+  RUNNER_GRAPPLE_RANGE,
+  RUNNER_JUGG_CONTEST_COOLDOWN,
+  RUNNER_JUGG_CONTEST_PRESSURE_RANGE,
+  RUNNING_ATTACK_SPEED_THRESHOLD,
+  SKILL_POINTS_PER_PLAYER,
+  START_POSITIONS,
+  STONE_SECONDS,
+  TEAMS,
+  fieldPoint,
+} from './game/config.js'
+import { clamp, constrainToField, distance, facePoint, normalize, pointInPolygon } from './game/geometry.js'
+import {
+  canReceiveNewPin,
+  createPlayer,
+  isGrappling,
+  isInactive,
+  isPompfer,
+  isRecoveryDashing,
+  isRunner,
+  playerIndex,
+  playerPositionSlot,
+  playerSpeed,
+  roleLabel,
+  skillForPlayer,
+  statsFromSkill,
+} from './game/players.js'
+import { attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor } from './game/pompfen.js'
 
 document.querySelector('#app').innerHTML = `
   <div class="game-shell">
@@ -157,6 +85,13 @@ document.querySelector('#app').innerHTML = `
           <button id="start-btn" class="primary" type="button">Start</button>
           <button id="pause-btn" type="button">Pause</button>
           <button id="reset-btn" type="button">Reset</button>
+        </div>
+
+        <div class="speed-control" aria-label="Spielgeschwindigkeit">
+          <button type="button" data-speed="0.25">0,25x</button>
+          <button type="button" data-speed="0.5">0,5x</button>
+          <button type="button" data-speed="1">1x</button>
+          <button type="button" data-speed="2">2x</button>
         </div>
 
         <div class="status-grid">
@@ -209,7 +144,11 @@ document.querySelector('#app').innerHTML = `
             <span class="jugg-dot"></span>
             <strong>Nur Laeufer tragen den Jugg</strong>
             <span class="pin-dot"></span>
-            <strong>Pompfer pinnen Inaktive</strong>
+            <strong>Nahpompfen pinnen Inaktive</strong>
+            <span class="pompfer-dot"></span>
+            <strong>Pompfen: Stab, Q-Tip, Schild und Kette</strong>
+            <span class="technik-dot"></span>
+            <strong>Schilde blocken frontal besser</strong>
           </div>
         </details>
       </aside>
@@ -236,12 +175,16 @@ const hud = {
   startBtn: document.querySelector('#start-btn'),
   pauseBtn: document.querySelector('#pause-btn'),
   resetBtn: document.querySelector('#reset-btn'),
+  speedButtons: [...document.querySelectorAll('[data-speed]')],
 }
+
+const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2]
 
 const state = {
   running: false,
   paused: false,
   lastTime: 0,
+  playbackSpeed: 1,
   timeLeft: MATCH_SECONDS,
   score: { blue: 0, red: 0 },
   players: [],
@@ -266,200 +209,12 @@ const state = {
     vx: 0,
     vy: 0,
     carrier: null,
+    contest: null,
     cooldown: 0,
   },
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value))
-}
-
-function fieldPoint(meterX, meterY) {
-  return {
-    x: FIELD.originX + meterX * FIELD.scale,
-    y: FIELD.originY + meterY * FIELD.scale,
-  }
-}
-
-function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y)
-}
-
-function normalize(x, y) {
-  const length = Math.hypot(x, y)
-  if (length < 0.001) return { x: 0, y: 0 }
-  return { x: x / length, y: y / length }
-}
-
-function facePoint(player, target) {
-  const dx = target.x - player.x
-  const dy = target.y - player.y
-  if (Math.hypot(dx, dy) < 0.001) return
-  player.angle = Math.atan2(dy, dx)
-}
-
-function pointInPolygon(point, polygon = FIELD_POLYGON) {
-  let inside = false
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-    const a = polygon[i]
-    const b = polygon[j]
-    const intersects =
-      a.y > point.y !== b.y > point.y &&
-      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
-    if (intersects) inside = !inside
-  }
-  return inside
-}
-
-function closestPointOnSegment(point, a, b) {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const lengthSquared = dx * dx + dy * dy
-  if (lengthSquared <= 0.0001) return a
-  const t = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared, 0, 1)
-  return {
-    x: a.x + dx * t,
-    y: a.y + dy * t,
-  }
-}
-
-function nearestFieldBoundary(point) {
-  let nearest = FIELD_POLYGON[0]
-  let bestDistance = Infinity
-
-  for (let i = 0; i < FIELD_POLYGON.length; i += 1) {
-    const a = FIELD_POLYGON[i]
-    const b = FIELD_POLYGON[(i + 1) % FIELD_POLYGON.length]
-    const candidate = closestPointOnSegment(point, a, b)
-    const d = distance(point, candidate)
-    if (d < bestDistance) {
-      nearest = candidate
-      bestDistance = d
-    }
-  }
-
-  return { point: nearest, distance: bestDistance }
-}
-
-function constrainToField(entity, radius, bounce = false) {
-  const point = { x: entity.x, y: entity.y }
-  const nearest = nearestFieldBoundary(point)
-  const inside = pointInPolygon(point)
-
-  if (inside && nearest.distance >= radius + 1) return
-
-  const inward = normalize(FIELD.center.x - nearest.point.x, FIELD.center.y - nearest.point.y)
-  entity.x = nearest.point.x + inward.x * (radius + 2)
-  entity.y = nearest.point.y + inward.y * (radius + 2)
-
-  if (!bounce) return
-
-  const outwardVelocity = entity.vx * inward.x + entity.vy * inward.y
-  if (outwardVelocity < 0) {
-    entity.vx -= outwardVelocity * inward.x * 1.55
-    entity.vy -= outwardVelocity * inward.y * 1.55
-  }
-}
-
-function isRunner(player) {
-  return player.role === 'runner'
-}
-
-function isPompfer(player) {
-  return player.role !== 'runner'
-}
-
-function isGrappled(player) {
-  return Boolean(player.grappledBy)
-}
-
-function isGrappling(player) {
-  return Boolean(player.grappleTarget || player.grappledBy)
-}
-
-function isInactive(player) {
-  return player.penaltyStones > 0 || player.pinLock > 0 || Boolean(player.pinnedBy)
-}
-
-function canReceiveNewPin(player) {
-  return player.penaltyStones > 0 && !player.pinnedBy && player.pinLock <= 0
-}
-
-function isRecoveryDashing(player) {
-  return player.recoveryDashTimer > 0
-}
-
-function statsFromSkill(skill) {
-  return {
-    technik: TECHNIK_BASE + skill.technik * TECHNIK_PER_POINT,
-    geschwindigkeit: SPEED_BASE + skill.geschwindigkeit * SPEED_PER_POINT,
-    wahrnehmung: WAHRNEHMUNG_BASE + skill.wahrnehmung * WAHRNEHMUNG_PER_POINT,
-  }
-}
-
-function roleLabel(index) {
-  return index === 0 ? 'Laeufer' : `Pompfer ${index}`
-}
-
-function playerIndex(player) {
-  return Number(player.id.split('-')[1])
-}
-
-function createPlayer(team, index, role) {
-  const stats = statsFromSkill(PLAYER_SKILLS[team][index])
-  const spawn = START_POSITIONS[team][index]
-
-  return {
-    id: `${team}-${index}`,
-    team,
-    role,
-    x: spawn.x,
-    y: spawn.y,
-    vx: 0,
-    vy: 0,
-    angle: team === 'blue' ? 0 : Math.PI,
-    radius: PLAYER_RADIUS,
-    technik: stats.technik,
-    geschwindigkeit: stats.geschwindigkeit,
-    wahrnehmung: stats.wahrnehmung,
-    speed: (role === 'runner' ? 132 : 124) + stats.geschwindigkeit * (role === 'runner' ? 1.32 : 1.16),
-    openingComplete: false,
-    retreatingWithJugg: false,
-    attack: 0,
-    attackTarget: null,
-    attackWindup: 0,
-    attackWhileMoving: false,
-    doubleWindow: 0,
-    attackCooldown: 0,
-    duelCooldown: 0,
-    grappleTarget: null,
-    grappledBy: null,
-    callCooldown: 0,
-    callTimer: 0,
-    callType: null,
-    callSource: null,
-    callBubbleTimer: 0,
-    callBubbleText: '',
-    pendingInactiveStones: 0,
-    holdOffset: 0,
-    penaltyStones: 0,
-    penaltyTotalStones: 0,
-    countedStones: 0,
-    pinnedBy: null,
-    pinTarget: null,
-    pinClaimedBy: null,
-    pinOrbitDirection: team === 'blue' ? 1 : -1,
-    pinLock: 0,
-    pinWasActive: false,
-    doublePinTrapTarget: null,
-    doublePinReleaseTarget: null,
-    doublePinReleasePause: 0,
-    recoveryDashQueued: false,
-    recoveryDashTimer: 0,
-    recoveryDashX: 0,
-    recoveryDashY: 0,
-  }
-}
+const CHAIN_STRIKE_VISUAL_DURATION = 0.52
 
 function applyBlueSkills() {
   for (const player of state.players) {
@@ -469,12 +224,27 @@ function applyBlueSkills() {
     player.technik = stats.technik
     player.geschwindigkeit = stats.geschwindigkeit
     player.wahrnehmung = stats.wahrnehmung
-    player.speed = (player.role === 'runner' ? 132 : 124) + stats.geschwindigkeit * (player.role === 'runner' ? 1.32 : 1.16)
+    player.speed = playerSpeed(player.role, stats.geschwindigkeit)
   }
 }
 
-function skillForPlayer(player) {
-  return PLAYER_SKILLS[player.team][playerIndex(player)]
+function applyBluePositions({ resetSpawns = false } = {}) {
+  for (const player of state.players) {
+    if (player.team !== 'blue') continue
+    const index = playerIndex(player)
+    const slot = PLAYER_POSITIONS.blue[index] ?? index
+    player.positionSlot = slot
+
+    if (resetSpawns) {
+      const spawn = START_POSITIONS.blue[slot]
+      player.x = spawn.x
+      player.y = spawn.y
+      player.vx = 0
+      player.vy = 0
+      player.angle = 0
+      player.openingComplete = false
+    }
+  }
 }
 
 function releaseGrapple(player) {
@@ -486,6 +256,20 @@ function releaseGrapple(player) {
     player.grappledBy.grappleTarget = null
     player.grappledBy = null
   }
+}
+
+function setBluePosition(index, slot) {
+  if (index <= 0 || slot <= 0 || slot >= PLAYER_POSITIONS.blue.length) return
+  const currentSlot = PLAYER_POSITIONS.blue[index]
+  if (currentSlot === slot) return
+
+  const swapIndex = PLAYER_POSITIONS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === slot)
+  PLAYER_POSITIONS.blue[index] = slot
+  if (swapIndex > 0) PLAYER_POSITIONS.blue[swapIndex] = currentSlot
+
+  applyBluePositions({ resetSpawns: !state.running })
+  renderSkillPanel()
+  updateHud()
 }
 
 function setBlueSkill(index, key, delta) {
@@ -514,12 +298,29 @@ function renderSkillPanel() {
     .map((skill, index) => {
       const stats = statsFromSkill(skill)
       const spent = skill.technik + skill.geschwindigkeit + skill.wahrnehmung
+      const positionControl =
+        index > 0
+          ? `
+          <label class="position-control">
+            <span>Position</span>
+            <select data-player="${index}" data-position>
+              ${Object.entries(POSITION_LABELS)
+                .map(
+                  ([slot, label]) =>
+                    `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`,
+                )
+                .join('')}
+            </select>
+          </label>
+        `
+          : ''
       return `
         <article class="skill-row">
           <header>
             <span>${roleLabel(index)}</span>
             <strong>${spent}/${SKILL_POINTS_PER_PLAYER}</strong>
           </header>
+          ${positionControl}
           <div class="skill-control">
             <span>T</span>
             <button type="button" data-player="${index}" data-skill="technik" data-delta="-1" ${skill.technik <= 0 ? 'disabled' : ''}>-</button>
@@ -568,6 +369,7 @@ function resetJugg() {
   state.jugg.vx = 0
   state.jugg.vy = 0
   state.jugg.carrier = null
+  state.jugg.contest = null
   state.jugg.cooldown = 0.45
 }
 
@@ -596,6 +398,16 @@ function resetMatch() {
   hud.pauseBtn.textContent = 'Pause'
   resetRound('Bereit')
   updateHud()
+}
+
+function setPlaybackSpeed(speed) {
+  if (!PLAYBACK_SPEEDS.includes(speed)) return
+  state.playbackSpeed = speed
+  for (const button of hud.speedButtons) {
+    const active = Number(button.dataset.speed) === speed
+    button.classList.toggle('active', active)
+    button.setAttribute('aria-pressed', String(active))
+  }
 }
 
 function startMatch() {
@@ -632,6 +444,7 @@ function throwJugg(carrier, force = 535) {
 function dropJugg(carrier) {
   if (state.jugg.carrier !== carrier) return
   state.jugg.carrier = null
+  state.jugg.contest = null
   state.jugg.vx = carrier.vx * 0.25
   state.jugg.vy = carrier.vy * 0.25
   state.jugg.cooldown = 0.58
@@ -649,16 +462,27 @@ function attack(player, target = null) {
   player.attack = ATTACK_DURATION
   player.attackWindup = ATTACK_DURATION
   player.doubleWindow = DOUBLE_HIT_WINDOW
+
+  if (player.pompfe === 'chain') {
+    const chainTarget = player.attackTarget
+    player.chainStrikeTimer = CHAIN_STRIKE_VISUAL_DURATION
+    player.chainStrikeDuration = CHAIN_STRIKE_VISUAL_DURATION
+    player.chainStrikeTarget = chainTarget
+    player.chainStrikeX = chainTarget?.x ?? player.x + Math.cos(player.angle) * 94
+    player.chainStrikeY = chainTarget?.y ?? player.y + Math.sin(player.angle) * 94
+  }
 }
 
 function startRecoveryDash(player) {
-  const nearbyEnemy = nearestEnemy(player, () => true).target
+  const nearbyEnemy = decision.nearestEnemy(player, () => true).target
   const awayFromEnemy = nearbyEnemy ? normalize(player.x - nearbyEnemy.x, player.y - nearbyEnemy.y) : { x: 0, y: 0 }
   const forward = { x: Math.cos(player.angle), y: Math.sin(player.angle) }
   const direction = normalize(awayFromEnemy.x * 1.4 + forward.x * 0.45, awayFromEnemy.y * 1.4 + forward.y * 0.45)
   const fallback = player.team === 'blue' ? { x: -1, y: 0 } : { x: 1, y: 0 }
+  const speedFactor = clamp(player.speed / 195, 0.82, 1.24)
 
   player.recoveryDashTimer = RECOVERY_DASH_DURATION
+  player.recoveryDashSpeed = RECOVERY_DASH_SPEED * speedFactor
   player.recoveryDashX = direction.x || fallback.x
   player.recoveryDashY = direction.y || fallback.y
   player.attack = 0
@@ -713,7 +537,7 @@ function releaseDoppelpinPinsOnStone() {
     }
 
     pinner.doublePinReleaseTarget = null
-    if (pinner.callType === 'doppelpin') clearCallIntent(pinner)
+    if (pinner.callType === 'doppelpin') decision.clearCallIntent(pinner)
   }
 }
 
@@ -721,6 +545,10 @@ function makeInactive(player, stones = HIT_STONES) {
   if (isInactive(player) && player.penaltyStones >= stones) return
   releaseGrapple(player)
   if (state.jugg.carrier === player) dropJugg(player)
+  if (state.jugg.contest?.runners.includes(player)) {
+    state.jugg.contest = null
+    state.jugg.cooldown = 0.28
+  }
   player.penaltyStones = stones
   player.penaltyTotalStones = stones
   player.pendingInactiveStones = 0
@@ -728,6 +556,8 @@ function makeInactive(player, stones = HIT_STONES) {
   player.attackTarget = null
   player.attackWhileMoving = false
   player.doubleWindow = 0
+  player.chainStrikeTimer = 0
+  player.chainStrikeTarget = null
   player.attack = 0
   player.countedStones = 0
   player.pinLock = 0
@@ -736,13 +566,19 @@ function makeInactive(player, stones = HIT_STONES) {
   player.pinWasActive = false
   player.recoveryDashQueued = false
   player.recoveryDashTimer = 0
+  player.recoveryDashSpeed = 0
   player.recoveryDashX = 0
   player.recoveryDashY = 0
+  player.runnerJuggRetreatTimer = 0
+  player.runnerJuggRetreatX = 0
+  player.runnerJuggRetreatY = 0
   player.callTimer = 0
   player.callType = null
   player.callSource = null
+  player.callContext = null
   player.callBubbleTimer = 0
   player.callBubbleText = ''
+  player.callMissTimer = 0
   player.doublePinTrapTarget = null
   player.doublePinReleaseTarget = null
   player.doublePinReleasePause = 0
@@ -750,8 +586,18 @@ function makeInactive(player, stones = HIT_STONES) {
   player.vy = 0
 }
 
-function queueInactive(player, stones = HIT_STONES) {
-  if ((player.attackWindup > 0 || player.doubleWindow > 0) && !isInactive(player)) {
+function announceDouble(attacker, target) {
+  if (!attacker || !target) return
+  for (const player of [attacker, target]) {
+    player.callBubbleText = 'Doppel!'
+    player.callBubbleTimer = 0.95
+  }
+}
+
+function queueDoubleParticipant(player, stones) {
+  if (!player || isInactive(player)) return
+
+  if (player.attackWindup > 0 || player.doubleWindow > 0) {
     player.pendingInactiveStones = Math.max(player.pendingInactiveStones, stones)
     player.vx = 0
     player.vy = 0
@@ -762,584 +608,20 @@ function queueInactive(player, stones = HIT_STONES) {
   makeInactive(player, stones)
 }
 
-function nearestEnemy(player, filter = () => true) {
-  let best = null
-  let bestDistance = Infinity
-  for (const other of state.players) {
-    if (other.team === player.team || !filter(other)) continue
-    const d = distance(player, other)
-    if (d < bestDistance) {
-      best = other
-      bestDistance = d
+function queueInactive(player, stones = HIT_STONES, source = null) {
+  if ((player.attackWindup > 0 || player.doubleWindow > 0) && !isInactive(player)) {
+    if (source && source !== player && !isInactive(source)) {
+      announceDouble(source, player)
+      queueDoubleParticipant(source, stones)
     }
-  }
-  return { target: best, distance: bestDistance }
-}
-
-function nearestInactiveEnemy(player) {
-  return nearestEnemy(player, (other) => isInactive(other))
-}
-
-function canSeekNewPin(player) {
-  return (
-    isPompfer(player) &&
-    !isInactive(player) &&
-    !player.pinTarget &&
-    player.callType !== 'hilfmir' &&
-    player.doublePinReleasePause <= 0 &&
-    !player.doublePinTrapTarget
-  )
-}
-
-function pinPriorityCompare(a, b, target) {
-  const distanceDiff = distance(a, target) - distance(b, target)
-  if (Math.abs(distanceDiff) > 0.01) return distanceDiff
-  return playerIndex(a) - playerIndex(b)
-}
-
-function bestPinnerForTarget(target, team) {
-  return activeTeamPompfers(team)
-    .filter((player) => canSeekNewPin(player))
-    .sort((a, b) => pinPriorityCompare(a, b, target))[0]
-}
-
-function nearestClaimablePinTarget(player) {
-  return nearestEnemy(player, (other) => canReceiveNewPin(other) && bestPinnerForTarget(other, player.team) === player)
-}
-
-function oppositePlayer(player) {
-  const index = playerIndex(player)
-  const enemyTeam = player.team === 'blue' ? 'red' : 'blue'
-  return state.players.find((other) => other.team === enemyTeam && playerIndex(other) === index)
-}
-
-function openingFanPoint(player) {
-  const index = playerIndex(player)
-  const lane = [10, 4.4, 7.2, 12.8, 15.6][index]
-  const meterX = player.team === 'blue' ? 10 + index * 0.75 : 30 - index * 0.75
-  return fieldPoint(meterX, lane)
-}
-
-function openingRushTarget(player) {
-  if (player.openingComplete) return null
-  if (state.roundTime > OPENING_RUSH_SECONDS || state.jugg.carrier) {
-    player.openingComplete = true
-    return null
-  }
-
-  const fanPoint = openingFanPoint(player)
-  if (distance(player, fanPoint) <= OPENING_FAN_REACHED_RADIUS) {
-    player.openingComplete = true
-    return null
-  }
-
-  return fanPoint
-}
-
-function activeTeamPompfers(team) {
-  return state.players.filter((player) => player.team === team && isPompfer(player) && !isInactive(player))
-}
-
-function carrierPressureRank(player, carrier) {
-  return [...activeTeamPompfers(player.team)]
-    .sort((a, b) => distance(a, carrier) - distance(b, carrier))
-    .findIndex((candidate) => candidate === player)
-}
-
-function flankPoint(target, player, distanceFromTarget = 44) {
-  const side = playerIndex(player) % 2 === 0 ? -1 : 1
-  const approach = normalize(target.x - player.x, target.y - player.y)
-  const perpendicular = { x: -approach.y * side, y: approach.x * side }
-  return {
-    x: target.x - approach.x * distanceFromTarget + perpendicular.x * 34,
-    y: target.y - approach.y * distanceFromTarget + perpendicular.y * 34,
-  }
-}
-
-function laneBlockPoint(player, carrier) {
-  const ownMal = TEAMS[player.team].mal
-  const index = playerIndex(player)
-  const lane = index <= 2 ? -1 : 1
-  const toMal = normalize(ownMal.x - carrier.x, ownMal.y - carrier.y)
-  const perpendicular = { x: -toMal.y, y: toMal.x }
-
-  return {
-    x: carrier.x + (ownMal.x - carrier.x) * 0.42 + perpendicular.x * lane * 86,
-    y: carrier.y + (ownMal.y - carrier.y) * 0.42 + perpendicular.y * lane * 86,
-  }
-}
-
-function supportPoint(player, carrier) {
-  const index = playerIndex(player)
-  const lane = [-1.9, -0.85, 0.85, 1.9][index - 1] ?? 0
-  const forward = normalize(TEAMS[player.team].attackMal.x - carrier.x, TEAMS[player.team].attackMal.y - carrier.y)
-  const perpendicular = { x: -forward.y, y: forward.x }
-  const depth = index <= 2 ? 104 : 46
-
-  return {
-    x: carrier.x + forward.x * depth + perpendicular.x * lane * 74,
-    y: carrier.y + forward.y * depth + perpendicular.y * lane * 74,
-  }
-}
-
-function distanceToSegment(point, start, end) {
-  const dx = end.x - start.x
-  const dy = end.y - start.y
-  const lengthSq = dx * dx + dy * dy
-  if (lengthSq <= 0.001) return distance(point, start)
-  const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq, 0, 1)
-  return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t))
-}
-
-function enemyReachRadius(enemy) {
-  return isPompfer(enemy) ? ATTACK_RANGE + PLAYER_RADIUS : RUNNER_DUEL_RANGE + PLAYER_RADIUS
-}
-
-function directMalBlockers(runner) {
-  const mal = TEAMS[runner.team].attackMal
-  return state.players.filter((enemy) => {
-    if (enemy.team === runner.team || isInactive(enemy)) return false
-    const ahead = (enemy.x - runner.x) * (mal.x - runner.x) + (enemy.y - runner.y) * (mal.y - runner.y)
-    return ahead > 0 && distanceToSegment(enemy, runner, mal) <= enemyReachRadius(enemy)
-  })
-}
-
-function retreatPointForRunner(runner, blockers) {
-  const friendlySafety = friendlyPompferSafetyPoint(runner, blockers)
-  if (friendlySafety) return friendlySafety
-
-  const team = TEAMS[runner.team]
-  const awayFromMal = normalize(runner.x - team.attackMal.x, runner.y - team.attackMal.y)
-  let avoidX = 0
-  let avoidY = 0
-
-  for (const blocker of blockers) {
-    const d = distance(runner, blocker) || 1
-    const strength = clamp((210 - d) / 210, 0.18, 1)
-    avoidX += ((runner.x - blocker.x) / d) * strength
-    avoidY += ((runner.y - blocker.y) / d) * strength
-  }
-
-  const retreat = normalize(awayFromMal.x * 1.15 + avoidX, awayFromMal.y * 1.15 + avoidY)
-  const fallback = runner.team === 'blue' ? { x: -1, y: 0 } : { x: 1, y: 0 }
-  return {
-    x: runner.x + (retreat.x || fallback.x) * 150,
-    y: runner.y + (retreat.y || fallback.y) * 150,
-  }
-}
-
-function friendlyPompferSafetyPoint(runner, blockers) {
-  const team = TEAMS[runner.team]
-  const candidates = activeTeamPompfers(runner.team)
-    .map((friend) => {
-      const toOwnSide = normalize(team.mal.x - friend.x, team.mal.y - friend.y)
-      const point = {
-        x: friend.x + toOwnSide.x * 46,
-        y: friend.y + toOwnSide.y * 46,
-      }
-      const nearestBlockerDistance = blockers.reduce((best, blocker) => Math.min(best, distance(point, blocker)), Infinity)
-      return {
-        point,
-        score: distance(runner, point) - nearestBlockerDistance * 0.55,
-        nearestBlockerDistance,
-      }
-    })
-    .filter((candidate) => candidate.nearestBlockerDistance > ATTACK_RANGE + PLAYER_RADIUS)
-    .sort((a, b) => a.score - b.score)
-
-  return candidates[0]?.point ?? null
-}
-
-function teammateAvoidance(player) {
-  let x = 0
-  let y = 0
-
-  for (const other of state.players) {
-    if (other === player || other.team !== player.team) continue
-    const d = distance(player, other)
-    if (d <= 0.01 || d > 92) continue
-    const strength = (92 - d) / 92
-    x += ((player.x - other.x) / d) * strength
-    y += ((player.y - other.y) / d) * strength
-  }
-
-  return { x, y }
-}
-
-function callPerceivedBy(player, caller) {
-  return player === caller || Math.random() * 100 < player.wahrnehmung
-}
-
-function callLabel(type) {
-  if (type === 'malschutz') return 'Malschutz!'
-  if (type === 'hilfmir') return 'Hilf mir!'
-  if (type === 'doppelpin') return 'Doppelpin!'
-  return 'Mitkommen!'
-}
-
-function setCallIntent(player, type, caller, duration = CALL_DURATION) {
-  player.callType = type
-  player.callSource = caller
-  player.callTimer = duration
-}
-
-function clearCallIntent(player) {
-  if (player.callType === 'doppelpin') player.doublePinTrapTarget = null
-  player.callTimer = 0
-  player.callType = null
-  player.callSource = null
-}
-
-function issueCall(caller, type, recipients) {
-  caller.callCooldown = CALL_COOLDOWN
-  caller.callBubbleText = callLabel(type)
-  caller.callBubbleTimer = CALL_BUBBLE_DURATION
-  for (const recipient of recipients) {
-    if (recipient.team !== caller.team || isInactive(recipient)) continue
-    if (callPerceivedBy(recipient, caller)) setCallIntent(recipient, type, caller)
-  }
-}
-
-function issueDoppelpinCall(caller, teammate, target) {
-  caller.callCooldown = CALL_COOLDOWN
-  caller.callBubbleText = callLabel('doppelpin')
-  caller.callBubbleTimer = CALL_BUBBLE_DURATION
-
-  if (!callPerceivedBy(teammate, caller)) return
-
-  caller.doublePinTrapTarget = target
-  setCallIntent(caller, 'doppelpin', caller, DOUBLE_PIN_TRAP_DURATION)
-  teammate.doublePinReleaseTarget = target
-  setCallIntent(teammate, 'doppelpin', caller, DOUBLE_PIN_TRAP_DURATION)
-}
-
-function callTargetFor(player) {
-  if (player.callTimer <= 0 || !player.callType) return null
-
-  if (player.callType === 'malschutz') {
-    const carrier = state.jugg.carrier
-    const ownMal = TEAMS[player.team].mal
-
-    if (
-      isPompfer(player) &&
-      carrier &&
-      carrier.team !== player.team &&
-      isRunner(carrier) &&
-      distance(player, ownMal) < distance(carrier, ownMal)
-    ) {
-      clearCallIntent(player)
-      player.angle = Math.atan2(carrier.y - player.y, carrier.x - player.x)
-      return null
-    }
-
-    return ownMal
-  }
-
-  if (player.callType === 'mitkommen') {
-    const caller = player.callSource
-    if (!caller || state.jugg.carrier !== caller || isInactive(caller)) return null
-    return supportPoint(player, caller)
-  }
-
-  if (player.callType === 'hilfmir') {
-    const caller = player.callSource
-    const target = caller?.grappledBy || caller?.grappleTarget
-    if (!target || isInactive(target)) return null
-    return target
-  }
-
-  return null
-}
-
-function enemiesInRunnerLane(runner) {
-  const target = TEAMS[runner.team].attackMal
-  const forward = normalize(target.x - runner.x, target.y - runner.y)
-  const perpendicular = { x: -forward.y, y: forward.x }
-
-  return state.players.filter((player) => {
-    if (player.team === runner.team || isInactive(player)) return false
-    const dx = player.x - runner.x
-    const dy = player.y - runner.y
-    const ahead = dx * forward.x + dy * forward.y
-    const lateral = Math.abs(dx * perpendicular.x + dy * perpendicular.y)
-    return ahead > 0 && ahead < CALL_CORRIDOR_LENGTH && lateral < CALL_CORRIDOR_WIDTH
-  })
-}
-
-function bestMitkommenRecipient(runner) {
-  return activeTeamPompfers(runner.team)
-    .filter((player) => player.callTimer <= 0)
-    .sort((a, b) => distance(a, runner) - distance(b, runner))[0]
-}
-
-function bestHilfMirRecipient(runner) {
-  const threat = runner.grappledBy || runner.grappleTarget || runner
-  return activeTeamPompfers(runner.team)
-    .filter((player) => player.callTimer <= 0)
-    .sort((a, b) => distance(a, threat) - distance(b, threat))[0]
-}
-
-function doppelpinOpportunity(caller) {
-  if (!isPompfer(caller) || isInactive(caller) || !caller.pinTarget || caller.callCooldown > 0) return null
-  if (caller.callType === 'doppelpin' || caller.doublePinTrapTarget || caller.doublePinReleaseTarget) return null
-
-  return state.players
-    .filter((teammate) => {
-      if (teammate === caller || teammate.team !== caller.team || !isPompfer(teammate) || isInactive(teammate)) return false
-      if (teammate.callType === 'doppelpin' || teammate.doublePinTrapTarget) return false
-      if (!teammate.pinTarget || teammate.doublePinReleaseTarget || teammate.doublePinReleasePause > 0) return false
-      const target = teammate.pinTarget
-      return (
-        target !== caller.pinTarget &&
-        target.team !== caller.team &&
-        isPompfer(target) &&
-        target.pinnedBy === teammate &&
-        target.penaltyStones <= 1 &&
-        distance(caller, target) <= DOUBLE_PIN_CALL_RANGE
-      )
-    })
-    .map((teammate) => ({ teammate, target: teammate.pinTarget, distance: distance(caller, teammate.pinTarget) }))
-    .sort((a, b) => a.distance - b.distance)[0]
-}
-
-function emitDoppelpinCalls() {
-  for (const caller of state.players) {
-    const opportunity = doppelpinOpportunity(caller)
-    if (!opportunity) continue
-    issueDoppelpinCall(caller, opportunity.teammate, opportunity.target)
-  }
-}
-
-function shouldCallMalschutz(team) {
-  const carrier = state.jugg.carrier
-  if (!carrier || carrier.team === team || !isRunner(carrier) || isInactive(carrier)) return false
-
-  return carrierThreatensMal(team, carrier)
-}
-
-function carrierThreatensMal(team, carrier) {
-  if (!carrier || carrier.team === team || !isRunner(carrier) || isInactive(carrier)) return false
-
-  const ownMal = TEAMS[team].mal
-  const ownHalf = team === 'blue' ? carrier.x < FIELD.center.x : carrier.x > FIELD.center.x
-  const towardMal = normalize(ownMal.x - carrier.x, ownMal.y - carrier.y)
-  const progress = carrier.vx * towardMal.x + carrier.vy * towardMal.y
-
-  return ownHalf && progress > 20
-}
-
-function emitCalls() {
-  const carrier = state.jugg.carrier
-
-  const grapplingRunners = state.players.filter(
-    (player) => isRunner(player) && !isInactive(player) && isGrappling(player) && player.callCooldown <= 0,
-  )
-  for (const runner of grapplingRunners) {
-    const recipient = bestHilfMirRecipient(runner)
-    if (recipient) issueCall(runner, 'hilfmir', [recipient])
-  }
-
-  if (carrier && isRunner(carrier) && !isInactive(carrier) && carrier.callCooldown <= 0) {
-    const blockers = enemiesInRunnerLane(carrier)
-    const recipient = blockers.length === 1 ? bestMitkommenRecipient(carrier) : null
-    if (recipient) {
-      issueCall(carrier, 'mitkommen', [recipient])
-    }
-  }
-
-  emitDoppelpinCalls()
-
-  for (const team of Object.keys(TEAMS)) {
-    if (state.teamCallCooldowns[team] > 0) continue
-    if (!shouldCallMalschutz(team)) continue
-    const caller = state.players
-      .filter((player) => player.team === team && player.callCooldown <= 0)
-      .sort((a, b) => distance(a, state.jugg.carrier) - distance(b, state.jugg.carrier))[0]
-
-    if (!caller) continue
-    issueCall(caller, 'malschutz', state.players.filter((player) => player.team === team))
-    state.teamCallCooldowns[team] = CALL_COOLDOWN
-  }
-}
-
-function stopDistanceFor(player, target) {
-  if (target === state.jugg) return isRunner(player) ? 0 : 46
-  if (!target || !target.radius) return 18
-  if (isPompfer(player) && target.team !== player.team && !isInactive(target)) return ATTACK_RANGE * 0.78
-  if (isPompfer(player) && target.team !== player.team && isInactive(target)) return PIN_RANGE * 0.7
-  if (isRunner(player) && target.team !== player.team) return RUNNER_DUEL_RANGE * 0.72
-  return PLAYER_RADIUS * 2.4
-}
-
-function pinOrbitPoint(player) {
-  const target = player.pinTarget
-  if (!target) return player
-  const enemy = nearestEnemy(player, (other) => !isInactive(other)).target
-  if (!enemy) return null
-
-  const radial = normalize(player.x - target.x, player.y - target.y)
-  const fallback = player.team === 'blue' ? { x: 0, y: -1 } : { x: 0, y: 1 }
-  const rx = radial.x || fallback.x
-  const ry = radial.y || fallback.y
-  const leftTangent = { x: -ry, y: rx }
-  const rightTangent = { x: ry, y: -rx }
-  const currentDistance = distance(player, enemy)
-  const leftPoint = { x: player.x + leftTangent.x * 96, y: player.y + leftTangent.y * 96 }
-  const rightPoint = { x: player.x + rightTangent.x * 96, y: player.y + rightTangent.y * 96 }
-  const leftGain = currentDistance - distance(leftPoint, enemy)
-  const rightGain = currentDistance - distance(rightPoint, enemy)
-  const currentGain = player.pinOrbitDirection === 1 ? leftGain : rightGain
-  const oppositeGain = player.pinOrbitDirection === 1 ? rightGain : leftGain
-
-  if (currentGain <= 2 && oppositeGain <= 2) return null
-  if (oppositeGain > currentGain + 10) player.pinOrbitDirection *= -1
-
-  const tangent = player.pinOrbitDirection === 1 ? leftTangent : rightTangent
-
-  return {
-    x: player.x + tangent.x * 96,
-    y: player.y + tangent.y * 96,
-  }
-}
-
-function doublePinTrapPoint(player) {
-  const pinned = player.pinTarget
-  const trapTarget = player.doublePinTrapTarget
-  if (!pinned || !trapTarget) return null
-
-  const towardTrap = normalize(trapTarget.x - pinned.x, trapTarget.y - pinned.y)
-  const fallback = normalize(trapTarget.x - player.x, trapTarget.y - player.y)
-  const sideX = towardTrap.x || fallback.x || (player.team === 'blue' ? 1 : -1)
-  const sideY = towardTrap.y || fallback.y
-
-  return {
-    x: pinned.x + sideX * PIN_ORBIT_MAX_RADIUS,
-    y: pinned.y + sideY * PIN_ORBIT_MAX_RADIUS,
-  }
-}
-
-function updateAi(player) {
-  const team = TEAMS[player.team]
-  const ownCarrier = state.jugg.carrier?.team === player.team
-  const enemyCarrier = state.jugg.carrier && state.jugg.carrier.team !== player.team
-  let target = { x: state.jugg.x, y: state.jugg.y }
-  let faceTarget = target
-  const nearestActiveEnemy = nearestEnemy(player, (other) => !isInactive(other))
-  const callTarget = callTargetFor(player)
-  const rushTarget = openingRushTarget(player)
-
-  if (state.jugg.carrier !== player) player.retreatingWithJugg = false
-
-  if (player.pinTarget && player.callType === 'hilfmir' && callTarget) {
-    player.pinTarget = null
-    target = callTarget
-    faceTarget = callTarget
-    if (target.radius && distance(player, target) < 68) attack(player, target)
-  } else if (player.pinTarget && player.callType === 'doppelpin' && player.doublePinTrapTarget) {
-    const trapTarget = player.doublePinTrapTarget
-    const trapPoint = doublePinTrapPoint(player)
-    target = trapPoint && distance(player, trapPoint) > 9 ? trapPoint : player
-    faceTarget = trapTarget
-    if (!isInactive(trapTarget) && distance(player, trapTarget) < ATTACK_RANGE + 8) {
-      attack(player, trapTarget)
-    }
-  } else if (player.pinTarget) {
-    target = pinOrbitPoint(player) || player
-    faceTarget = player.pinTarget
-    if (nearestActiveEnemy.target && nearestActiveEnemy.distance < 68) {
-      target = nearestActiveEnemy.target
-      faceTarget = nearestActiveEnemy.target
-      attack(player, target)
-    }
-  } else if (player.grappleTarget) {
-    target = player.grappleTarget
-  } else if (callTarget) {
-    target = callTarget
-    if (player.callType === 'hilfmir' && isPompfer(player) && target.radius && distance(player, target) < 68) {
-      attack(player, target)
-    }
-  } else if (rushTarget) {
-    target = rushTarget
-    if (isPompfer(player) && distance(player, rushTarget) < 68) attack(player, rushTarget)
-  } else if (isRunner(player)) {
-
-    if (state.jugg.carrier === player) {
-      const blockers = directMalBlockers(player)
-      player.retreatingWithJugg = blockers.length > 0
-      target = blockers.length > 0 ? retreatPointForRunner(player, blockers) : team.attackMal
-    } else if (enemyCarrier) {
-      target = state.jugg.carrier
-    } else {
-      target = state.jugg
-    }
-  } else {
-    const inactive = nearestClaimablePinTarget(player)
-    const enemy = nearestActiveEnemy
-
-    if (inactive.target && inactive.distance < 132 && !enemyCarrier) {
-      target = inactive.target
-    } else if (enemyCarrier) {
-      const carrier = state.jugg.carrier
-      const pressureRank = carrierPressureRank(player, carrier)
-      if (pressureRank >= 0 && pressureRank < CARRIER_PRESSURE_COUNT) {
-        target = flankPoint(carrier, player)
-      } else {
-        const opposite = oppositePlayer(player)
-        const oppositeIsRelevant = opposite && !isInactive(opposite) && distance(opposite, carrier) < 260
-        target = oppositeIsRelevant ? opposite : laneBlockPoint(player, carrier)
-      }
-    } else if (ownCarrier && state.jugg.carrier.retreatingWithJugg) {
-      target = enemy.target && enemy.distance < 220 ? enemy.target : player
-    } else if (ownCarrier) {
-      const carrier = state.jugg.carrier
-      target = supportPoint(player, carrier)
-    } else if (enemy.target && enemy.distance < 188) {
-      target = enemy.target
-    } else {
-      const lane = Number(player.id.slice(-1)) - 2.5
-      target = {
-        x: state.jugg.x + (player.team === 'blue' ? -96 : 96),
-        y: state.jugg.y + lane * 70,
-      }
-    }
-
-    if (enemy.target && enemy.distance < 68) attack(player, enemy.target)
-  }
-
-  if (!player.pinTarget) faceTarget = target
-  facePoint(player, faceTarget)
-
-  if (player.attackWindup > 0 || isGrappling(player)) {
-    if (isGrappling(player)) {
-      player.vx = 0
-      player.vy = 0
-    }
+    queueDoubleParticipant(player, stones)
     return
   }
 
-  if (player.pinTarget && target === player) {
-    player.vx = 0
-    player.vy = 0
-    return
-  }
-
-  if (!player.pinTarget && distance(player, target) <= stopDistanceFor(player, target)) {
-    player.vx = 0
-    player.vy = 0
-    return
-  }
-
-  const desired = normalize(target.x - player.x, target.y - player.y)
-  const avoid = teammateAvoidance(player)
-  const direction = normalize(desired.x + avoid.x * 0.95, desired.y + avoid.y * 0.95)
-  const carrierBoost = state.jugg.carrier === player ? 1.13 : 1
-  const pinSlowdown = player.pinTarget ? 0.18 : 1
-  const speed = player.speed * carrierBoost * pinSlowdown
-
-  player.vx = direction.x * speed
-  player.vy = direction.y * speed
+  makeInactive(player, stones)
 }
 
+const decision = createDecisionEngine({ state, attack })
 function updateInactivePlayer(player, dt) {
   player.vx = 0
   player.vy = 0
@@ -1350,6 +632,7 @@ function updateInactivePlayer(player, dt) {
   player.callTimer = 0
   player.callType = null
   player.callSource = null
+  player.callContext = null
   player.doublePinTrapTarget = null
   player.attackCooldown = Math.max(0, player.attackCooldown - dt)
 
@@ -1368,9 +651,18 @@ function updateRecoveryDash(player, dt) {
   player.callTimer = 0
   player.callType = null
   player.callSource = null
+  player.callContext = null
   player.doublePinTrapTarget = null
-  player.vx = player.recoveryDashX * RECOVERY_DASH_SPEED
-  player.vy = player.recoveryDashY * RECOVERY_DASH_SPEED
+  const dashSpeed = player.recoveryDashSpeed || RECOVERY_DASH_SPEED
+  player.vx = player.recoveryDashX * dashSpeed
+  player.vy = player.recoveryDashY * dashSpeed
+  if (player.vx || player.vy) player.angle = Math.atan2(player.vy, player.vx)
+}
+
+function updateRunnerJuggRetreat(player, dt) {
+  player.runnerJuggRetreatTimer = Math.max(0, player.runnerJuggRetreatTimer - dt)
+  player.vx = player.runnerJuggRetreatX * player.speed * 0.92
+  player.vy = player.runnerJuggRetreatY * player.speed * 0.92
   if (player.vx || player.vy) player.angle = Math.atan2(player.vy, player.vx)
 }
 
@@ -1408,7 +700,31 @@ function movePinningPlayer(player, dt) {
   return true
 }
 
+function canEnterFromOutsideStart(player) {
+  if (pointInPolygon(player)) return false
+  const leftGroundLine = fieldPoint(0, FIELD.widthMeters / 2).x
+  const rightGroundLine = fieldPoint(FIELD.lengthMeters, FIELD.widthMeters / 2).x
+  return (player.team === 'blue' && player.x < leftGroundLine && player.vx > 0) || (player.team === 'red' && player.x > rightGroundLine && player.vx < 0)
+}
+
+function inactiveRunnerSlowdown(player) {
+  if (!isRunner(player) || isInactive(player)) return 1
+  const nearbyInactive = state.players.filter((other) => other !== player && isInactive(other) && distance(player, other) < player.radius + other.radius + 10).length
+  if (nearbyInactive <= 0) return 1
+  return clamp(1 - nearbyInactive * 0.22, 0.38, 1)
+}
+
+function isRunnerInJuggContest(player) {
+  return Boolean(state.jugg.contest?.runners.includes(player))
+}
+
 function movePlayer(player, dt) {
+  if (isRunnerInJuggContest(player)) {
+    player.vx = 0
+    player.vy = 0
+    return
+  }
+
   if (isGrappling(player)) {
     player.vx = 0
     player.vy = 0
@@ -1417,9 +733,14 @@ function movePlayer(player, dt) {
 
   if (player.attackWindup <= 0 && movePinningPlayer(player, dt)) return
 
-  player.x += player.vx * dt
-  player.y += player.vy * dt
-  constrainToField(player, player.radius)
+  const slowdown = inactiveRunnerSlowdown(player)
+  player.x += player.vx * dt * slowdown
+  player.y += player.vy * dt * slowdown
+  if (!canEnterFromOutsideStart(player)) constrainToField(player, player.radius)
+}
+
+function canPassThroughInactive(a, b) {
+  return (isRunner(a) && !isInactive(a) && isInactive(b)) || (isRunner(b) && !isInactive(b) && isInactive(a))
 }
 
 function separatePlayers() {
@@ -1427,6 +748,7 @@ function separatePlayers() {
     for (let j = i + 1; j < state.players.length; j += 1) {
       const a = state.players[i]
       const b = state.players[j]
+      if (canPassThroughInactive(a, b)) continue
       const dx = b.x - a.x
       const dy = b.y - a.y
       const d = Math.hypot(dx, dy) || 1
@@ -1449,14 +771,81 @@ function separatePlayers() {
 }
 
 function hitChance(attacker, target) {
-  let chance = attacker.technik / (attacker.technik + target.technik)
-  if (isRunner(target)) chance += RUNNER_TARGET_BONUS
-  if (attacker.attackWhileMoving) chance -= RUNNING_ATTACK_PENALTY
+  const profile = pompfeFor(attacker)
+  const shieldBonus = isShieldBlockFacing(target, attacker) ? pompfeFor(target).shieldBlockBonus : 0
+  let chance = attacker.technik / (attacker.technik + target.technik + shieldBonus)
+  if (isRunner(target)) chance += profile.runnerHitBonus
+  if (attacker.attackWhileMoving) chance -= profile.runningAttackPenalty
   return clamp(chance, 0.02, 0.98)
 }
 
 function techniqueContestChance(challenger, defender) {
   return challenger.technik / (challenger.technik + defender.technik)
+}
+
+function runnerJuggReach() {
+  return PLAYER_RADIUS + JUGG_RADIUS + 8
+}
+
+function runnerJuggContestResult(a, b) {
+  const aChance = techniqueContestChance(a, b)
+  const bChance = techniqueContestChance(b, a)
+  const aHits = Math.random() <= aChance
+  const bHits = Math.random() <= bChance
+
+  if (aHits && !bHits) return a
+  if (bHits && !aHits) return b
+  if (aHits && bHits) return 'held'
+  return null
+}
+
+function nearbyEnemyPompferPressure(runner) {
+  return decision.nearestEnemy(runner, (other) => isPompfer(other) && !isInactive(other))
+}
+
+function retreatRunnerFromPressure(runner, threat) {
+  const ownMal = TEAMS[runner.team].mal
+  const awayFromThreat = threat ? normalize(runner.x - threat.x, runner.y - threat.y) : { x: 0, y: 0 }
+  const towardHome = normalize(ownMal.x - runner.x, ownMal.y - runner.y)
+  const fallback = runner.team === 'blue' ? { x: -1, y: 0 } : { x: 1, y: 0 }
+  const direction = normalize(awayFromThreat.x * 1.35 + towardHome.x * 0.75, awayFromThreat.y * 1.35 + towardHome.y * 0.75)
+  runner.runnerJuggRetreatTimer = 0.5
+  runner.runnerJuggRetreatX = direction.x || fallback.x
+  runner.runnerJuggRetreatY = direction.y || fallback.y
+  runner.vx = runner.runnerJuggRetreatX * runner.speed * 0.92
+  runner.vy = runner.runnerJuggRetreatY * runner.speed * 0.92
+  runner.angle = Math.atan2(runner.vy, runner.vx)
+  runner.duelCooldown = Math.max(runner.duelCooldown, RUNNER_DUEL_COOLDOWN * 0.7)
+}
+
+function assignJuggCarrier(runner, message = null) {
+  state.jugg.carrier = runner
+  state.jugg.contest = null
+  state.jugg.vx = 0
+  state.jugg.vy = 0
+  runner.holdOffset = 0
+  if (message) {
+    state.message = message
+    state.messageTimer = 0.7
+  }
+  burst(state.jugg.x, state.jugg.y, TEAMS[runner.team].color, 8)
+}
+
+function startRunnerJuggContest(a, b) {
+  state.jugg.carrier = null
+  state.jugg.contest = {
+    runners: [a, b],
+    cooldown: RUNNER_JUGG_CONTEST_COOLDOWN,
+  }
+  state.jugg.vx = 0
+  state.jugg.vy = 0
+  for (const runner of [a, b]) {
+    runner.vx = 0
+    runner.vy = 0
+    runner.duelCooldown = Math.max(runner.duelCooldown, RUNNER_JUGG_CONTEST_COOLDOWN)
+  }
+  state.message = 'Jugg umkaempft'
+  state.messageTimer = 0.55
 }
 
 function findStrikeTarget(attacker) {
@@ -1465,20 +854,15 @@ function findStrikeTarget(attacker) {
 
   if (attacker.attackTarget && attacker.attackTarget.team !== attacker.team && !isInactive(attacker.attackTarget)) {
     const target = attacker.attackTarget
-    const d = distance(attacker, target)
-    const range = ATTACK_RANGE + (isRunner(target) ? RUNNER_STRIKE_RANGE_BONUS : 0)
-    const hitAngle = Math.atan2(target.y - attacker.y, target.x - attacker.x)
-    const arc = Math.abs(Math.atan2(Math.sin(hitAngle - attacker.angle), Math.cos(hitAngle - attacker.angle)))
-    if (d < range && (arc < ATTACK_ARC || d < CLOSE_STRIKE_RANGE || isRunner(target))) return target
+    const range = attackRangeFor(attacker, target)
+    if (isInAttackArc(attacker, target, range)) return target
   }
 
   for (const target of state.players) {
     if (target.team === attacker.team || isInactive(target)) continue
     const d = distance(attacker, target)
-    const range = ATTACK_RANGE + (isRunner(target) ? RUNNER_STRIKE_RANGE_BONUS : 0)
-    const hitAngle = Math.atan2(target.y - attacker.y, target.x - attacker.x)
-    const arc = Math.abs(Math.atan2(Math.sin(hitAngle - attacker.angle), Math.cos(hitAngle - attacker.angle)))
-    const inArc = arc < ATTACK_ARC || d < CLOSE_STRIKE_RANGE
+    const range = attackRangeFor(attacker, target)
+    const inArc = isInAttackArc(attacker, target, range)
     const score = d - (isRunner(target) ? 24 : 0)
     if (d < range && inArc && score < bestScore) {
       best = target
@@ -1504,7 +888,7 @@ function resolveStrikeEvents(events) {
   }
 
   for (const hit of hits) {
-    queueInactive(hit.target, HIT_STONES)
+    queueInactive(hit.target, HIT_STONES, hit.attacker)
     burst(hit.target.x, hit.target.y, TEAMS[hit.attacker.team].color, 8)
   }
 }
@@ -1524,6 +908,7 @@ function resolvePins() {
   for (const [target, pinner] of previousPinned) {
     if (
       !isPompfer(pinner) ||
+      !canPinWithPompfe(pinner) ||
       isInactive(pinner) ||
       pinner.callType === 'hilfmir' ||
       pinner.doublePinReleasePause > 0 ||
@@ -1542,7 +927,7 @@ function resolvePins() {
   }
 
   for (const pinner of state.players) {
-    if (!isPompfer(pinner) || isInactive(pinner)) continue
+    if (!isPompfer(pinner) || !canPinWithPompfe(pinner) || isInactive(pinner)) continue
     if (pinner.callType === 'hilfmir') continue
     if (pinner.doublePinReleasePause > 0 || pinner.doublePinTrapTarget) continue
     if (assignedPinners.has(pinner)) continue
@@ -1577,6 +962,17 @@ function resolvePins() {
   for (const pinner of state.players) {
     if (pinner.pinTarget?.pinnedBy !== pinner) pinner.pinTarget = null
   }
+}
+
+function carrierThreatensMal(team, carrier) {
+  if (!carrier || carrier.team === team || !isRunner(carrier) || isInactive(carrier)) return false
+
+  const ownMal = TEAMS[team].mal
+  const ownHalf = team === 'blue' ? carrier.x < FIELD.center.x : carrier.x > FIELD.center.x
+  const towardMal = normalize(ownMal.x - carrier.x, ownMal.y - carrier.y)
+  const progress = carrier.vx * towardMal.x + carrier.vy * towardMal.y
+
+  return ownHalf && progress > 20
 }
 
 function resolveRunnerGrapples() {
@@ -1666,9 +1062,95 @@ function resolveRunnerDuels() {
   burst(state.jugg.x, state.jugg.y, TEAMS[winner.team].color, challengerWins ? 14 : 8)
 }
 
+function updateRunnerJuggContest(dt) {
+  const contest = state.jugg.contest
+  if (!contest) return false
+
+  const [a, b] = contest.runners
+  if (!a || !b || isInactive(a) || isInactive(b) || distance(a, b) > RUNNER_DUEL_RANGE * 1.6) {
+    state.jugg.contest = null
+    state.jugg.cooldown = 0.18
+    return false
+  }
+
+  const midX = (a.x + b.x) / 2
+  const midY = (a.y + b.y) / 2
+  state.jugg.x = midX
+  state.jugg.y = midY
+  state.jugg.vx = 0
+  state.jugg.vy = 0
+
+  contest.cooldown = Math.max(0, contest.cooldown - dt)
+  for (const runner of contest.runners) {
+    runner.vx = 0
+    runner.vy = 0
+    runner.angle = Math.atan2(state.jugg.y - runner.y, state.jugg.x - runner.x)
+  }
+
+  if (contest.cooldown > 0) return true
+
+  const pressured = contest.runners
+    .map((runner) => ({ runner, pressure: nearbyEnemyPompferPressure(runner) }))
+    .filter(({ pressure }) => pressure.target && pressure.distance < RUNNER_JUGG_CONTEST_PRESSURE_RANGE)
+
+  if (pressured.length > 0) {
+    state.jugg.contest = null
+    state.jugg.cooldown = 0.32
+    state.message = 'Laeufer loesen'
+    state.messageTimer = 0.55
+    for (const { runner, pressure } of pressured) retreatRunnerFromPressure(runner, pressure.target)
+    return true
+  }
+
+  const result = runnerJuggContestResult(a, b)
+  if (result === 'held') {
+    contest.cooldown = RUNNER_JUGG_CONTEST_COOLDOWN
+    state.message = 'Jugg festgehalten'
+    state.messageTimer = 0.55
+    return true
+  }
+
+  if (result) {
+    assignJuggCarrier(result, `${TEAMS[result.team].name} sichert den Jugg`)
+    return true
+  }
+
+  contest.cooldown = RUNNER_JUGG_CONTEST_COOLDOWN * 0.65
+  return true
+}
+
+function resolveFreeJuggRunnerPickup() {
+  if (state.jugg.cooldown > 0 || state.jugg.carrier || state.jugg.contest) return
+
+  const runners = state.players
+    .filter((player) => isRunner(player) && !isInactive(player) && distance(player, state.jugg) <= runnerJuggReach())
+    .sort((a, b) => distance(a, state.jugg) - distance(b, state.jugg))
+
+  if (runners.length <= 0) return
+
+  const first = runners[0]
+  const opponent = runners.find((runner) => runner.team !== first.team)
+
+  if (!opponent) {
+    assignJuggCarrier(first)
+    return
+  }
+
+  const result = runnerJuggContestResult(first, opponent)
+  if (result === 'held') {
+    startRunnerJuggContest(first, opponent)
+  } else if (result) {
+    assignJuggCarrier(result)
+  } else {
+    state.jugg.cooldown = RUNNER_JUGG_CONTEST_COOLDOWN * 0.55
+  }
+}
+
 function updateJugg(dt) {
   const jugg = state.jugg
   jugg.cooldown = Math.max(0, jugg.cooldown - dt)
+
+  if (updateRunnerJuggContest(dt)) return
 
   if (jugg.carrier) {
     const carrier = jugg.carrier
@@ -1689,17 +1171,12 @@ function updateJugg(dt) {
 
   constrainToField(jugg, JUGG_RADIUS, true)
 
+  resolveFreeJuggRunnerPickup()
+  if (jugg.carrier || jugg.contest) return
+
   for (const player of state.players) {
     if (isInactive(player)) continue
     const d = distance(player, jugg)
-
-    if (isRunner(player) && jugg.cooldown <= 0 && d <= player.radius + JUGG_RADIUS + 8) {
-      jugg.carrier = player
-      jugg.vx = 0
-      jugg.vy = 0
-      burst(jugg.x, jugg.y, TEAMS[player.team].color, 6)
-      break
-    }
 
     if (isPompfer(player) && d < player.radius + JUGG_RADIUS + 8) {
       const push = normalize(jugg.x - player.x, jugg.y - player.y)
@@ -1795,388 +1272,90 @@ function update(dt) {
   updateTimers(dt)
   state.teamCallCooldowns.blue = Math.max(0, state.teamCallCooldowns.blue - dt)
   state.teamCallCooldowns.red = Math.max(0, state.teamCallCooldowns.red - dt)
-  emitCalls()
+  try {
+    decision.emitCalls()
+  } catch (error) {
+    reportFrameError('Calls', error)
+  }
 
   const strikeEvents = []
 
   for (const player of state.players) {
-    player.attack = Math.max(0, player.attack - dt)
-    player.doubleWindow = Math.max(0, player.doubleWindow - dt)
-    player.attackCooldown = Math.max(0, player.attackCooldown - dt)
-    player.duelCooldown = Math.max(0, player.duelCooldown - dt)
-    player.callCooldown = Math.max(0, player.callCooldown - dt)
-    player.callTimer = Math.max(0, player.callTimer - dt)
-    player.callBubbleTimer = Math.max(0, player.callBubbleTimer - dt)
-    player.doublePinReleasePause = Math.max(0, player.doublePinReleasePause - dt)
-    if (player.callBubbleTimer <= 0) player.callBubbleText = ''
-    if (player.callTimer <= 0) {
-      clearCallIntent(player)
-    }
-    if (player.attackWindup > 0) {
-      player.attackWindup = Math.max(0, player.attackWindup - dt)
-      if (player.attackWindup <= 0) {
-        strikeEvents.push(player)
-        player.attackCooldown = ATTACK_COOLDOWN
+    try {
+      player.attack = Math.max(0, player.attack - dt)
+      player.doubleWindow = Math.max(0, player.doubleWindow - dt)
+      player.attackCooldown = Math.max(0, player.attackCooldown - dt)
+      player.chainStrikeTimer = Math.max(0, player.chainStrikeTimer - dt)
+      if (player.chainStrikeTimer <= 0) player.chainStrikeTarget = null
+      player.duelCooldown = Math.max(0, player.duelCooldown - dt)
+      player.callCooldown = Math.max(0, player.callCooldown - dt)
+      player.callTimer = Math.max(0, player.callTimer - dt)
+      player.callBubbleTimer = Math.max(0, player.callBubbleTimer - dt)
+      player.callMissTimer = Math.max(0, player.callMissTimer - dt)
+      player.doublePinReleasePause = Math.max(0, player.doublePinReleasePause - dt)
+      if (player.callBubbleTimer <= 0) player.callBubbleText = ''
+      if (player.callTimer <= 0) {
+        decision.clearCallIntent(player)
       }
-    } else {
-      if (player.attack <= 0) player.attackWhileMoving = false
-
-      if (player.pendingInactiveStones > 0 && player.doubleWindow > 0) {
-        player.vx = 0
-        player.vy = 0
-      } else if (player.pendingInactiveStones > 0) {
-        makeInactive(player, player.pendingInactiveStones)
-      } else if (isInactive(player)) {
-        updateInactivePlayer(player, dt)
-      } else if (isRecoveryDashing(player)) {
-        updateRecoveryDash(player, dt)
+      if (player.attackWindup > 0) {
+        player.attackWindup = Math.max(0, player.attackWindup - dt)
+        if (player.attackWindup <= 0) {
+          strikeEvents.push(player)
+          player.attackCooldown = ATTACK_COOLDOWN
+        }
       } else {
-        updateAi(player, dt)
+        if (player.attack <= 0) player.attackWhileMoving = false
+
+        if (player.pendingInactiveStones > 0 && player.doubleWindow > 0) {
+          player.vx = 0
+          player.vy = 0
+        } else if (player.pendingInactiveStones > 0) {
+          makeInactive(player, player.pendingInactiveStones)
+        } else if (isInactive(player)) {
+          updateInactivePlayer(player, dt)
+        } else if (isRunnerInJuggContest(player)) {
+          player.vx = 0
+          player.vy = 0
+        } else if (player.runnerJuggRetreatTimer > 0) {
+          updateRunnerJuggRetreat(player, dt)
+        } else if (isRecoveryDashing(player)) {
+          updateRecoveryDash(player, dt)
+        } else {
+          decision.updateAi(player, dt)
+        }
       }
+
+      movePlayer(player, dt)
+    } catch (error) {
+      player.vx = 0
+      player.vy = 0
+      reportFrameError(`Spieler ${player.id}`, error)
     }
-
-    movePlayer(player, dt)
   }
 
-  separatePlayers()
-  resolveStrikeEvents(strikeEvents)
-  resolvePins()
-  updateJugg(dt)
-  checkScoring()
-  updateParticles(dt)
-}
-
-function drawField() {
-  ctx.clearRect(0, 0, FIELD.width, FIELD.height)
-  ctx.fillStyle = '#0d1315'
-  ctx.fillRect(0, 0, FIELD.width, FIELD.height)
-
-  const grass = ctx.createLinearGradient(0, 0, FIELD.width, FIELD.height)
-  grass.addColorStop(0, '#204b3d')
-  grass.addColorStop(0.55, '#286144')
-  grass.addColorStop(1, '#1e443c')
-
-  ctx.save()
-  drawFieldPath()
-  ctx.fillStyle = grass
-  ctx.fill()
-  ctx.clip()
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.09)'
-  ctx.lineWidth = 2
-  for (let meterX = 0; meterX <= FIELD.lengthMeters; meterX += 5) {
-    const top = fieldPoint(meterX, 0)
-    const bottom = fieldPoint(meterX, FIELD.widthMeters)
-    ctx.beginPath()
-    ctx.moveTo(top.x, top.y)
-    ctx.lineTo(bottom.x, bottom.y)
-    ctx.stroke()
+  try {
+    separatePlayers()
+    resolveStrikeEvents(strikeEvents)
+    resolvePins()
+    updateJugg(dt)
+    checkScoring()
+    updateParticles(dt)
+  } catch (error) {
+    reportFrameError('Simulation', error)
   }
-  for (let meterY = 0; meterY <= FIELD.widthMeters; meterY += 5) {
-    const left = fieldPoint(0, meterY)
-    const right = fieldPoint(FIELD.lengthMeters, meterY)
-    ctx.beginPath()
-    ctx.moveTo(left.x, left.y)
-    ctx.lineTo(right.x, right.y)
-    ctx.stroke()
+}
+
+function reportFrameError(area, error) {
+  const detail = error instanceof Error ? error.message : String(error)
+  const message = `${area}: ${detail}`
+  if (state.message !== message) {
+    console.error(message, error)
+    state.message = message
+    state.messageTimer = 2
   }
-
-  ctx.setLineDash([14, 18])
-  ctx.strokeStyle = 'rgba(244,241,224,0.62)'
-  ctx.lineWidth = 3
-  const middleTop = fieldPoint(20, 1.2)
-  const middleBottom = fieldPoint(20, 18.8)
-  ctx.beginPath()
-  ctx.moveTo(middleTop.x, middleTop.y)
-  ctx.lineTo(middleBottom.x, middleBottom.y)
-  ctx.stroke()
-  ctx.setLineDash([])
-  ctx.restore()
-
-  ctx.save()
-  ctx.strokeStyle = 'rgba(244,241,224,0.88)'
-  ctx.lineWidth = 5
-  drawFieldPath()
-  ctx.stroke()
-
-  ctx.strokeStyle = 'rgba(240,214,106,0.9)'
-  ctx.lineWidth = 7
-  ctx.lineCap = 'round'
-  drawGroundLine(0)
-  drawGroundLine(FIELD.lengthMeters)
-  ctx.restore()
-
-  drawMal(TEAMS.blue.mal, TEAMS.blue.color, 'B')
-  drawMal(TEAMS.red.mal, TEAMS.red.color, 'R')
 }
 
-function drawFieldPath() {
-  ctx.beginPath()
-  ctx.moveTo(FIELD_POLYGON[0].x, FIELD_POLYGON[0].y)
-  for (let i = 1; i < FIELD_POLYGON.length; i += 1) {
-    ctx.lineTo(FIELD_POLYGON[i].x, FIELD_POLYGON[i].y)
-  }
-  ctx.closePath()
-}
-
-function drawGroundLine(meterX) {
-  const top = fieldPoint(meterX, 5)
-  const bottom = fieldPoint(meterX, 15)
-  ctx.beginPath()
-  ctx.moveTo(top.x, top.y)
-  ctx.lineTo(bottom.x, bottom.y)
-  ctx.stroke()
-}
-
-function drawMal(mal, color, label) {
-  ctx.save()
-  ctx.translate(mal.x, mal.y)
-  ctx.fillStyle = 'rgba(13,18,23,0.32)'
-  ctx.beginPath()
-  ctx.arc(0, 0, FIELD.malRadius + 12, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = color
-  ctx.lineWidth = 6
-  ctx.beginPath()
-  ctx.arc(0, 0, FIELD.malRadius, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.fillStyle = 'rgba(255,255,255,0.82)'
-  ctx.font = '700 18px system-ui'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(label, 0, 1)
-  ctx.restore()
-}
-
-function drawJugg() {
-  const { x, y } = state.jugg
-  ctx.save()
-  ctx.shadowColor = 'rgba(0,0,0,0.45)'
-  ctx.shadowBlur = 12
-  ctx.fillStyle = '#f0d66a'
-  ctx.beginPath()
-  ctx.ellipse(x, y, 15, 10, 0.35, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.shadowBlur = 0
-  ctx.strokeStyle = '#5a3f16'
-  ctx.lineWidth = 3
-  ctx.stroke()
-  ctx.fillStyle = '#7b5420'
-  ctx.beginPath()
-  ctx.arc(x + 4, y - 1, 3, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-}
-
-function drawPinLine(player) {
-  if (!player.pinTarget || player.pinTarget.pinnedBy !== player) return
-  ctx.save()
-  ctx.strokeStyle = 'rgba(240,214,106,0.92)'
-  ctx.lineWidth = 5
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(player.x, player.y)
-  ctx.lineTo(player.pinTarget.x, player.pinTarget.y)
-  ctx.stroke()
-  ctx.restore()
-}
-
-function drawGrappleLine(player) {
-  if (!player.grappleTarget) return
-  ctx.save()
-  ctx.strokeStyle = 'rgba(255,247,215,0.88)'
-  ctx.lineWidth = 4
-  ctx.setLineDash([5, 6])
-  ctx.beginPath()
-  ctx.moveTo(player.x, player.y)
-  ctx.lineTo(player.grappleTarget.x, player.grappleTarget.y)
-  ctx.stroke()
-  ctx.setLineDash([])
-  ctx.restore()
-}
-
-function drawPlayer(player) {
-  const team = TEAMS[player.team]
-  const inactive = isInactive(player)
-
-  ctx.save()
-  ctx.translate(player.x, player.y)
-  ctx.rotate(player.angle)
-
-  if (player.attack > 0) {
-    ctx.fillStyle = player.team === 'blue' ? 'rgba(33,168,163,0.24)' : 'rgba(221,97,74,0.24)'
-    ctx.beginPath()
-    ctx.moveTo(8, 0)
-    ctx.arc(8, 0, 64, -0.62, 0.62)
-    ctx.closePath()
-    ctx.fill()
-  }
-
-  ctx.fillStyle = 'rgba(0,0,0,0.24)'
-  ctx.beginPath()
-  ctx.ellipse(0, 9, player.radius * 0.95, player.radius * 0.55, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  if (inactive) {
-    ctx.rotate(-player.angle)
-    ctx.fillStyle = 'rgba(7, 10, 12, 0.38)'
-    ctx.beginPath()
-    ctx.ellipse(0, 4, player.radius + 7, player.radius - 5, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.rotate(player.angle)
-  }
-
-  ctx.fillStyle = inactive ? '#6f7782' : team.color
-  ctx.strokeStyle = player.pinnedBy || player.grappledBy || player.grappleTarget ? '#f0d66a' : team.dark
-  ctx.lineWidth = player.pinnedBy || player.grappledBy || player.grappleTarget ? 5 : 3
-  ctx.beginPath()
-  ctx.arc(0, 0, player.radius, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-
-  ctx.fillStyle = inactive ? '#c6ced8' : '#11181d'
-  ctx.beginPath()
-  ctx.moveTo(player.radius + 7, 0)
-  ctx.lineTo(4, -7)
-  ctx.lineTo(4, 7)
-  ctx.closePath()
-  ctx.fill()
-
-  if (isPompfer(player)) {
-    ctx.strokeStyle = '#e7dfc6'
-    ctx.lineWidth = 5
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(14, -17)
-    ctx.lineTo(48, -31)
-    ctx.stroke()
-  } else {
-    ctx.fillStyle = '#f0d66a'
-    ctx.beginPath()
-    ctx.arc(-7, -7, 4, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  if (inactive) {
-    const label = player.pinnedBy ? 'P' : player.penaltyStones > 0 ? `${player.countedStones}/${player.penaltyTotalStones}` : '.'
-    ctx.rotate(-player.angle)
-    ctx.fillStyle = '#fff7d7'
-    ctx.font = '800 14px system-ui'
-    ctx.textAlign = 'center'
-    ctx.fillText(label, 0, -29)
-  }
-
-  ctx.restore()
-}
-
-function drawHoverMarker() {
-  if (!state.paused || !state.hover.player) return
-
-  const player = state.hover.player
-  ctx.save()
-  ctx.strokeStyle = '#fff7d7'
-  ctx.lineWidth = 4
-  ctx.setLineDash([7, 7])
-  ctx.beginPath()
-  ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.setLineDash([])
-  ctx.fillStyle = 'rgba(255,247,215,0.12)'
-  ctx.beginPath()
-  ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-}
-
-function drawParticles() {
-  for (const particle of state.particles) {
-    const alpha = clamp(particle.life / particle.maxLife, 0, 1)
-    ctx.globalAlpha = alpha
-    ctx.fillStyle = particle.color
-    ctx.beginPath()
-    ctx.arc(particle.x, particle.y, 3 + alpha * 3, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ctx.globalAlpha = 1
-}
-
-function drawCallBubble(player) {
-  if (player.callBubbleTimer <= 0 || !player.callBubbleText) return
-
-  const alpha = clamp(player.callBubbleTimer / CALL_BUBBLE_DURATION, 0, 1)
-  const text = player.callBubbleText
-  ctx.save()
-  ctx.globalAlpha = Math.min(1, alpha * 1.4)
-  ctx.font = '800 18px system-ui'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-
-  const paddingX = 13
-  const paddingY = 9
-  const width = ctx.measureText(text).width + paddingX * 2
-  const height = 34
-  const x = clamp(player.x, width / 2 + 8, FIELD.width - width / 2 - 8)
-  const y = clamp(player.y - player.radius - 34, height / 2 + 8, FIELD.height - height / 2 - 8)
-  const left = x - width / 2
-  const top = y - height / 2
-
-  ctx.fillStyle = 'rgba(255,247,215,0.96)'
-  ctx.strokeStyle = TEAMS[player.team].dark
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.roundRect(left, top, width, height, 8)
-  ctx.fill()
-  ctx.stroke()
-
-  const tailX = clamp(player.x, left + 12, left + width - 12)
-  const tailY = top + height
-  ctx.beginPath()
-  ctx.moveTo(tailX - 8, tailY - 2)
-  ctx.lineTo(tailX + 8, tailY - 2)
-  ctx.lineTo(player.x, Math.min(player.y - player.radius - 4, tailY + 14))
-  ctx.closePath()
-  ctx.fill()
-  ctx.stroke()
-
-  ctx.fillStyle = '#11181d'
-  ctx.fillText(text, x, y + 1)
-  ctx.restore()
-}
-
-function drawOverlay() {
-  if (state.running && state.messageTimer <= 0) return
-
-  ctx.save()
-  ctx.fillStyle = 'rgba(8,12,15,0.2)'
-  ctx.fillRect(0, 0, FIELD.width, FIELD.height)
-  ctx.fillStyle = '#fff7d7'
-  ctx.font = '800 54px system-ui'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(state.message, FIELD.width / 2, FIELD.height / 2 - 8)
-
-  if (!state.running && state.timeLeft > 0) {
-    ctx.font = '600 24px system-ui'
-    ctx.fillStyle = 'rgba(255,247,215,0.84)'
-    ctx.fillText('Start druecken', FIELD.width / 2, FIELD.height / 2 + 44)
-  }
-  ctx.restore()
-}
-
-function draw() {
-  drawField()
-
-  const sortedPlayers = [...state.players].sort((a, b) => a.y - b.y)
-  for (const player of sortedPlayers) drawPinLine(player)
-  for (const player of sortedPlayers) drawGrappleLine(player)
-  for (const player of sortedPlayers) drawPlayer(player)
-  drawHoverMarker()
-  drawJugg()
-  drawParticles()
-  drawOverlay()
-  for (const player of sortedPlayers) drawCallBubble(player)
-}
-
+const renderer = createRenderer({ ctx, state })
 function formatClock(seconds) {
   const whole = Math.ceil(seconds)
   const minutes = Math.floor(whole / 60).toString().padStart(2, '0')
@@ -2259,6 +1438,8 @@ function updatePlayerTooltip() {
   const top = clamp(state.hover.clientY - wrapRect.top + 14, 10, wrapRect.height - 132)
   const inactive = isInactive(player)
   const statusDetail = player.pinnedBy ? 'Pin' : player.grappledBy ? 'geklammert' : player.grappleTarget ? 'klammert' : '-'
+  const positionLabel = isPompfer(player) ? POSITION_LABELS[playerPositionSlot(player)] : 'Mitte'
+  const pompfe = isPompfer(player) ? pompfeFor(player) : null
 
   hud.playerTooltip.style.left = `${left}px`
   hud.playerTooltip.style.top = `${top}px`
@@ -2270,17 +1451,24 @@ function updatePlayerTooltip() {
     <div><span>Technik</span><strong>${player.technik}</strong><small>${skill.technik} SP</small></div>
     <div><span>Geschwindigkeit</span><strong>${player.geschwindigkeit}</strong><small>${skill.geschwindigkeit} SP</small></div>
     <div><span>Wahrnehmung</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} SP</small></div>
+    <div><span>Pompfe</span><strong>${pompfe ? pompfe.label : 'Jugg'}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
+    <div><span>Position</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? `Slot ${playerPositionSlot(player)}` : 'Laeufer'}</small></div>
     <div><span>Status</span><strong>${inactive ? 'inaktiv' : 'aktiv'}</strong><small>${statusDetail}</small></div>
   `
   hud.playerTooltip.hidden = false
 }
 
 function loop(time) {
-  const dt = Math.min(0.033, (time - state.lastTime) / 1000 || 0)
+  const rawDt = Math.min(0.033, (time - state.lastTime) / 1000 || 0)
+  const dt = state.running && !state.paused ? rawDt * state.playbackSpeed : rawDt
   state.lastTime = time
-  update(dt)
-  draw()
-  updateHud()
+  try {
+    update(dt)
+    renderer.draw()
+    updateHud()
+  } catch (error) {
+    reportFrameError('Frame', error)
+  }
   requestAnimationFrame(loop)
 }
 
@@ -2293,6 +1481,9 @@ function bindInput() {
   hud.startBtn.addEventListener('click', startMatch)
   hud.pauseBtn.addEventListener('click', togglePause)
   hud.resetBtn.addEventListener('click', resetMatch)
+  for (const button of hud.speedButtons) {
+    button.addEventListener('click', () => setPlaybackSpeed(Number(button.dataset.speed)))
+  }
   canvas.addEventListener('pointermove', (event) => {
     const point = canvasPointFromEvent(event)
     state.hover.active = true
@@ -2312,9 +1503,15 @@ function bindInput() {
     if (!button) return
     setBlueSkill(Number(button.dataset.player), button.dataset.skill, Number(button.dataset.delta))
   })
+  hud.skillList.addEventListener('change', (event) => {
+    const select = event.target.closest('select[data-position]')
+    if (!select) return
+    setBluePosition(Number(select.dataset.player), Number(select.value))
+  })
 }
 
 resetMatch()
 bindInput()
 renderSkillPanel()
+setPlaybackSpeed(state.playbackSpeed)
 requestAnimationFrame(loop)

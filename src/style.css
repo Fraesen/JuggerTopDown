@@ -28,7 +28,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 button {
@@ -85,14 +85,17 @@ kbd {
 }
 
 #app {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 }
 
 .game-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
   padding: 16px;
   background:
     linear-gradient(120deg, rgba(33, 168, 163, 0.11), transparent 36%),
@@ -165,6 +168,7 @@ kbd {
   gap: 16px;
   min-height: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .arena-wrap {
@@ -253,8 +257,12 @@ canvas {
 .command-panel {
   display: flex;
   min-height: 0;
+  max-height: 100%;
   flex-direction: column;
   gap: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 20px;
@@ -282,6 +290,30 @@ h1 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
+}
+
+.speed-control {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.speed-control button {
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.speed-control button.active,
+.speed-control button[aria-pressed="true"] {
+  color: #122024;
+  border-color: transparent;
+  background: var(--gold);
 }
 
 .status-grid {
@@ -457,6 +489,35 @@ h1 {
   font-size: 12px;
 }
 
+.position-control {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.position-control span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.position-control select {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--text);
+  background: #202b2f;
+  font: 800 12px/1 var(--font);
+}
+
+.position-control select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 .skill-control {
   grid-template-columns: 18px 30px 24px 30px 1fr;
   gap: 6px;
@@ -548,13 +609,26 @@ h1 {
 }
 
 @media (max-width: 960px) {
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #app,
   .game-shell {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .game-shell {
+    overflow: visible;
     padding: 10px;
   }
 
   .score-strip,
   .play-layout {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .score-strip {
@@ -575,6 +649,8 @@ h1 {
   }
 
   .command-panel {
+    max-height: none;
+    overflow: visible;
     order: -1;
   }
 
@@ -608,6 +684,7 @@ h1 {
   }
 
   .controls-row,
+  .speed-control,
   .status-grid {
     grid-template-columns: 1fr;
   }

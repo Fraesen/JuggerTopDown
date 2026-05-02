@@ -10,6 +10,7 @@ import {
   JUGG_RADIUS,
   MATCH_POINT,
   MATCH_SECONDS,
+  MOVEMENT_SPEED_FACTOR,
   PIN_ORBIT_MAX_RADIUS,
   PIN_ORBIT_MIN_RADIUS,
   PIN_ORBIT_SPEED_FACTOR,
@@ -448,7 +449,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     const forward = { x: Math.cos(player.angle), y: Math.sin(player.angle) }
     const direction = normalize(awayFromEnemy.x * 1.4 + forward.x * 0.45, awayFromEnemy.y * 1.4 + forward.y * 0.45)
     const fallback = player.team === 'blue' ? { x: -1, y: 0 } : { x: 1, y: 0 }
-    const speedFactor = clamp(player.speed / 195, 0.82, 1.24)
+    const speedFactor = clamp(player.speed / (195 * MOVEMENT_SPEED_FACTOR), 0.82, 1.24)
   
     player.recoveryDashTimer = RECOVERY_DASH_DURATION
     player.recoveryDashSpeed = RECOVERY_DASH_SPEED * speedFactor

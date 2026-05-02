@@ -86,6 +86,11 @@ export function maxPompfeAttackRange(target = null) {
   return Math.max(...Object.values(POMPFEN).map((profile) => profile.attackRange + (target?.role === 'runner' ? profile.runnerRangeBonus : 0)))
 }
 
+export function attackArcFor(attacker) {
+  const profile = pompfeFor(attacker)
+  return profile.id === 'chain' ? profile.attackArc * 0.62 : profile.attackArc
+}
+
 export function isInAttackArc(attacker, target, range = attackRangeFor(attacker, target)) {
   const profile = pompfeFor(attacker)
   const d = Math.hypot(target.x - attacker.x, target.y - attacker.y)
@@ -94,7 +99,7 @@ export function isInAttackArc(attacker, target, range = attackRangeFor(attacker,
 
   const hitAngle = Math.atan2(target.y - attacker.y, target.x - attacker.x)
   const frontDelta = Math.abs(Math.atan2(Math.sin(hitAngle - attacker.angle), Math.cos(hitAngle - attacker.angle)))
-  if (frontDelta < profile.attackArc || d < profile.closeStrikeRange) return true
+  if (frontDelta < attackArcFor(attacker) || d < profile.closeStrikeRange) return true
 
   if (!profile.rearAttackArc) return false
   const rearAngle = attacker.angle + Math.PI

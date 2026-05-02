@@ -1,6 +1,7 @@
 import {
   PLAYER_RADIUS,
   PLAYER_POSITIONS,
+  MOVEMENT_SPEED_FACTOR,
   PIN_MIN_COUNTED_STONES,
   PLAYER_STRATEGIES,
   PLAYER_SKILLS,
@@ -63,8 +64,13 @@ export function playerPositionSlot(player) {
   return player.positionSlot ?? playerIndex(player)
 }
 
+const SHARED_MOVEMENT_BASE = 124
+const SPEED_RATING_FACTOR = 1.16
+
 export function playerSpeed(role, geschwindigkeit) {
-  return (role === 'runner' ? 132 : 124) + geschwindigkeit * (role === 'runner' ? 1.32 : 1.16)
+  const speedPoints = Math.max(0, (geschwindigkeit - SPEED_BASE) / SPEED_PER_POINT)
+  const runnerSkillBonus = role === 'runner' ? 5 : 0
+  return (SHARED_MOVEMENT_BASE + geschwindigkeit * SPEED_RATING_FACTOR + runnerSkillBonus) * MOVEMENT_SPEED_FACTOR
 }
 
 export function skillForPlayer(player) {

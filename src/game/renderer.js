@@ -1,7 +1,7 @@
 import { CALL_BUBBLE_DURATION, FIELD, FIELD_POLYGON, JUGG_RADIUS, PLAYER_RADIUS, TEAMS, fieldPoint } from './config.js'
 import { clamp } from './geometry.js'
 import { isInactive, isPompfer, isRunner } from './players.js'
-import { pompfeFor } from './pompfen.js'
+import { attackArcFor, pompfeFor } from './pompfen.js'
 
 const POMPFEN_VISUALS = {
   staff: {
@@ -356,8 +356,8 @@ export function createRenderer({ ctx, state }) {
       if (player.pompfe === 'chain') {
         const outer = profile.attackRange - 8
         const inner = profile.minAttackRange || 40
-        const start = -profile.attackArc * 0.62
-        const end = profile.attackArc * 0.62
+        const start = -attackArcFor(player)
+        const end = attackArcFor(player)
         ctx.beginPath()
         ctx.arc(0, 0, outer, start, end)
         ctx.arc(0, 0, inner, end, start, true)

@@ -81,13 +81,14 @@ export const PLAYER_POSITIONS = {
 
 export const PLAYER_RADIUS = 17
 export const JUGG_RADIUS = 11
+export const MOVEMENT_SPEED_FACTOR = 0.6
 export const MATCH_SECONDS = 180
 export const MATCH_POINT = 3
 export const STONE_SECONDS = 1.5
 export const HIT_STONES = 5
 export const CHAIN_HIT_STONES = 8
 export const RECOVERY_DASH_DURATION = 0.24
-export const RECOVERY_DASH_SPEED = 315
+export const RECOVERY_DASH_SPEED = 315 * MOVEMENT_SPEED_FACTOR
 export const PIN_RANGE = 64
 export const PIN_MIN_COUNTED_STONES = 3
 export const PIN_ORBIT_MIN_RADIUS = 38

@@ -124,15 +124,14 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     const skill = skillForPlayer(player)
     const wrapRect = arenaWrap.getBoundingClientRect()
     const tooltipWidth = 190
-    const left = clamp(state.hover.clientX - wrapRect.left + 14, 10, wrapRect.width - tooltipWidth - 10)
-    const top = clamp(state.hover.clientY - wrapRect.top + 14, 10, wrapRect.height - 132)
+    const mouseX = state.hover.clientX - wrapRect.left
+    const mouseY = state.hover.clientY - wrapRect.top
+    const left = clamp(mouseX + 14, 10, wrapRect.width - tooltipWidth - 10)
     const inactive = isInactive(player)
     const statusDetail = player.pinnedBy ? 'Pin' : player.grappledBy ? 'geklammert' : player.grappleTarget ? 'klammert' : '-'
     const positionLabel = isPompfer(player) ? POSITION_LABELS[playerPositionSlot(player)] : 'Mitte'
     const pompfe = isPompfer(player) ? pompfeFor(player) : null
 
-    hud.playerTooltip.style.left = `${left}px`
-    hud.playerTooltip.style.top = `${top}px`
     hud.playerTooltip.innerHTML = `
       <header>
         <span>${TEAMS[player.team].name}</span>
@@ -146,7 +145,16 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       <div><span>Strategie</span><strong>${playerStrategyLabel(playerStrategy(player))}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
       <div><span>Status</span><strong>${inactive ? 'inaktiv' : 'aktiv'}</strong><small>${statusDetail}</small></div>
     `
+    hud.playerTooltip.style.left = `${left}px`
+    hud.playerTooltip.style.top = '0px'
+    hud.playerTooltip.style.visibility = 'hidden'
     hud.playerTooltip.hidden = false
+
+    const tooltipHeight = hud.playerTooltip.offsetHeight
+    const belowTop = mouseY + 14
+    const top = belowTop + tooltipHeight <= wrapRect.height - 10 ? belowTop : mouseY - tooltipHeight
+    hud.playerTooltip.style.top = `${clamp(top, 10, Math.max(10, wrapRect.height - tooltipHeight - 10))}px`
+    hud.playerTooltip.style.visibility = ''
   }
 
   function hidePlayerTooltip() {

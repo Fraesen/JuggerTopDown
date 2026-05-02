@@ -10,6 +10,7 @@ import { roleLabel, statsFromSkill } from '../game/players.js'
 import { POMPFEN } from '../game/pompfen.js'
 import {
   PLAYER_STRATEGY_OPTIONS,
+  RUNNER_STRATEGY_OPTIONS,
   TEAM_STRATEGY_OPTIONS,
   normalizeTeamStrategy,
   teamStrategyLabel,
@@ -18,7 +19,7 @@ import {
 export const BLUE_POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
 
 export function playerTechniqueOptionsForIndex(index) {
-  return index === 0 ? PLAYER_STRATEGY_OPTIONS.filter((option) => option.id === 'none') : PLAYER_STRATEGY_OPTIONS
+  return index === 0 ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
 }
 
 export function renderBlueSkillPanel(container, state) {
@@ -48,7 +49,7 @@ export function renderBlueSkillPanel(container, state) {
       const techniqueOptions = playerTechniqueOptionsForIndex(index)
       const currentTechnique = techniqueOptions.some((option) => option.id === PLAYER_STRATEGIES.blue[index])
         ? PLAYER_STRATEGIES.blue[index]
-        : 'none'
+        : techniqueOptions[0].id
 
       return `
         <article class="skill-row">
@@ -73,7 +74,7 @@ function renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOpt
     <div class="loadout-controls">
       ${index > 0 ? renderPompferControls(index, chainOwner) : ''}
       <label class="position-control">
-        <span>Technik</span>
+        <span>Strategie</span>
         <select data-player="${index}" data-player-strategy>
           ${techniqueOptions
             .map((option) => `<option value="${option.id}" ${currentTechnique === option.id ? 'selected' : ''}>${option.label}</option>`)

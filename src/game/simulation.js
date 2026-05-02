@@ -2,6 +2,7 @@ import { createDecisionEngine } from './decisions.js'
 import {
   ATTACK_COOLDOWN,
   ATTACK_DURATION,
+  CHAIN_HIT_STONES,
   DOUBLE_HIT_WINDOW,
   DOUBLE_PIN_RELEASE_PAUSE,
   FIELD,
@@ -33,7 +34,7 @@ import {
   PLAYER_STRATEGIES,
   fieldPoint,
 } from './config.js'
-import { clamp, closestPointOnSegment, constrainToField, distance, nearestFieldBoundary, normalize, pointInPolygon } from './geometry.js'
+import { clamp, closestPointOnSegment, constrainToField, distance, fieldBoundaryInwardNormal, nearestFieldBoundary, normalize, pointInPolygon } from './geometry.js'
 import {
   canReceiveNewPin,
   createPlayer,
@@ -169,6 +170,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     player.strategyTriggered = false
     player.defensiveStrategyDone = false
     player.flankTimer = 0
+    player.overzahlDefenseTimer = 0
   }
   
   function applyNextTeamStrategies({ resetOpening = false } = {}) {
@@ -203,7 +205,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
   function setBluePlayerStrategy(index, strategy) {
     const availableStrategies = playerTechniqueOptionsForIndex(index)
-    if (!availableStrategies.some((option) => option.id === strategy)) strategy = 'none'
+    if (!availableStrategies.some((option) => option.id === strategy)) strategy = availableStrategies[0]?.id ?? 'none'
     PLAYER_STRATEGIES.blue[index] = strategy
     const player = state.players.find((candidate) => candidate.team === 'blue' && playerIndex(candidate) === index)
     if (player) {
@@ -426,6 +428,19 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
       player.chainStrikeY = chainTarget?.y ?? player.y + Math.sin(player.angle) * visualRange
     }
   }
+
+  function cancelAttack(player) {
+    player.attack = 0
+    player.attackWindup = 0
+    player.attackTarget = null
+    player.attackWhileMoving = false
+    player.doubleWindow = 0
+    player.chainStrikeTimer = 0
+    player.chainStrikeDuration = 0
+    player.chainStrikeTarget = null
+    player.chainStrikeX = 0
+    player.chainStrikeY = 0
+  }
   
   function startRecoveryDash(player) {
     const nearbyEnemy = decision.nearestEnemy(player, () => true).target
@@ -506,13 +521,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     player.penaltyStones = stones
     player.penaltyTotalStones = stones
     player.pendingInactiveStones = 0
-    player.attackWindup = 0
-    player.attackTarget = null
-    player.attackWhileMoving = false
-    player.doubleWindow = 0
-    player.chainStrikeTimer = 0
-    player.chainStrikeTarget = null
-    player.attack = 0
+    cancelAttack(player)
     player.countedStones = 0
     player.pinLock = 0
     player.pinnedBy = null
@@ -533,6 +542,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     player.callBubbleTimer = 0
     player.callBubbleText = ''
     player.callMissTimer = 0
+    player.overzahlDefenseTimer = 0
     player.flankTimer = 0
     player.doublePinTrapTarget = null
     player.doublePinReleaseTarget = null
@@ -624,6 +634,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     player.callSource = null
     player.callContext = null
     player.doublePinTrapTarget = null
+    player.overzahlDefenseTimer = 0
     player.attackCooldown = Math.max(0, player.attackCooldown - dt)
   
     if (player.recoveryDashQueued && player.penaltyStones <= 0 && !player.pinnedBy && player.pinLock <= 0) {
@@ -643,6 +654,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     player.callSource = null
     player.callContext = null
     player.doublePinTrapTarget = null
+    player.overzahlDefenseTimer = 0
     const dashSpeed = player.recoveryDashSpeed || RECOVERY_DASH_SPEED
     player.vx = player.recoveryDashX * dashSpeed
     player.vy = player.recoveryDashY * dashSpeed
@@ -815,20 +827,32 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   function constrainMovingPlayer(player) {
     const beforeX = player.x
     const beforeY = player.y
+    const intendedVx = player.vx
+    const intendedVy = player.vy
     const nearest = nearestFieldBoundary(player)
     constrainToField(player, player.radius)
     const wasConstrained = Math.abs(player.x - beforeX) > 0.001 || Math.abs(player.y - beforeY) > 0.001
     if (!wasConstrained) return
   
-    const inward = normalize(FIELD.center.x - nearest.point.x, FIELD.center.y - nearest.point.y)
+    const inward = fieldBoundaryInwardNormal(nearest)
     const outwardVelocity = player.vx * inward.x + player.vy * inward.y
     if (outwardVelocity < 0) {
       player.vx -= outwardVelocity * inward.x
       player.vy -= outwardVelocity * inward.y
     }
+
+    const tangent = normalize(nearest.b.x - nearest.a.x, nearest.b.y - nearest.a.y)
+    const tangentVelocity = player.vx * tangent.x + player.vy * tangent.y
+    const intendedTangentVelocity = intendedVx * tangent.x + intendedVy * tangent.y
+    if (Math.abs(tangentVelocity) < 12 && Math.abs(intendedTangentVelocity) > 18) {
+      const sign = Math.sign(intendedTangentVelocity)
+      const slideSpeed = Math.min(player.speed * 0.36, Math.abs(intendedTangentVelocity) * 0.55)
+      player.vx = tangent.x * sign * slideSpeed + inward.x * 8
+      player.vy = tangent.y * sign * slideSpeed + inward.y * 8
+    }
   
-    player.vx *= 0.68
-    player.vy *= 0.68
+    player.vx *= 0.82
+    player.vy *= 0.82
     const maxSpeed = isRecoveryDashing(player) ? (player.recoveryDashSpeed || RECOVERY_DASH_SPEED) : player.speed * 1.15
     capPlayerVelocity(player, maxSpeed)
   }
@@ -935,10 +959,14 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     let chance = attacker.technik / (attacker.technik + target.technik + shieldBonus)
     if (isRunner(target)) chance += profile.runnerHitBonus
     if (attacker.attackWhileMoving) chance -= profile.runningAttackPenalty
-    if (isDefensiveStrategyPlayer(attacker) && !attacker.defensiveStrategyDone) chance -= DEFENSIVE_HIT_MODIFIER
-    if (isDefensiveStrategyPlayer(target) && !target.defensiveStrategyDone) chance -= DEFENSIVE_HIT_MODIFIER
+    if (hasDefensiveStance(attacker)) chance -= DEFENSIVE_HIT_MODIFIER
+    if (hasDefensiveStance(target)) chance -= DEFENSIVE_HIT_MODIFIER
     if (backHit) chance *= 2
     return clamp(chance, 0.02, 0.98)
+  }
+
+  function hasDefensiveStance(player) {
+    return player.overzahlDefenseTimer > 0 || (isDefensiveStrategyPlayer(player) && !player.defensiveStrategyDone)
   }
   
   function isBackHit(attacker, target) {
@@ -1081,13 +1109,28 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
         hits.push({ attacker, target })
       }
     }
+
+    const reciprocalHits = new Set()
+    for (const hit of hits) {
+      if (hits.some((other) => other.attacker === hit.target && other.target === hit.attacker)) {
+        reciprocalHits.add(hit)
+      }
+    }
   
     for (const hit of hits) {
+      const penaltyStones = hit.attacker.pompfe === 'chain' ? CHAIN_HIT_STONES : HIT_STONES
+      const targetCanDouble = canDoubleAgainst(hit.target, hit.attacker)
       if (hit.attacker.pompfe === 'chain') {
         hit.attacker.attackCooldown = Math.max(hit.attacker.attackCooldown, ATTACK_COOLDOWN * CHAIN_HIT_COOLDOWN_MULTIPLIER)
       }
+      if (hit.target.pompfe === 'chain') {
+        cancelAttack(hit.target)
+      }
       triggerFlankStrategy(hit.attacker, hit.target)
-      queueInactive(hit.target, HIT_STONES, hit.attacker)
+      if (!reciprocalHits.has(hit) && !targetCanDouble) {
+        decision.tryIssueOverzahlCall(hit.attacker, hit.target)
+      }
+      queueInactive(hit.target, penaltyStones, hit.attacker)
       burst(hit.target.x, hit.target.y, TEAMS[hit.attacker.team].color, 8)
     }
   }
@@ -1520,6 +1563,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
         player.callBubbleTimer = Math.max(0, player.callBubbleTimer - dt)
         player.callMissTimer = Math.max(0, player.callMissTimer - dt)
         player.flankTimer = Math.max(0, player.flankTimer - dt)
+        player.overzahlDefenseTimer = Math.max(0, player.overzahlDefenseTimer - dt)
         player.doublePinReleasePause = Math.max(0, player.doublePinReleasePause - dt)
         if (player.callBubbleTimer <= 0) player.callBubbleText = ''
         if (player.callTimer <= 0) {

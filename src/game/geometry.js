@@ -48,6 +48,8 @@ export function closestPointOnSegment(point, a, b) {
 
 export function nearestFieldBoundary(point) {
   let nearest = FIELD_POLYGON[0]
+  let nearestA = FIELD_POLYGON[0]
+  let nearestB = FIELD_POLYGON[1]
   let bestDistance = Infinity
 
   for (let i = 0; i < FIELD_POLYGON.length; i += 1) {
@@ -57,11 +59,21 @@ export function nearestFieldBoundary(point) {
     const d = distance(point, candidate)
     if (d < bestDistance) {
       nearest = candidate
+      nearestA = a
+      nearestB = b
       bestDistance = d
     }
   }
 
-  return { point: nearest, distance: bestDistance }
+  return { point: nearest, distance: bestDistance, a: nearestA, b: nearestB }
+}
+
+export function fieldBoundaryInwardNormal(boundary) {
+  const dx = boundary.b.x - boundary.a.x
+  const dy = boundary.b.y - boundary.a.y
+  const left = normalize(-dy, dx)
+  const toCenter = normalize(FIELD.center.x - boundary.point.x, FIELD.center.y - boundary.point.y)
+  return left.x * toCenter.x + left.y * toCenter.y >= 0 ? left : { x: -left.x, y: -left.y }
 }
 
 export function constrainToField(entity, radius, bounce = false) {
@@ -71,7 +83,7 @@ export function constrainToField(entity, radius, bounce = false) {
 
   if (inside && nearest.distance >= radius + 1) return
 
-  const inward = normalize(FIELD.center.x - nearest.point.x, FIELD.center.y - nearest.point.y)
+  const inward = fieldBoundaryInwardNormal(nearest)
   entity.x = nearest.point.x + inward.x * (radius + 2)
   entity.y = nearest.point.y + inward.y * (radius + 2)
 
@@ -79,7 +91,13 @@ export function constrainToField(entity, radius, bounce = false) {
 
   const outwardVelocity = entity.vx * inward.x + entity.vy * inward.y
   if (outwardVelocity < 0) {
-    entity.vx -= outwardVelocity * inward.x * 1.55
-    entity.vy -= outwardVelocity * inward.y * 1.55
+    entity.vx -= outwardVelocity * inward.x
+    entity.vy -= outwardVelocity * inward.y
   }
+
+  const tangent = normalize(nearest.b.x - nearest.a.x, nearest.b.y - nearest.a.y)
+  const tangentVelocity = entity.vx * tangent.x + entity.vy * tangent.y
+  const inwardVelocity = Math.max(0, entity.vx * inward.x + entity.vy * inward.y)
+  entity.vx = tangent.x * tangentVelocity * 0.22 + inward.x * inwardVelocity
+  entity.vy = tangent.y * tangentVelocity * 0.22 + inward.y * inwardVelocity
 }

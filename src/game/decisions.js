@@ -13,13 +13,14 @@ import {
   PIN_RANGE,
   PLAYER_RADIUS,
   RUNNER_DUEL_RANGE,
+  STONE_SECONDS,
   TEAMS,
   fieldPoint,
 } from './config.js'
 import { clamp, distance, normalize } from './geometry.js'
 import { canReceiveNewPin, isGrappling, isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot } from './players.js'
 import { attackRangeFor, canPinWithPompfe, isInAttackArc, maxPompfeAttackRange } from './pompfen.js'
-import { isDefensiveStrategyPlayer, openingStrategyPoint, teamStrategy } from './strategies.js'
+import { isDefensiveStrategyPlayer, openingStrategyPoint, playerStrategy } from './strategies.js'
 
 const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
@@ -29,6 +30,10 @@ const CHAIN_GUARD_RANGE_FACTOR = 0.9
 const CHAIN_COOLDOWN_THREAT_RANGE = 260
 const CHAIN_COOLDOWN_RETREAT_DISTANCE = 170
 const FLANK_CURVE_REACHED_DISTANCE = 38
+const POMPFER_DUEL_SEEK_RANGE = 260
+const PIN_TARGET_SEEK_RANGE = 260
+const OVERZAHL_DURATION = STONE_SECONDS * 2
+const OVERZAHL_SEARCH_RANGE = 260
 const FULL_TURN_SECONDS = 0.75
 const TURN_RATE = (Math.PI * 2) / FULL_TURN_SECONDS
 const SIDE_PRESSURE_LANES = {
@@ -74,6 +79,10 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   function nearestInactiveEnemy(player) {
     return nearestEnemy(player, (other) => isInactive(other))
   }
+
+  function nearestUnpinnedInactiveEnemy(player) {
+    return nearestEnemy(player, (other) => isInactive(other) && !other.pinnedBy)
+  }
   
   function canSeekNewPin(player) {
     return (
@@ -103,6 +112,19 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   
   function nearestClaimablePinTarget(player) {
     return nearestEnemy(player, (other) => canReceiveNewPin(other) && bestPinnerForTarget(other, player.team) === player)
+  }
+
+  function bestPinApproacherForTarget(target, team) {
+    return activeTeamPompfers(team)
+      .filter((player) => canSeekNewPin(player) && canPinWithPompfe(player))
+      .sort((a, b) => pinPriorityCompare(a, b, target))[0]
+  }
+
+  function nearestApproachablePinTarget(player) {
+    return nearestEnemy(
+      player,
+      (other) => other.penaltyStones > 0 && !other.pinnedBy && bestPinApproacherForTarget(other, player.team) === player,
+    )
   }
 
   function isChain(player) {
@@ -146,10 +168,31 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     const meterX = player.team === 'blue' ? 10 + slot * 0.75 : 30 - slot * 0.75
     return fieldPoint(meterX, lane)
   }
+
+  function runnerWideMiddlePoint(player) {
+    const meterX = player.team === 'blue' ? FIELD.lengthMeters * 0.25 : FIELD.lengthMeters * 0.75
+    return fieldPoint(meterX, FIELD.widthMeters * 0.5)
+  }
+
+  function runnerOwnLineRetreatPoint(runner) {
+    const meterX = runner.team === 'blue' ? 0.25 : FIELD.lengthMeters - 0.25
+    const meterY = clamp((runner.y - FIELD.originY) / FIELD.scale, 4.8, FIELD.widthMeters - 4.8)
+    return fieldPoint(meterX, meterY)
+  }
+
+  function openingTarget(point) {
+    return { ...point, stopDistance: 4 }
+  }
   
   function openingRushTarget(player) {
     if (player.openingComplete) return null
-    const strategyPoint = openingStrategyPoint(player)
+    const runnerStrategy = isRunner(player) ? playerStrategy(player) : null
+    if (runnerStrategy === 'direct_jugg') {
+      player.openingComplete = true
+      return null
+    }
+
+    const strategyPoint = runnerStrategy === 'wide_middle' ? runnerWideMiddlePoint(player) : openingStrategyPoint(player)
     const openingDuration = strategyPoint ? OPENING_RUSH_SECONDS * 1.25 : OPENING_RUSH_SECONDS
     if (state.roundTime > openingDuration || state.jugg.carrier) {
       player.openingComplete = true
@@ -157,14 +200,14 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     }
   
     const fanPoint = strategyPoint || openingFanPoint(player)
-    if (isRunner(player) && teamStrategy(player.team) === 'wide_line') return fanPoint
+    if (runnerStrategy === 'wide_middle') return openingTarget(fanPoint)
 
     if (distance(player, fanPoint) <= OPENING_FAN_REACHED_RADIUS) {
       player.openingComplete = true
       return null
     }
   
-    return fanPoint
+    return openingTarget(fanPoint)
   }
   
   function activeTeamPompfers(team) {
@@ -409,6 +452,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     if (type === 'malschutz') return 'Malschutz!'
     if (type === 'hilfmir') return 'Hilf mir!'
     if (type === 'doppelpin') return 'Doppelpin!'
+    if (type === 'ueberzahl') return 'Überzahl!'
     return 'Mitkommen!'
   }
   
@@ -456,6 +500,45 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     teammate.doublePinReleaseTarget = target
     setCallIntent(teammate, 'doppelpin', caller, DOUBLE_PIN_TRAP_DURATION)
   }
+
+  function duelInMutualRange(ally, enemy) {
+    if (!ally || !enemy || ally.team === enemy.team || isInactive(ally) || isInactive(enemy)) return false
+    if (!isPompfer(ally) || !isPompfer(enemy)) return false
+    const d = distance(ally, enemy)
+    return d <= attackRangeFor(ally, enemy) && d <= attackRangeFor(enemy, ally)
+  }
+
+  function nearbyDuelForOverzahl(caller, defeatedTarget) {
+    return state.players
+      .filter((ally) => ally !== caller && ally.team === caller.team && !isInactive(ally) && isPompfer(ally) && ally.callType !== 'ueberzahl')
+      .flatMap((ally) =>
+        state.players
+          .filter((enemy) => enemy !== defeatedTarget && enemy.team !== caller.team && duelInMutualRange(ally, enemy))
+          .map((enemy) => ({ ally, enemy })),
+      )
+      .filter(({ ally, enemy }) => Math.min(distance(caller, ally), distance(caller, enemy)) <= OVERZAHL_SEARCH_RANGE)
+      .sort((a, b) => distance(caller, a.enemy) + distance(caller, a.ally) * 0.35 - (distance(caller, b.enemy) + distance(caller, b.ally) * 0.35))[0]
+  }
+
+  function tryIssueOverzahlCall(caller, defeatedTarget) {
+    if (!caller || !defeatedTarget || caller.callCooldown > 0 || isInactive(caller) || !isPompfer(caller)) return false
+    const duel = nearbyDuelForOverzahl(caller, defeatedTarget)
+    if (!duel) return false
+
+    caller.callCooldown = CALL_COOLDOWN
+    caller.callBubbleText = callLabel('ueberzahl')
+    caller.callBubbleTimer = CALL_BUBBLE_DURATION
+    setCallIntent(caller, 'ueberzahl', caller, OVERZAHL_DURATION, { target: duel.enemy, ally: duel.ally })
+
+    if (callPerceivedBy(duel.ally, caller)) {
+      duel.ally.overzahlDefenseTimer = OVERZAHL_DURATION
+      setCallIntent(duel.ally, 'ueberzahl', caller, OVERZAHL_DURATION, { target: duel.enemy })
+    } else {
+      duel.ally.callMissTimer = CALL_BUBBLE_DURATION * 0.85
+    }
+
+    return true
+  }
   
   function callTargetFor(player) {
     if (player.callTimer <= 0 || !player.callType) return null
@@ -493,7 +576,10 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   
     if (player.callType === 'mitkommen') {
       const caller = player.callSource
-      if (!caller || state.jugg.carrier !== caller || isInactive(caller)) return null
+      if (!caller || state.jugg.carrier !== caller || isInactive(caller)) {
+        clearCallIntent(player)
+        return null
+      }
       return supportPoint(player, caller)
     }
   
@@ -502,6 +588,15 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       const target = caller?.grappledBy || caller?.grappleTarget
       if (!target || isInactive(target)) return null
       return target
+    }
+
+    if (player.callType === 'ueberzahl') {
+      const target = player.callContext?.target
+      if (!target || target.team === player.team || isInactive(target)) {
+        clearCallIntent(player)
+        return null
+      }
+      return player.callSource === player ? target : null
     }
   
     return null
@@ -635,6 +730,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   }
   
   function stopDistanceFor(player, target) {
+    if (typeof target?.stopDistance === 'number') return target.stopDistance
     if (target === state.jugg) return isRunner(player) ? 0 : 46
     if (!target || !target.radius) return 18
     if (isChain(player) && target.team !== player.team && !isInactive(target)) return attackRangeFor(player, target) * CHAIN_GUARD_RANGE_FACTOR
@@ -835,33 +931,46 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       target = player.grappleTarget
     } else if (callTarget) {
       target = callTarget
-      if (player.callType === 'hilfmir' && canStrikeTarget(player, target, 8)) {
+      if ((player.callType === 'hilfmir' || player.callType === 'ueberzahl') && canStrikeTarget(player, target, 8)) {
         attack(player, target)
       }
     } else if (rushTarget) {
       target = rushTarget
       if (canStrikeTarget(player, rushTarget, 8)) attack(player, rushTarget)
     } else if (isRunner(player)) {
+      const strategy = playerStrategy(player)
   
       if (state.jugg.carrier === player) {
         const blockers = directMalBlockers(player)
-        const nearestActivePompfer = nearestEnemy(player, (other) => !isInactive(other) && isPompfer(other))
-        const enoughSpaceForSidePressure = nearestActivePompfer.distance > SIDE_PRESSURE_SAFE_DISTANCE
-        const useSidePressure = blockers.length > 0 && (player.retreatingWithJugg || player.sidePressureSide) && enoughSpaceForSidePressure
-
-        if (blockers.length <= 0) {
-          player.retreatingWithJugg = false
+        if (strategy === 'direct_jugg') {
           player.sidePressureSide = null
           player.sidePressureFailedSide = null
-          target = team.attackMal
-        } else if (useSidePressure) {
-          player.retreatingWithJugg = false
-          target = sidePressureTargetForRunner(player)
+          if (blockers.length <= 0) {
+            player.retreatingWithJugg = false
+            target = team.attackMal
+          } else {
+            player.retreatingWithJugg = true
+            target = runnerOwnLineRetreatPoint(player)
+          }
         } else {
-          player.retreatingWithJugg = true
-          player.sidePressureSide = null
-          player.sidePressureFailedSide = null
-          target = retreatPointForRunner(player, blockers)
+          const nearestActivePompfer = nearestEnemy(player, (other) => !isInactive(other) && isPompfer(other))
+          const enoughSpaceForSidePressure = nearestActivePompfer.distance > SIDE_PRESSURE_SAFE_DISTANCE
+          const useSidePressure = blockers.length > 0 && (player.retreatingWithJugg || player.sidePressureSide) && enoughSpaceForSidePressure
+
+          if (blockers.length <= 0) {
+            player.retreatingWithJugg = false
+            player.sidePressureSide = null
+            player.sidePressureFailedSide = null
+            target = team.attackMal
+          } else if (useSidePressure) {
+            player.retreatingWithJugg = false
+            target = sidePressureTargetForRunner(player)
+          } else {
+            player.retreatingWithJugg = true
+            player.sidePressureSide = null
+            player.sidePressureFailedSide = null
+            target = retreatPointForRunner(player, blockers)
+          }
         }
       } else if (enemyCarrier) {
         target = state.jugg.carrier
@@ -869,8 +978,12 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
         target = state.jugg
       }
     } else {
-      const inactive = isChain(player) ? { target: null, distance: Infinity } : nearestClaimablePinTarget(player)
       const enemy = nearestActiveEnemy
+      const inactive = isChain(player)
+        ? { target: null, distance: Infinity }
+        : enemy.target
+          ? nearestClaimablePinTarget(player)
+          : nearestApproachablePinTarget(player)
       const exposedChain = vulnerableOpposingChain(player)
       const bindOpponent = defensiveBindingActive(player) ? oppositePlayer(player) : null
       const chainThreat = chainCooldownThreat(player)
@@ -887,10 +1000,10 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       } else if (isChain(player) && enemy.target) {
         target = enemy.target
       } else if (isChain(player) && !enemy.target) {
-        const watched = nearestInactiveEnemy(player).target
+        const watched = nearestUnpinnedInactiveEnemy(player).target
         target = watched ? chainGuardPoint(player, watched) : player
         faceTarget = watched || target
-      } else if (inactive.target && inactive.distance < 132 && !enemyCarrier) {
+      } else if (inactive.target && (inactive.distance < PIN_TARGET_SEEK_RANGE || !enemy.target) && !enemyCarrier) {
         target = inactive.target
       } else if (enemyCarrier) {
         const carrier = state.jugg.carrier
@@ -907,7 +1020,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       } else if (ownCarrier) {
         const carrier = state.jugg.carrier
         target = supportPoint(player, carrier)
-      } else if (enemy.target && enemy.distance < 188) {
+      } else if (enemy.target && enemy.distance < POMPFER_DUEL_SEEK_RANGE) {
         target = enemy.target
       } else {
         const lane = playerPositionSlot(player) - 2.5
@@ -971,6 +1084,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     clearCallIntent,
     emitCalls,
     nearestEnemy,
+    tryIssueOverzahlCall,
     updateAi,
   }
 }

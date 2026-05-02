@@ -85,6 +85,7 @@ export const MATCH_SECONDS = 180
 export const MATCH_POINT = 3
 export const STONE_SECONDS = 1.5
 export const HIT_STONES = 5
+export const CHAIN_HIT_STONES = 8
 export const RECOVERY_DASH_DURATION = 0.24
 export const RECOVERY_DASH_SPEED = 315
 export const PIN_RANGE = 64
@@ -97,7 +98,7 @@ export const DOUBLE_HIT_WINDOW = 0.3
 export const ATTACK_COOLDOWN = 0.72
 export const RUNNING_ATTACK_SPEED_THRESHOLD = 12
 export const OPENING_RUSH_SECONDS = 2.8
-export const OPENING_FAN_REACHED_RADIUS = 30
+export const OPENING_FAN_REACHED_RADIUS = 8
 export const CARRIER_PRESSURE_COUNT = 2
 export const RUNNER_DUEL_RANGE = 48
 export const RUNNER_DUEL_COOLDOWN = 0.8
@@ -149,6 +150,6 @@ export const TEAM_STRATEGIES = {
 }
 
 export const PLAYER_STRATEGIES = {
-  blue: ['none', 'none', 'none', 'none', 'none'],
-  red: ['none', 'none', 'none', 'none', 'none'],
+  blue: ['wide_middle', 'none', 'none', 'none', 'none'],
+  red: ['wide_middle', 'none', 'none', 'none', 'none'],
 }

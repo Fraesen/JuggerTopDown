@@ -12,6 +12,11 @@ export const PLAYER_STRATEGY_OPTIONS = [
   { id: 'flank', label: 'Umlaufen' },
 ]
 
+export const RUNNER_STRATEGY_OPTIONS = [
+  { id: 'wide_middle', label: 'Breite Mitte' },
+  { id: 'direct_jugg', label: 'Direkt zum Jugg' },
+]
+
 export const DEFENSIVE_HIT_MODIFIER = 0.15
 export const AGGRESSIVE_DOUBLE_WINDOW_FACTOR = 0.25
 export const FLANK_DURATION = 6
@@ -23,7 +28,9 @@ export function teamStrategy(team) {
 
 export function playerStrategy(player) {
   const index = Number(player.id.split('-')[1])
-  return player.strategy ?? PLAYER_STRATEGIES[player.team]?.[index] ?? 'none'
+  const strategy = player.strategy ?? PLAYER_STRATEGIES[player.team]?.[index]
+  const options = player.role === 'runner' ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
+  return options.some((option) => option.id === strategy) ? strategy : options[0].id
 }
 
 export function teamStrategyLabel(strategy) {
@@ -35,7 +42,11 @@ export function normalizeTeamStrategy(strategy) {
 }
 
 export function playerStrategyLabel(strategy) {
-  return PLAYER_STRATEGY_OPTIONS.find((option) => option.id === strategy)?.label ?? strategy
+  return (
+    RUNNER_STRATEGY_OPTIONS.find((option) => option.id === strategy)?.label ??
+    PLAYER_STRATEGY_OPTIONS.find((option) => option.id === strategy)?.label ??
+    strategy
+  )
 }
 
 export function isWideLineStrategy(team) {
@@ -74,14 +85,12 @@ export function doubleWindowFactorFor(player) {
 }
 
 export function openingStrategyPoint(player) {
+  if (player.role === 'runner') return null
+
   const slot = slotForPlayer(player)
   const strategy = teamStrategy(player.team)
 
   if (strategy === 'wide_line') {
-    if (player.role === 'runner') {
-      const meterX = player.team === 'blue' ? FIELD.lengthMeters * 0.25 : FIELD.lengthMeters * 0.75
-      return fieldPoint(meterX, FIELD.widthMeters * 0.5)
-    }
     const lane = [10, 2.3, 6.1, 13.9, 17.7][slot]
     const meterX = player.team === 'blue' ? 16.4 + slot * 0.15 : 23.6 - slot * 0.15
     return fieldPoint(meterX, lane)

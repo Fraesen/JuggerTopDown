@@ -124,6 +124,7 @@ export function createPlayer(team, index, role) {
     callBubbleTimer: 0,
     callBubbleText: '',
     callMissTimer: 0,
+    overzahlDefenseTimer: 0,
     pendingInactiveStones: 0,
     holdOffset: 0,
     penaltyStones: 0,

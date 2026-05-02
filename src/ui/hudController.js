@@ -3,7 +3,7 @@ import { FIELD, POSITION_LABELS, TEAM_STRATEGIES, TEAMS } from '../game/config.j
 import { clamp, distance } from '../game/geometry.js'
 import { isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot, roleLabel, skillForPlayer } from '../game/players.js'
 import { pompfeFor } from '../game/pompfen.js'
-import { playerStrategyLabel, teamStrategyLabel } from '../game/strategies.js'
+import { playerStrategy, playerStrategyLabel, teamStrategyLabel } from '../game/strategies.js'
 
 export function createHudController({ state, hud, canvas, arenaWrap }) {
   function formatClock(seconds) {
@@ -143,7 +143,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       <div><span>Wahrnehmung</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} SP</small></div>
       <div><span>Pompfe</span><strong>${pompfe ? pompfe.label : 'Jugg'}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
       <div><span>Position</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? `Slot ${playerPositionSlot(player)}` : 'Laeufer'}</small></div>
-      <div><span>Strategie</span><strong>${playerStrategyLabel(player.strategy ?? 'none')}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
+      <div><span>Strategie</span><strong>${playerStrategyLabel(playerStrategy(player))}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
       <div><span>Status</span><strong>${inactive ? 'inaktiv' : 'aktiv'}</strong><small>${statusDetail}</small></div>
     `
     hud.playerTooltip.hidden = false

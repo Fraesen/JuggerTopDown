@@ -1,4 +1,5 @@
 import { FIELD } from '../game/config.js'
+import { DEFAULT_MATCH_SEED } from '../game/state.js'
 
 export function mountAppShell(root = document.querySelector('#app')) {
   root.innerHTML = `
@@ -42,6 +43,16 @@ export function mountAppShell(root = document.querySelector('#app')) {
             <button type="button" data-speed="1">1x</button>
             <button type="button" data-speed="2">2x</button>
           </div>
+
+          <label class="seed-control">
+            <span>Seed</span>
+            <input id="seed-input" type="text" spellcheck="false" autocomplete="off" value="${DEFAULT_MATCH_SEED}" />
+          </label>
+
+          <label class="cinema-control">
+            <input id="cinema-toggle" type="checkbox" />
+            <span>Cinema Mode</span>
+          </label>
 
           <div class="status-grid">
             <div><span>Besitz</span><strong id="possession">frei</strong></div>
@@ -99,6 +110,8 @@ function queryHud(root) {
     startBtn: root.querySelector('#start-btn'),
     pauseBtn: root.querySelector('#pause-btn'),
     resetBtn: root.querySelector('#reset-btn'),
+    seedInput: root.querySelector('#seed-input'),
+    cinemaToggle: root.querySelector('#cinema-toggle'),
     speedButtons: [...root.querySelectorAll('[data-speed]')],
   }
 }
@@ -128,10 +141,11 @@ function ruleRows() {
     ['pompfer-dot', 'Kettentreffer: doppelte Nachladezeit'],
     ['pompfer-dot', 'Nahpompfen treffen Ketten immer'],
     ['perception-dot', 'Teamstrategien steuern das Anlaufen'],
-    ['match-dot', 'Nach Punkten: 10s Strategiepause'],
+    ['match-dot', 'Nach Punkten: 10 Steine Strategiepause'],
     ['technik-dot', 'Defensiv: schwerer zu treffen, trifft aber schlechter'],
     ['match-dot', 'Aggressiv: deutlich kleineres Doppelfenster'],
     ['speed-dot', 'Umlaufen: nach klarem Ersttreffer in den Ruecken'],
+    ['match-dot', 'Cinema Mode: automatische Kamera und Slowmotion'],
   ]
     .map(([className, text]) => `<span class="${className}"></span><strong>${text}</strong>`)
     .join('')

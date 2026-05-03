@@ -1,4 +1,5 @@
 import { createDecisionEngine } from './decisions.js'
+import { createCinemaDirector } from './cinema.js'
 import {
   ATTACK_COOLDOWN,
   ATTACK_DURATION,
@@ -61,10 +62,19 @@ import {
   isDefensiveStrategyPlayer,
   normalizeTeamStrategy,
 } from './strategies.js'
-import { PLAYBACK_SPEEDS, ROUND_BREAK_SECONDS } from './state.js'
+import {
+  PLAYBACK_SPEEDS,
+  ROUND_BREAK_LOCK_STONES,
+  ROUND_BREAK_SECONDS,
+  ROUND_BREAK_STONES,
+  SIMULATION_STEP_SECONDS,
+  createInitialState,
+} from './state.js'
 import { createSeededRng } from './rng.js'
 
-export function createSimulation({ state, hud, updateHud, updatePlayerTooltip }) {
+const CINEMA_PRECOMPUTE_SECONDS = MATCH_SECONDS
+
+export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, cinema = null, headless = false }) {
   const rng = state.rng
   const CHAIN_STRIKE_VISUAL_DURATION = 0.52
   const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
@@ -119,6 +129,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function setBluePosition(index, slot) {
+    if (isRoundBreakLocked()) return
     if (index <= 0 || slot <= 0 || slot >= PLAYER_POSITIONS.blue.length) return
     const currentSlot = PLAYER_POSITIONS.blue[index]
     if (currentSlot === slot) return
@@ -133,6 +144,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function setBluePompfe(index, pompfe) {
+    if (isRoundBreakLocked()) return
     if (index <= 0 || !BLUE_POMPFEN_OPTIONS.includes(pompfe)) return
     if (pompfe === 'chain') {
       const existingChainIndex = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
@@ -191,6 +203,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function setBlueTeamStrategy(strategy) {
+    if (isRoundBreakLocked()) return
     state.nextTeamStrategies.blue = normalizeTeamStrategy(strategy)
     if (!state.running) {
       TEAM_STRATEGIES.blue = state.nextTeamStrategies.blue
@@ -205,6 +218,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function setBluePlayerStrategy(index, strategy) {
+    if (isRoundBreakLocked()) return
     const availableStrategies = playerTechniqueOptionsForIndex(index)
     if (!availableStrategies.some((option) => option.id === strategy)) strategy = availableStrategies[0]?.id ?? 'none'
     PLAYER_STRATEGIES.blue[index] = strategy
@@ -218,6 +232,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function setBlueSkill(index, key, delta) {
+    if (isRoundBreakLocked()) return
     const skill = PLAYER_SKILLS.blue[index]
     const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
     const otherKeys = keys.filter((candidate) => candidate !== key)
@@ -240,6 +255,14 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
   function renderSkillPanel() {
     renderBlueSkillPanel(hud.skillList, state)
+  }
+
+  function roundBreakStonesLeft() {
+    return Math.ceil(state.roundBreakTimer / STONE_SECONDS)
+  }
+
+  function isRoundBreakLocked() {
+    return state.roundBreakTimer > 0 && roundBreakStonesLeft() <= ROUND_BREAK_LOCK_STONES
   }
   
   function setupTeams() {
@@ -285,9 +308,12 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     setupTeams()
     resetJugg()
     state.roundBreakTimer = 0
+    state.roundBreakLocked = false
+    state.roundBreakPrecomputed = false
     state.roundTime = 0
     state.message = message
     state.messageTimer = 1.5
+    if (!headless && state.running && cinema?.isEnabled()) prepareCinemaPrecompute()
   }
   
   function beginRoundBreak(message) {
@@ -295,7 +321,9 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     resetTeamsToGroundLinePreview()
     state.roundBreakTimer = ROUND_BREAK_SECONDS
     state.roundBreakLabel = message
-    state.message = `${message} - Strategiepause ${ROUND_BREAK_SECONDS}`
+    state.roundBreakLocked = false
+    state.roundBreakPrecomputed = false
+    state.message = `${message} - Strategiepause ${ROUND_BREAK_STONES} Steine`
     state.messageTimer = ROUND_BREAK_SECONDS
     state.jugg.carrier = null
     state.jugg.contest = null
@@ -312,6 +340,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     rng.state = nextRng.state
     state.rng = rng
     state.frameAccumulator = 0
+    cinema?.reset({ preserveEnabled: true })
     resetNextTeamStrategies()
     TEAM_STRATEGIES.blue = 'standard'
     TEAM_STRATEGIES.red = 'standard'
@@ -322,6 +351,8 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     state.paused = false
     state.roundBreakTimer = 0
     state.roundBreakLabel = ''
+    state.roundBreakLocked = false
+    state.roundBreakPrecomputed = false
     state.camera.x = 0
     state.camera.y = 0
     state.camera.zoom = 1
@@ -338,12 +369,16 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     updateHud()
   }
 
-  function setMatchSeed(seed) {
-    state.matchSeed = String(seed)
+  function setMatchSeed(seed, { resetRng = !state.running } = {}) {
+    state.matchSeed = String(seed || '').trim() || state.matchSeed
+    if (!resetRng) return
     const nextRng = createSeededRng(state.matchSeed)
     rng.seed = nextRng.seed
     rng.state = nextRng.state
     state.rng = rng
+    state.frameAccumulator = 0
+    cinema?.reset({ preserveEnabled: true })
+    updateHud()
   }
 
   function deterministicSnapshot() {
@@ -360,14 +395,196 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     if (!PLAYBACK_SPEEDS.includes(speed)) return
     state.playbackSpeed = speed
     for (const button of hud.speedButtons) {
-      const active = Number(button.dataset.speed) === speed
+      const active = Number(button.dataset.speed) === speed && !state.cinema.enabled
       button.classList.toggle('active', active)
       button.setAttribute('aria-pressed', String(active))
+      button.disabled = state.cinema.enabled
+    }
+  }
+
+  function setCinemaMode(enabled) {
+    cinema?.setEnabled(Boolean(enabled))
+    state.frameAccumulator = 0
+    if (enabled) prepareCinemaPrecompute()
+    updateHud()
+  }
+
+  function prepareCinemaPrecompute() {
+    if (headless || !cinema?.isEnabled()) return
+    const { scenes, sceneBlockAfter } = precomputeCinemaScenes()
+    cinema.ingestPrecomputedScenes(scenes, { sceneBlockAfter })
+  }
+
+  function precomputeCinemaScenes() {
+    const savedTeamStrategies = { ...TEAM_STRATEGIES }
+    const useNextRoundStrategies = state.roundBreakTimer > 0
+    if (useNextRoundStrategies) {
+      for (const team of Object.keys(TEAM_STRATEGIES)) {
+        TEAM_STRATEGIES[team] = normalizeTeamStrategy(state.nextTeamStrategies[team])
+      }
+    }
+
+    try {
+      const forkState = cloneStateForPrecompute()
+      const forkCinema = createCinemaDirector({ state: forkState, debug: false })
+      forkCinema.setEnabled(true)
+      const forkSimulation = createSimulation({
+        state: forkState,
+        hud: createHeadlessHud(),
+        updateHud: () => {},
+        updatePlayerTooltip: () => {},
+        cinema: forkCinema,
+        headless: true,
+      })
+
+      forkState.running = true
+      forkState.paused = false
+      const startTime = forkState.roundTime
+      const maxTime = startTime + CINEMA_PRECOMPUTE_SECONDS
+      while (forkState.running && !forkState.roundBreakTimer && forkState.roundTime < maxTime && forkState.timeLeft > 0) {
+        forkSimulation.update(SIMULATION_STEP_SECONDS)
+      }
+
+      const roundEndAt = forkState.roundBreakTimer > 0 ? forkState.roundTime : null
+      const sceneBlockAfter = roundEndAt === null ? null : Math.max(0, roundEndAt - STONE_SECONDS * 3)
+      const scenes = forkCinema.exportPlannedScenes().filter((scene) => !sceneTouchesBlockedEnd(scene, sceneBlockAfter))
+      return { scenes, sceneBlockAfter }
+    } finally {
+      for (const team of Object.keys(savedTeamStrategies)) TEAM_STRATEGIES[team] = savedTeamStrategies[team]
+    }
+  }
+
+  function sceneTouchesBlockedEnd(scene, sceneBlockAfter) {
+    if (canPlayDuringCinemaEndPhase(scene)) return false
+    return sceneBlockAfter !== null && (scene.endAt ?? scene.createdAt ?? 0) > sceneBlockAfter
+  }
+
+  function canPlayDuringCinemaEndPhase(scene) {
+    return scene?.type === 'runner_jugg_against_odds' && scene.event?.type === 'score' && Boolean(scene.event?.runnerId)
+  }
+
+  function cloneStateForPrecompute() {
+    const fork = createInitialState(state.matchSeed)
+    const rngSnapshot = rng.snapshot()
+    fork.rng = createSeededRng(rngSnapshot.seed, rngSnapshot.state)
+    fork.matchSeed = state.matchSeed
+    fork.running = true
+    fork.paused = false
+    fork.playbackSpeed = state.playbackSpeed
+    fork.timeLeft = state.timeLeft
+    fork.score = { ...state.score }
+    fork.message = state.message
+    fork.messageTimer = state.messageTimer
+    fork.roundBreakTimer = 0
+    fork.roundBreakLabel = ''
+    fork.nextTeamStrategies = { ...state.nextTeamStrategies }
+    fork.roundTime = state.roundBreakTimer > 0 ? 0 : state.roundTime
+    fork.stoneTimer = state.roundBreakTimer > 0 ? 0 : state.stoneTimer
+    fork.stoneCount = state.stoneCount
+    fork.teamCallCooldowns = { ...state.teamCallCooldowns }
+    fork.camera = { ...state.camera }
+    fork.particles = []
+    fork.hover = { active: false, x: 0, y: 0, clientX: 0, clientY: 0, player: null }
+
+    const playerPairs = state.players.map((player) => [player, clonePlayerForPrecompute(player)])
+    const playerMap = new Map(playerPairs.map(([source, clone]) => [source.id, clone]))
+    fork.players = playerPairs.map(([, clone]) => clone)
+    for (const [source, clone] of playerPairs) relinkPlayerRefs(source, clone, playerMap)
+
+    fork.jugg = {
+      ...state.jugg,
+      carrier: state.jugg.carrier ? playerMap.get(state.jugg.carrier.id) ?? null : null,
+      contest: state.jugg.contest
+        ? {
+            ...state.jugg.contest,
+            runners: state.jugg.contest.runners.map((runner) => playerMap.get(runner.id)).filter(Boolean),
+          }
+        : null,
+    }
+    fork.cinema.enabled = true
+    return fork
+  }
+
+  function clonePlayerForPrecompute(player) {
+    const clone = { ...player }
+    for (const key of [
+      'attackTarget',
+      'chainStrikeTarget',
+      'grappleTarget',
+      'grappledBy',
+      'callSource',
+      'pinnedBy',
+      'pinTarget',
+      'pinClaimedBy',
+      'doublePinTrapTarget',
+      'doublePinReleaseTarget',
+    ]) {
+      clone[key] = null
+    }
+    clone.callContext = cloneCallContext(player.callContext)
+    return clone
+  }
+
+  function relinkPlayerRefs(source, clone, playerMap) {
+    for (const key of [
+      'attackTarget',
+      'chainStrikeTarget',
+      'grappleTarget',
+      'grappledBy',
+      'callSource',
+      'pinnedBy',
+      'pinTarget',
+      'pinClaimedBy',
+      'doublePinTrapTarget',
+      'doublePinReleaseTarget',
+    ]) {
+      clone[key] = source[key]?.id ? playerMap.get(source[key].id) ?? null : null
+    }
+    clone.callContext = relinkCallContext(source.callContext, playerMap)
+  }
+
+  function cloneCallContext(context) {
+    if (!context) return null
+    const clone = { ...context }
+    for (const key of ['target', 'ally', 'carrier']) {
+      if (clone[key]?.id) clone[key] = { id: clone[key].id }
+    }
+    return clone
+  }
+
+  function relinkCallContext(context, playerMap) {
+    if (!context) return null
+    const clone = { ...context }
+    for (const key of ['target', 'ally', 'carrier']) {
+      if (context[key]?.id) clone[key] = playerMap.get(context[key].id) ?? null
+    }
+    return clone
+  }
+
+  function createHeadlessHud() {
+    return {
+      blueScore: { textContent: '' },
+      redScore: { textContent: '' },
+      clock: { textContent: '' },
+      matchState: { textContent: '' },
+      possession: { textContent: '' },
+      pins: { textContent: '' },
+      inactive: { textContent: '' },
+      stone: { textContent: '' },
+      miniMap: { innerHTML: '' },
+      skillList: { innerHTML: '' },
+      playerTooltip: { hidden: true },
+      startBtn: { textContent: '' },
+      pauseBtn: { textContent: '' },
+      resetBtn: { textContent: '' },
+      seedInput: { value: '' },
+      speedButtons: [],
     }
   }
   
   function startMatch() {
     if (state.timeLeft <= 0 || state.score.blue >= MATCH_POINT || state.score.red >= MATCH_POINT) resetMatch()
+    const wasRunning = state.running
     if (!state.running) applyNextTeamStrategies({ resetOpening: true })
     state.running = true
     state.paused = false
@@ -375,6 +592,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     state.messageTimer = 1.2
     hud.startBtn.textContent = 'Weiter'
     hud.pauseBtn.textContent = 'Pause'
+    if (!wasRunning && cinema?.isEnabled()) prepareCinemaPrecompute()
   }
   
   function togglePause() {
@@ -405,6 +623,17 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     state.jugg.vx = carrier.vx * 0.25
     state.jugg.vy = carrier.vy * 0.25
     state.jugg.cooldown = 0.58
+  }
+
+  function playerPoint(player) {
+    return player ? { x: player.x, y: player.y } : null
+  }
+
+  function nearbyActiveEnemyPayload(player, radius = 190) {
+    return state.players
+      .filter((other) => other.team !== player.team && !isInactive(other) && distance(player, other) <= radius)
+      .sort((a, b) => distance(player, a) - distance(player, b))
+      .map((enemy) => ({ id: enemy.id, point: playerPoint(enemy) }))
   }
   
   function attack(player, target = null) {
@@ -511,8 +740,15 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     }
   }
   
-  function makeInactive(player, stones = HIT_STONES) {
+  function makeInactive(player, stones = HIT_STONES, source = null) {
     if (isInactive(player) && player.penaltyStones >= stones) return
+    cinema?.recordEvent({
+      type: 'madeInactive',
+      playerId: player.id,
+      sourceId: source?.id ?? null,
+      stones,
+      point: playerPoint(player),
+    })
     releaseGrapple(player)
     if (state.jugg.carrier === player) dropJugg(player)
     if (state.jugg.contest?.runners.includes(player)) {
@@ -610,6 +846,13 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   }
   
   function queueInactive(player, stones = HIT_STONES, source = null) {
+    cinema?.recordEvent({
+      type: 'inactiveQueued',
+      playerId: player.id,
+      sourceId: source?.id ?? null,
+      stones,
+      point: playerPoint(player),
+    })
     if (canDoubleAgainst(player, source)) {
       if (source && source !== player && canDoubleAgainst(source, player)) {
         announceDouble(source, player)
@@ -619,7 +862,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
       return
     }
   
-    makeInactive(player, stones)
+    makeInactive(player, stones, source)
   }
   
   const decision = createDecisionEngine({ state, attack, rng })
@@ -1037,6 +1280,10 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     state.jugg.vx = 0
     state.jugg.vy = 0
     runner.holdOffset = 0
+    cinema?.recordEvent({
+      type: 'juggPickup',
+      ...cinema.runnerOddsPayload(runner),
+    })
     if (message) {
       state.message = message
       state.messageTimer = 0.7
@@ -1050,6 +1297,11 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
       runners: [a, b],
       cooldown: RUNNER_JUGG_CONTEST_COOLDOWN,
     }
+    cinema?.recordEvent({
+      type: 'juggContest',
+      runnerIds: [a.id, b.id],
+      points: [playerPoint(a), playerPoint(b), playerPoint(state.jugg)].filter(Boolean),
+    })
     state.jugg.vx = 0
     state.jugg.vy = 0
     for (const runner of [a, b]) {
@@ -1102,12 +1354,20 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
     for (const attacker of events) {
       if (!isPompfer(attacker)) continue
+      const intendedTarget = attacker.attackTarget
+      const intendedRunner = intendedTarget && isRunner(intendedTarget) && intendedTarget.team !== attacker.team && !isInactive(intendedTarget) ? intendedTarget : null
       const target = findStrikeTarget(attacker)
       attacker.attackTarget = null
-      if (!target) continue
+      if (!target) {
+        if (intendedRunner) recordRunnerAttackMiss(attacker, intendedRunner, 'out_of_reach')
+        continue
+      }
   
-      if (rng.chance(hitChance(attacker, target))) {
+      const hitSuccessful = rng.chance(hitChance(attacker, target))
+      if (hitSuccessful) {
         hits.push({ attacker, target })
+      } else if (isRunner(target) || intendedRunner) {
+        recordRunnerAttackMiss(attacker, isRunner(target) ? target : intendedRunner, 'miss')
       }
     }
 
@@ -1121,6 +1381,21 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     for (const hit of hits) {
       const penaltyStones = hit.attacker.pompfe === 'chain' ? CHAIN_HIT_STONES : HIT_STONES
       const targetCanDouble = canDoubleAgainst(hit.target, hit.attacker)
+      const reciprocal = reciprocalHits.has(hit)
+      const clearWin = !reciprocal && !targetCanDouble
+      const nearbyEnemies = nearbyActiveEnemyPayload(hit.attacker)
+      cinema?.recordEvent({
+        type: reciprocal ? 'double' : 'hit',
+        attackerId: hit.attacker.id,
+        targetId: hit.target.id,
+        attackerPompfe: hit.attacker.pompfe,
+        targetPompfe: hit.target.pompfe,
+        clearWin,
+        attackerPoint: playerPoint(hit.attacker),
+        targetPoint: playerPoint(hit.target),
+        nearbyEnemyIds: nearbyEnemies.map((enemy) => enemy.id),
+        nearbyEnemyPoints: nearbyEnemies.map((enemy) => enemy.point),
+      })
       if (hit.attacker.pompfe === 'chain') {
         hit.attacker.attackCooldown = Math.max(hit.attacker.attackCooldown, ATTACK_COOLDOWN * CHAIN_HIT_COOLDOWN_MULTIPLIER)
       }
@@ -1128,12 +1403,27 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
         cancelAttack(hit.target)
       }
       triggerFlankStrategy(hit.attacker, hit.target)
-      if (!reciprocalHits.has(hit) && !targetCanDouble) {
+      if (clearWin) {
         decision.tryIssueOverzahlCall(hit.attacker, hit.target)
       }
       queueInactive(hit.target, penaltyStones, hit.attacker)
       burst(hit.target.x, hit.target.y, TEAMS[hit.attacker.team].color, 8)
     }
+  }
+
+  function recordRunnerAttackMiss(attacker, runner, reason) {
+    if (!runner) return
+    cinema?.recordEvent({
+      type: 'runnerAttackMiss',
+      attackerId: attacker.id,
+      runnerId: runner.id,
+      attackerPompfe: attacker.pompfe,
+      targetPompfe: runner.pompfe,
+      reason,
+      attackerPoint: playerPoint(attacker),
+      runnerPoint: playerPoint(runner),
+      juggPoint: { x: state.jugg.x, y: state.jugg.y },
+    })
   }
   
   function resolvePins() {
@@ -1195,6 +1485,12 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
         best.pinClaimedBy = pinner
         best.pinWasActive = true
         pinner.pinTarget = best
+        cinema?.recordEvent({
+          type: 'pin',
+          pinnerId: pinner.id,
+          targetId: best.id,
+          points: [playerPoint(pinner), playerPoint(best)],
+        })
         assignedPinners.add(pinner)
         assignedTargets.add(best)
       }
@@ -1446,6 +1742,10 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
     const mal = TEAMS[carrier.team].attackMal
     if (distance(carrier, mal) < FIELD.malRadius + carrier.radius) {
+      cinema?.recordEvent({
+        type: 'score',
+        ...cinema.runnerOddsPayload(carrier),
+      })
       state.score[carrier.team] += 1
       state.message = `${TEAMS[carrier.team].name} punktet`
       state.messageTimer = 2
@@ -1486,10 +1786,19 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   function updateRoundBreak(dt) {
     if (state.roundBreakTimer <= 0) return false
     const realDt = dt / Math.max(state.playbackSpeed, 0.001)
+    const wasLocked = state.roundBreakLocked
     state.roundBreakTimer = Math.max(0, state.roundBreakTimer - realDt)
-    const seconds = Math.ceil(state.roundBreakTimer)
-    state.message = seconds > 0 ? `${state.roundBreakLabel} - Strategiepause ${seconds}` : 'Neuer Zug'
+    state.roundBreakLocked = isRoundBreakLocked()
+    const stonesLeft = roundBreakStonesLeft()
+    state.message = stonesLeft > 0 ? `${state.roundBreakLabel} - Strategiepause ${stonesLeft} Steine` : 'Neuer Zug'
     state.messageTimer = 0.4
+
+    if (!wasLocked && state.roundBreakLocked) {
+      state.roundBreakPrecomputed = true
+      if (!headless && cinema?.isEnabled()) prepareCinemaPrecompute()
+      renderSkillPanel()
+      updateHud()
+    }
   
     for (const player of state.players) {
       player.vx = 0
@@ -1498,6 +1807,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
   
     if (state.roundBreakTimer <= 0) {
       state.roundBreakLabel = ''
+      state.roundBreakLocked = false
       resetRound('Neuer Zug')
     }
   
@@ -1614,6 +1924,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
       updateJugg(dt)
       checkScoring()
       updateParticles(dt)
+      cinema?.recordSnapshot()
     } catch (error) {
       reportFrameError('Simulation', error)
     }
@@ -1633,6 +1944,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip })
     resetMatch,
     renderSkillPanel,
     deterministicSnapshot,
+    setCinemaMode,
     setBluePompfe,
     setBluePlayerStrategy,
     setBluePosition,

@@ -25,15 +25,16 @@ export function playerTechniqueOptionsForIndex(index) {
 export function renderBlueSkillPanel(container, state) {
   const chainOwner = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
   const currentTeamStrategy = normalizeTeamStrategy(state.nextTeamStrategies.blue)
+  const locked = Boolean(state.roundBreakLocked)
   const strategyControl = `
     <article class="skill-row strategy-row">
       <header>
         <span>Teamstrategie naechster Zug</span>
-        <strong>${teamStrategyLabel(currentTeamStrategy)}</strong>
+        <strong>${locked ? 'Gesperrt' : teamStrategyLabel(currentTeamStrategy)}</strong>
       </header>
       <label class="position-control">
         <span>Strategie</span>
-        <select data-team-strategy>
+        <select data-team-strategy ${locked ? 'disabled' : ''}>
           ${TEAM_STRATEGY_OPTIONS.map(
             (option) => `<option value="${option.id}" ${currentTeamStrategy === option.id ? 'selected' : ''}>${option.label}</option>`,
           ).join('')}
@@ -57,10 +58,10 @@ export function renderBlueSkillPanel(container, state) {
             <span>${roleLabel(index)}</span>
             <strong>${spent}/${SKILL_POINTS_PER_PLAYER}</strong>
           </header>
-          ${renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOptions)}
-          ${renderSkillControl(index, 'technik', 'T', skill, stats.technik)}
-          ${renderSkillControl(index, 'geschwindigkeit', 'G', skill, stats.geschwindigkeit)}
-          ${renderSkillControl(index, 'wahrnehmung', 'W', skill, `${stats.wahrnehmung}%`)}
+          ${renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOptions, locked)}
+          ${renderSkillControl(index, 'technik', 'T', skill, stats.technik, locked)}
+          ${renderSkillControl(index, 'geschwindigkeit', 'G', skill, stats.geschwindigkeit, locked)}
+          ${renderSkillControl(index, 'wahrnehmung', 'W', skill, `${stats.wahrnehmung}%`, locked)}
         </article>
       `
     })
@@ -69,13 +70,13 @@ export function renderBlueSkillPanel(container, state) {
   container.innerHTML = strategyControl + skillRows
 }
 
-function renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOptions) {
+function renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOptions, locked) {
   return `
     <div class="loadout-controls">
-      ${index > 0 ? renderPompferControls(index, chainOwner) : ''}
+      ${index > 0 ? renderPompferControls(index, chainOwner, locked) : ''}
       <label class="position-control">
         <span>Strategie</span>
-        <select data-player="${index}" data-player-strategy>
+        <select data-player="${index}" data-player-strategy ${locked ? 'disabled' : ''}>
           ${techniqueOptions
             .map((option) => `<option value="${option.id}" ${currentTechnique === option.id ? 'selected' : ''}>${option.label}</option>`)
             .join('')}
@@ -85,11 +86,11 @@ function renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOpt
   `
 }
 
-function renderPompferControls(index, chainOwner) {
+function renderPompferControls(index, chainOwner, locked) {
   return `
     <label class="position-control">
       <span>Position</span>
-      <select data-player="${index}" data-position>
+      <select data-player="${index}" data-position ${locked ? 'disabled' : ''}>
         ${Object.entries(POSITION_LABELS)
           .map(([slot, label]) => `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`)
           .join('')}
@@ -97,7 +98,7 @@ function renderPompferControls(index, chainOwner) {
     </label>
     <label class="position-control">
       <span>Pompfe</span>
-      <select data-player="${index}" data-pompfe>
+      <select data-player="${index}" data-pompfe ${locked ? 'disabled' : ''}>
         ${BLUE_POMPFEN_OPTIONS.map((option) => {
           const disabled = option === 'chain' && chainOwner > 0 && chainOwner !== index
           return `<option value="${option}" ${TEAM_LOADOUTS.blue[index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
@@ -107,15 +108,15 @@ function renderPompferControls(index, chainOwner) {
   `
 }
 
-function renderSkillControl(index, key, label, skill, displayValue) {
+function renderSkillControl(index, key, label, skill, displayValue, locked) {
   const donors = ['technik', 'geschwindigkeit', 'wahrnehmung'].filter((candidate) => candidate !== key)
   const canIncrease = donors.some((candidate) => skill[candidate] > 0)
   return `
     <div class="skill-control">
       <span>${label}</span>
-      <button type="button" data-player="${index}" data-skill="${key}" data-delta="-1" ${skill[key] <= 0 ? 'disabled' : ''}>-</button>
+      <button type="button" data-player="${index}" data-skill="${key}" data-delta="-1" ${locked || skill[key] <= 0 ? 'disabled' : ''}>-</button>
       <strong>${skill[key]}</strong>
-      <button type="button" data-player="${index}" data-skill="${key}" data-delta="1" ${!canIncrease ? 'disabled' : ''}>+</button>
+      <button type="button" data-player="${index}" data-skill="${key}" data-delta="1" ${locked || !canIncrease ? 'disabled' : ''}>+</button>
       <small>${displayValue}</small>
     </div>
   `

@@ -1,4 +1,4 @@
-const DEFAULT_SEED = 'jugger-default-seed'
+const DEFAULT_SEED = 'jluiolj734234'
 
 export function hashSeed(seed = DEFAULT_SEED) {
   const text = String(seed)

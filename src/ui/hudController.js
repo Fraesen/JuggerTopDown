@@ -46,6 +46,14 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     hud.pins.textContent = pinCount
     hud.inactive.textContent = inactiveCount
     hud.stone.textContent = state.stoneCount
+    if (hud.seedInput && document.activeElement !== hud.seedInput) hud.seedInput.value = state.matchSeed
+    if (hud.cinemaToggle) hud.cinemaToggle.checked = state.cinema.enabled
+    for (const button of hud.speedButtons) {
+      const active = Number(button.dataset.speed) === state.playbackSpeed && !state.cinema.enabled
+      button.disabled = state.cinema.enabled
+      button.classList.toggle('active', active)
+      button.setAttribute('aria-pressed', String(active))
+    }
     updateMiniMap()
   }
 
@@ -74,6 +82,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
 
   function zoomCameraAt(event) {
     event.preventDefault()
+    if (state.cinema.enabled) return
     const screen = canvasScreenPointFromEvent(event)
     const before = {
       x: state.camera.x + screen.x / state.camera.zoom,

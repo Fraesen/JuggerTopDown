@@ -16,16 +16,21 @@ import {
   teamStrategyLabel,
 } from '../game/strategies.js'
 
-export const BLUE_POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
+export const POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
+export const BLUE_POMPFEN_OPTIONS = POMPFEN_OPTIONS
 
 export function playerTechniqueOptionsForIndex(index) {
   return index === 0 ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
 }
 
 export function renderBlueSkillPanel(container, state) {
-  const chainOwner = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
-  const currentTeamStrategy = normalizeTeamStrategy(state.nextTeamStrategies.blue)
-  const locked = Boolean(state.roundBreakLocked)
+  renderTeamSkillPanel(container, state, { team: 'blue' })
+}
+
+export function renderTeamSkillPanel(container, state, { team = 'blue', editable = true } = {}) {
+  const chainOwner = TEAM_LOADOUTS[team].findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
+  const currentTeamStrategy = normalizeTeamStrategy(state.nextTeamStrategies[team] ?? TEAM_STRATEGIES[team])
+  const locked = Boolean(state.roundBreakLocked || !editable)
   const strategyControl = `
     <article class="skill-row strategy-row">
       <header>
@@ -43,13 +48,13 @@ export function renderBlueSkillPanel(container, state) {
     </article>
   `
 
-  const skillRows = PLAYER_SKILLS.blue
+  const skillRows = PLAYER_SKILLS[team]
     .map((skill, index) => {
       const stats = statsFromSkill(skill)
       const spent = skill.technik + skill.geschwindigkeit + skill.wahrnehmung
       const techniqueOptions = playerTechniqueOptionsForIndex(index)
-      const currentTechnique = techniqueOptions.some((option) => option.id === PLAYER_STRATEGIES.blue[index])
-        ? PLAYER_STRATEGIES.blue[index]
+      const currentTechnique = techniqueOptions.some((option) => option.id === PLAYER_STRATEGIES[team][index])
+        ? PLAYER_STRATEGIES[team][index]
         : techniqueOptions[0].id
 
       return `
@@ -58,7 +63,7 @@ export function renderBlueSkillPanel(container, state) {
             <span>${roleLabel(index)}</span>
             <strong>${spent}/${SKILL_POINTS_PER_PLAYER}</strong>
           </header>
-          ${renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOptions, locked)}
+          ${renderLoadoutControls(team, index, chainOwner, currentTechnique, techniqueOptions, locked)}
           ${renderSkillControl(index, 'technik', 'T', skill, stats.technik, locked)}
           ${renderSkillControl(index, 'geschwindigkeit', 'G', skill, stats.geschwindigkeit, locked)}
           ${renderSkillControl(index, 'wahrnehmung', 'W', skill, `${stats.wahrnehmung}%`, locked)}
@@ -70,10 +75,10 @@ export function renderBlueSkillPanel(container, state) {
   container.innerHTML = strategyControl + skillRows
 }
 
-function renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOptions, locked) {
+function renderLoadoutControls(team, index, chainOwner, currentTechnique, techniqueOptions, locked) {
   return `
     <div class="loadout-controls">
-      ${index > 0 ? renderPompferControls(index, chainOwner, locked) : ''}
+      ${index > 0 ? renderPompferControls(team, index, chainOwner, locked) : ''}
       <label class="position-control">
         <span>Strategie</span>
         <select data-player="${index}" data-player-strategy ${locked ? 'disabled' : ''}>
@@ -86,22 +91,22 @@ function renderLoadoutControls(index, chainOwner, currentTechnique, techniqueOpt
   `
 }
 
-function renderPompferControls(index, chainOwner, locked) {
+function renderPompferControls(team, index, chainOwner, locked) {
   return `
     <label class="position-control">
       <span>Position</span>
       <select data-player="${index}" data-position ${locked ? 'disabled' : ''}>
         ${Object.entries(POSITION_LABELS)
-          .map(([slot, label]) => `<option value="${slot}" ${PLAYER_POSITIONS.blue[index] === Number(slot) ? 'selected' : ''}>${label}</option>`)
+          .map(([slot, label]) => `<option value="${slot}" ${PLAYER_POSITIONS[team][index] === Number(slot) ? 'selected' : ''}>${label}</option>`)
           .join('')}
       </select>
     </label>
     <label class="position-control">
       <span>Pompfe</span>
       <select data-player="${index}" data-pompfe ${locked ? 'disabled' : ''}>
-        ${BLUE_POMPFEN_OPTIONS.map((option) => {
+        ${POMPFEN_OPTIONS.map((option) => {
           const disabled = option === 'chain' && chainOwner > 0 && chainOwner !== index
-          return `<option value="${option}" ${TEAM_LOADOUTS.blue[index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
+          return `<option value="${option}" ${TEAM_LOADOUTS[team][index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
         }).join('')}
       </select>
     </label>

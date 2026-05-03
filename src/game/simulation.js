@@ -28,6 +28,7 @@ import {
   RUNNER_JUGG_CONTEST_COOLDOWN,
   RUNNER_JUGG_CONTEST_PRESSURE_RANGE,
   RUNNING_ATTACK_SPEED_THRESHOLD,
+  SKILL_POINTS_PER_PLAYER,
   START_POSITIONS,
   STONE_SECONDS,
   TEAM_LOADOUTS,
@@ -51,7 +52,7 @@ import {
   statsFromSkill,
 } from './players.js'
 import { attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor } from './pompfen.js'
-import { BLUE_POMPFEN_OPTIONS, renderBlueSkillPanel, playerTechniqueOptionsForIndex } from '../ui/skillPanel.js'
+import { POMPFEN_OPTIONS, renderTeamSkillPanel, playerTechniqueOptionsForIndex } from '../ui/skillPanel.js'
 import {
   AGGRESSIVE_DOUBLE_WINDOW_FACTOR,
   DEFENSIVE_HIT_MODIFIER,
@@ -74,7 +75,15 @@ import { createSeededRng } from './rng.js'
 
 const CINEMA_PRECOMPUTE_SECONDS = MATCH_SECONDS
 
-export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, cinema = null, headless = false }) {
+export function createSimulation({
+  state,
+  hud,
+  updateHud,
+  updatePlayerTooltip,
+  cinema = null,
+  headless = false,
+  onLocalTeamConfigChanged = null,
+}) {
   const rng = state.rng
   const CHAIN_STRIKE_VISUAL_DURATION = 0.52
   const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
@@ -86,11 +95,84 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
     orbitRadius: 58,
   }
   
-  function applyBlueSkills() {
+  function editableTeam() {
+    return state.app.mode === 'pvpSetup' || state.app.mode === 'pvpMatch' || state.app.mode === 'pvpLobby' ? state.pvp.localTeam : 'blue'
+  }
+
+  function opponentTeam() {
+    return editableTeam() === 'blue' ? 'red' : 'blue'
+  }
+
+  function canEditTeam(team) {
+    if (team !== editableTeam()) return false
+    if (state.app.mode === 'pvpMatch') return state.roundBreakTimer > 0 && !isRoundBreakLocked()
+    if (state.app.mode === 'pvpSetup') return !isRoundBreakLocked()
+    return !isRoundBreakLocked()
+  }
+
+  function normalizeSkillConfig(skill, fallbackSkill) {
+    const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
+    const normalized = Object.fromEntries(
+      keys.map((key) => {
+        const value = Number(skill?.[key])
+        return [key, Number.isInteger(value) && value >= 0 ? value : fallbackSkill[key]]
+      }),
+    )
+    const spent = keys.reduce((sum, key) => sum + normalized[key], 0)
+    return spent === SKILL_POINTS_PER_PLAYER ? normalized : { ...fallbackSkill }
+  }
+
+  function normalizePositionConfig(team, source = PLAYER_POSITIONS[team]) {
+    const fallback = PLAYER_POSITIONS[team] ?? [0, 1, 2, 3, 4]
+    const used = new Set([0])
+    const next = [0]
+    for (let index = 1; index < 5; index += 1) {
+      const raw = Number(source?.[index])
+      const fallbackSlot = Number(fallback[index])
+      let slot = Number.isInteger(raw) && raw >= 1 && raw <= 4 && !used.has(raw) ? raw : null
+      if (slot === null && Number.isInteger(fallbackSlot) && fallbackSlot >= 1 && fallbackSlot <= 4 && !used.has(fallbackSlot)) {
+        slot = fallbackSlot
+      }
+      if (slot === null) slot = [1, 2, 3, 4].find((candidate) => !used.has(candidate)) ?? index
+      next[index] = slot
+      used.add(slot)
+    }
+    return next
+  }
+
+  function normalizeLoadoutConfig(team, source = TEAM_LOADOUTS[team]) {
+    const fallback = TEAM_LOADOUTS[team] ?? ['runner', 'staff', 'staff', 'staff', 'staff']
+    const next = ['runner']
+    let chainUsed = false
+    for (let index = 1; index < 5; index += 1) {
+      const fallbackPompfe = POMPFEN_OPTIONS.includes(fallback[index]) ? fallback[index] : 'staff'
+      let pompfe = POMPFEN_OPTIONS.includes(source?.[index]) ? source[index] : fallbackPompfe
+      if (pompfe === 'chain') {
+        if (chainUsed) pompfe = fallbackPompfe !== 'chain' ? fallbackPompfe : 'staff'
+        if (pompfe === 'chain') chainUsed = true
+      }
+      next[index] = pompfe
+    }
+    return next
+  }
+
+  function normalizePlayerStrategiesConfig(team, source = PLAYER_STRATEGIES[team]) {
+    const fallback = PLAYER_STRATEGIES[team] ?? ['wide_middle', 'none', 'none', 'none', 'none']
+    return Array.from({ length: 5 }, (_, index) => {
+      const options = playerTechniqueOptionsForIndex(index)
+      const candidate = source?.[index] ?? fallback[index]
+      if (options.some((option) => option.id === candidate)) return candidate
+      const fallbackStrategy = fallback[index]
+      if (options.some((option) => option.id === fallbackStrategy)) return fallbackStrategy
+      return options[0]?.id ?? 'none'
+    })
+  }
+
+  function applyTeamSkills(team) {
     for (const player of state.players) {
-      if (player.team !== 'blue') continue
+      if (player.team !== team) continue
       const index = playerIndex(player)
-      const stats = statsFromSkill(PLAYER_SKILLS.blue[index])
+      const stats = statsFromSkill(PLAYER_SKILLS[team][index])
       player.technik = stats.technik
       player.geschwindigkeit = stats.geschwindigkeit
       player.wahrnehmung = stats.wahrnehmung
@@ -98,20 +180,20 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
     }
   }
   
-  function applyBluePositions({ resetSpawns = false } = {}) {
+  function applyTeamPositions(team, { resetSpawns = false } = {}) {
     for (const player of state.players) {
-      if (player.team !== 'blue') continue
+      if (player.team !== team) continue
       const index = playerIndex(player)
-      const slot = PLAYER_POSITIONS.blue[index] ?? index
+      const slot = PLAYER_POSITIONS[team][index] ?? index
       player.positionSlot = slot
   
       if (resetSpawns) {
-        const spawn = START_POSITIONS.blue[slot]
+        const spawn = START_POSITIONS[team][slot]
         player.x = spawn.x
         player.y = spawn.y
         player.vx = 0
         player.vy = 0
-        player.angle = 0
+        player.angle = team === 'blue' ? 0 : Math.PI
         player.openingComplete = false
       }
     }
@@ -129,33 +211,36 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
   }
   
   function setBluePosition(index, slot) {
-    if (isRoundBreakLocked()) return
-    if (index <= 0 || slot <= 0 || slot >= PLAYER_POSITIONS.blue.length) return
-    const currentSlot = PLAYER_POSITIONS.blue[index]
+    const team = editableTeam()
+    if (!canEditTeam(team)) return
+    if (index <= 0 || slot <= 0 || slot >= PLAYER_POSITIONS[team].length) return
+    const currentSlot = PLAYER_POSITIONS[team][index]
     if (currentSlot === slot) return
   
-    const swapIndex = PLAYER_POSITIONS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === slot)
-    PLAYER_POSITIONS.blue[index] = slot
-    if (swapIndex > 0) PLAYER_POSITIONS.blue[swapIndex] = currentSlot
+    const swapIndex = PLAYER_POSITIONS[team].findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === slot)
+    PLAYER_POSITIONS[team][index] = slot
+    if (swapIndex > 0) PLAYER_POSITIONS[team][swapIndex] = currentSlot
   
-    applyBluePositions({ resetSpawns: shouldPreviewSetupAtGroundLine() })
+    applyTeamPositions(team, { resetSpawns: shouldPreviewSetupAtGroundLine() })
+    notifyLocalTeamConfigChanged(team)
     renderSkillPanel()
     updateHud()
   }
   
   function setBluePompfe(index, pompfe) {
-    if (isRoundBreakLocked()) return
-    if (index <= 0 || !BLUE_POMPFEN_OPTIONS.includes(pompfe)) return
+    const team = editableTeam()
+    if (!canEditTeam(team)) return
+    if (index <= 0 || !POMPFEN_OPTIONS.includes(pompfe)) return
     if (pompfe === 'chain') {
-      const existingChainIndex = TEAM_LOADOUTS.blue.findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
+      const existingChainIndex = TEAM_LOADOUTS[team].findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
       if (existingChainIndex > 0 && existingChainIndex !== index) {
         renderSkillPanel()
         return
       }
     }
   
-    TEAM_LOADOUTS.blue[index] = pompfe
-    const player = state.players.find((candidate) => candidate.team === 'blue' && playerIndex(candidate) === index)
+    TEAM_LOADOUTS[team][index] = pompfe
+    const player = state.players.find((candidate) => candidate.team === team && playerIndex(candidate) === index)
     if (player) {
       player.pompfe = pompfe
       player.pompfeLabel = pompfeFor(player).label
@@ -175,6 +260,7 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
       player.pinTarget = null
     }
   
+    notifyLocalTeamConfigChanged(team)
     renderSkillPanel()
     updatePlayerTooltip()
   }
@@ -203,37 +289,42 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
   }
   
   function setBlueTeamStrategy(strategy) {
-    if (isRoundBreakLocked()) return
-    state.nextTeamStrategies.blue = normalizeTeamStrategy(strategy)
+    const team = editableTeam()
+    if (!canEditTeam(team)) return
+    state.nextTeamStrategies[team] = normalizeTeamStrategy(strategy)
     if (!state.running) {
-      TEAM_STRATEGIES.blue = state.nextTeamStrategies.blue
+      TEAM_STRATEGIES[team] = state.nextTeamStrategies[team]
       for (const player of state.players) {
-        if (player.team !== 'blue') continue
+        if (player.team !== team) continue
         player.openingComplete = false
         resetStrategyState(player)
       }
     }
+    notifyLocalTeamConfigChanged(team)
     renderSkillPanel()
     updatePlayerTooltip()
   }
   
   function setBluePlayerStrategy(index, strategy) {
-    if (isRoundBreakLocked()) return
+    const team = editableTeam()
+    if (!canEditTeam(team)) return
     const availableStrategies = playerTechniqueOptionsForIndex(index)
     if (!availableStrategies.some((option) => option.id === strategy)) strategy = availableStrategies[0]?.id ?? 'none'
-    PLAYER_STRATEGIES.blue[index] = strategy
-    const player = state.players.find((candidate) => candidate.team === 'blue' && playerIndex(candidate) === index)
+    PLAYER_STRATEGIES[team][index] = strategy
+    const player = state.players.find((candidate) => candidate.team === team && playerIndex(candidate) === index)
     if (player) {
       player.strategy = strategy
       resetStrategyState(player)
     }
+    notifyLocalTeamConfigChanged(team)
     renderSkillPanel()
     updatePlayerTooltip()
   }
   
   function setBlueSkill(index, key, delta) {
-    if (isRoundBreakLocked()) return
-    const skill = PLAYER_SKILLS.blue[index]
+    const team = editableTeam()
+    if (!canEditTeam(team)) return
+    const skill = PLAYER_SKILLS[team][index]
     const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
     const otherKeys = keys.filter((candidate) => candidate !== key)
   
@@ -249,12 +340,76 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
       skill[receiver] += 1
     }
   
-    applyBlueSkills()
+    applyTeamSkills(team)
+    notifyLocalTeamConfigChanged(team)
     renderSkillPanel()
   }
   
   function renderSkillPanel() {
-    renderBlueSkillPanel(hud.skillList, state)
+    const team = editableTeam()
+    const enemyTeam = opponentTeam()
+    if (hud.skillPanelTitle) hud.skillPanelTitle.textContent = state.app.mode.startsWith('pvp') ? `Mein Team (${TEAMS[team].name})` : 'Blau skillen'
+    renderTeamSkillPanel(hud.skillList, state, { team, editable: canEditTeam(team) })
+    if (hud.opponentSkillPanel && hud.opponentSkillList) {
+      const showOpponent = state.app.mode === 'pvpSetup' || state.app.mode === 'pvpMatch'
+      hud.opponentSkillPanel.hidden = !showOpponent
+      if (hud.opponentTeamLabel) hud.opponentTeamLabel.textContent = TEAMS[enemyTeam].name
+      if (showOpponent) renderTeamSkillPanel(hud.opponentSkillList, state, { team: enemyTeam, editable: false })
+    }
+  }
+
+  function exportTeamConfig(team) {
+    return {
+      team,
+      version: state.pvp.teamVersions[team] ?? 0,
+      skills: PLAYER_SKILLS[team].map((skill) => ({ ...skill })),
+      positions: normalizePositionConfig(team),
+      loadout: normalizeLoadoutConfig(team),
+      playerStrategies: normalizePlayerStrategiesConfig(team),
+      teamStrategy: state.nextTeamStrategies[team] ?? TEAM_STRATEGIES[team],
+    }
+  }
+
+  function notifyLocalTeamConfigChanged(team) {
+    if (headless || team !== state.pvp.localTeam || !state.app.mode.startsWith('pvp')) return
+    state.pvp.teamVersions[team] = (state.pvp.teamVersions[team] ?? 0) + 1
+    onLocalTeamConfigChanged?.(exportTeamConfig(team))
+  }
+
+  function applyTeamConfig(config, { remote = false } = {}) {
+    const team = config?.team
+    if (!team || !PLAYER_SKILLS[team]) return
+    const rawVersion = Number(config.version ?? 0)
+    const incomingVersion = Number.isFinite(rawVersion) ? rawVersion : 0
+    if (remote && incomingVersion < (state.pvp.teamVersions[team] ?? 0)) return
+    state.pvp.teamVersions[team] = Math.max(state.pvp.teamVersions[team] ?? 0, incomingVersion)
+
+    if (Array.isArray(config.skills)) {
+      config.skills.forEach((skill, index) => {
+        if (!PLAYER_SKILLS[team][index]) return
+        PLAYER_SKILLS[team][index] = normalizeSkillConfig(skill, PLAYER_SKILLS[team][index])
+      })
+    }
+    if (Array.isArray(config.positions)) PLAYER_POSITIONS[team].splice(0, PLAYER_POSITIONS[team].length, ...normalizePositionConfig(team, config.positions))
+    if (Array.isArray(config.loadout)) TEAM_LOADOUTS[team].splice(0, TEAM_LOADOUTS[team].length, ...normalizeLoadoutConfig(team, config.loadout))
+    if (Array.isArray(config.playerStrategies)) {
+      PLAYER_STRATEGIES[team].splice(0, PLAYER_STRATEGIES[team].length, ...normalizePlayerStrategiesConfig(team, config.playerStrategies))
+    }
+    if (config.teamStrategy) state.nextTeamStrategies[team] = normalizeTeamStrategy(config.teamStrategy)
+
+    applyTeamSkills(team)
+    applyTeamPositions(team, { resetSpawns: shouldPreviewSetupAtGroundLine() })
+    for (const player of state.players) {
+      if (player.team !== team) continue
+      const index = playerIndex(player)
+      player.pompfe = TEAM_LOADOUTS[team][index] ?? player.pompfe
+      player.pompfeLabel = pompfeFor(player).label
+      player.strategy = PLAYER_STRATEGIES[team][index] ?? player.strategy
+      resetStrategyState(player)
+    }
+    renderSkillPanel()
+    updatePlayerTooltip()
+    updateHud()
   }
 
   function roundBreakStonesLeft() {
@@ -1944,6 +2099,8 @@ export function createSimulation({ state, hud, updateHud, updatePlayerTooltip, c
     resetMatch,
     renderSkillPanel,
     deterministicSnapshot,
+    applyTeamConfig,
+    exportTeamConfig,
     setCinemaMode,
     setBluePompfe,
     setBluePlayerStrategy,

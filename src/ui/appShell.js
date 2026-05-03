@@ -3,6 +3,18 @@ import { DEFAULT_MATCH_SEED } from '../game/state.js'
 
 export function mountAppShell(root = document.querySelector('#app')) {
   root.innerHTML = `
+    <section id="main-menu" class="main-menu">
+      <div class="main-menu-inner">
+        <p class="eyebrow">5 vs 5 Autobattler</p>
+        <h1>Jugger</h1>
+        <div class="main-menu-actions">
+          <button id="bot-game-btn" class="primary" type="button">Spiel gegen Bots</button>
+          <button id="create-game-btn" type="button">Spiel erstellen</button>
+          <button id="join-game-btn" type="button">Spiel beitreten</button>
+        </div>
+      </div>
+    </section>
+
     <div class="game-shell">
       <header class="score-strip" aria-live="polite">
         <div class="team-score team-score-blue">
@@ -30,6 +42,8 @@ export function mountAppShell(root = document.querySelector('#app')) {
             <p class="eyebrow">5 vs 5 Autobattler</p>
             <h1>Jugger</h1>
           </div>
+
+          <section id="pvp-status-panel" class="pvp-status-panel" hidden></section>
 
           <div class="controls-row">
             <button id="start-btn" class="primary" type="button">Start</button>
@@ -65,10 +79,18 @@ export function mountAppShell(root = document.querySelector('#app')) {
 
           <details class="collapsible-panel skill-panel">
             <summary class="panel-heading">
-              <span>Blau skillen</span>
+              <span id="skill-panel-title">Blau skillen</span>
               <strong>6 Punkte pro Spieler</strong>
             </summary>
             <div id="skill-list" class="skill-list"></div>
+          </details>
+
+          <details id="opponent-skill-panel" class="collapsible-panel skill-panel" hidden>
+            <summary class="panel-heading">
+              <span>Gegnerteam</span>
+              <strong id="opponent-team-label">Rot</strong>
+            </summary>
+            <div id="opponent-skill-list" class="skill-list"></div>
           </details>
 
           <details class="collapsible-panel roster-panel">
@@ -83,6 +105,16 @@ export function mountAppShell(root = document.querySelector('#app')) {
         </aside>
       </main>
     </div>
+
+    <div id="pvp-modal" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="pvp-modal-title">
+        <header>
+          <h2 id="pvp-modal-title">PvP</h2>
+          <button id="pvp-modal-close" type="button" aria-label="Schliessen">x</button>
+        </header>
+        <div id="pvp-modal-body"></div>
+      </section>
+    </div>
   `
 
   const canvas = root.querySelector('#game')
@@ -96,6 +128,11 @@ export function mountAppShell(root = document.querySelector('#app')) {
 
 function queryHud(root) {
   return {
+    mainMenu: root.querySelector('#main-menu'),
+    gameShell: root.querySelector('.game-shell'),
+    botGameBtn: root.querySelector('#bot-game-btn'),
+    createGameBtn: root.querySelector('#create-game-btn'),
+    joinGameBtn: root.querySelector('#join-game-btn'),
     blueScore: root.querySelector('#blue-score'),
     redScore: root.querySelector('#red-score'),
     clock: root.querySelector('#clock'),
@@ -105,7 +142,12 @@ function queryHud(root) {
     inactive: root.querySelector('#inactive'),
     stone: root.querySelector('#stone'),
     miniMap: root.querySelector('#mini-map'),
+    pvpStatusPanel: root.querySelector('#pvp-status-panel'),
+    skillPanelTitle: root.querySelector('#skill-panel-title'),
     skillList: root.querySelector('#skill-list'),
+    opponentSkillPanel: root.querySelector('#opponent-skill-panel'),
+    opponentTeamLabel: root.querySelector('#opponent-team-label'),
+    opponentSkillList: root.querySelector('#opponent-skill-list'),
     playerTooltip: root.querySelector('#player-tooltip'),
     startBtn: root.querySelector('#start-btn'),
     pauseBtn: root.querySelector('#pause-btn'),
@@ -113,6 +155,10 @@ function queryHud(root) {
     seedInput: root.querySelector('#seed-input'),
     cinemaToggle: root.querySelector('#cinema-toggle'),
     speedButtons: [...root.querySelectorAll('[data-speed]')],
+    pvpModal: root.querySelector('#pvp-modal'),
+    pvpModalTitle: root.querySelector('#pvp-modal-title'),
+    pvpModalBody: root.querySelector('#pvp-modal-body'),
+    pvpModalClose: root.querySelector('#pvp-modal-close'),
   }
 }
 

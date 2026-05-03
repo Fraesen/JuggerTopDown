@@ -31,6 +31,43 @@ body {
   overflow: hidden;
 }
 
+.main-menu {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.main-menu[hidden],
+.game-shell[hidden],
+.modal-backdrop[hidden],
+.pvp-status-panel[hidden],
+.collapsible-panel[hidden] {
+  display: none;
+}
+
+.main-menu-inner {
+  width: min(440px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 28px;
+  background: rgba(24, 33, 36, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.main-menu-inner h1 {
+  margin-bottom: 24px;
+}
+
+.main-menu-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.main-menu-actions button {
+  min-height: 48px;
+}
+
 button {
   min-height: 42px;
   border: 1px solid var(--line);
@@ -292,6 +329,38 @@ h1 {
   gap: 8px;
 }
 
+.pvp-status-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.pvp-status-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pvp-status-panel strong {
+  color: var(--text);
+}
+
+.pvp-team-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pvp-team-choice button.active {
+  color: #122024;
+  border-color: transparent;
+  background: var(--gold);
+}
+
 .speed-control {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -378,6 +447,81 @@ h1 {
   width: 18px;
   height: 18px;
   accent-color: var(--gold);
+}
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.modal {
+  width: min(440px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(24, 33, 36, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.modal h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.modal form,
+.modal-body-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.room-code {
+  display: grid;
+  min-height: 70px;
+  place-items: center;
+  border: 1px solid rgba(247, 218, 91, 0.45);
+  border-radius: 7px;
+  color: var(--gold);
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  background: rgba(247, 218, 91, 0.08);
+}
+
+.modal input {
+  min-height: 42px;
+  border: 1px solid rgba(255, 247, 215, 0.18);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  font: inherit;
+  background: rgba(4, 10, 11, 0.34);
+}
+
+.modal-status,
+.modal-error {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.modal-error {
+  color: #ffb2a5;
 }
 
 .status-grid {

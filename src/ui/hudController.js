@@ -34,27 +34,75 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
   }
 
   function updateHud() {
+    const mode = state.app.mode
+    const inPvp = mode.startsWith('pvp')
+    if (hud.mainMenu) hud.mainMenu.hidden = mode !== 'menu' && mode !== 'pvpLobby'
+    if (hud.gameShell) hud.gameShell.hidden = mode === 'menu' || mode === 'pvpLobby'
+    updatePvpSetupTimer()
+
     const possession = state.jugg.carrier ? `${TEAMS[state.jugg.carrier.team].name} Laeufer` : 'frei'
     const pinCount = state.players.filter((player) => player.pinnedBy).length
     const inactiveCount = state.players.filter((player) => isInactive(player)).length
 
     hud.blueScore.textContent = state.score.blue
     hud.redScore.textContent = state.score.red
-    hud.clock.textContent = formatClock(state.timeLeft)
-    hud.matchState.textContent = state.paused ? 'Pause' : state.roundBreakTimer > 0 ? 'Strategiepause' : state.running ? 'Autobattler live' : state.message
+    hud.clock.textContent = mode === 'pvpSetup' ? formatClock(state.pvp.setupRemaining) : formatClock(state.timeLeft)
+    hud.matchState.textContent = matchStateLabel()
     hud.possession.textContent = possession
     hud.pins.textContent = pinCount
     hud.inactive.textContent = inactiveCount
     hud.stone.textContent = state.stoneCount
     if (hud.seedInput && document.activeElement !== hud.seedInput) hud.seedInput.value = state.matchSeed
-    if (hud.cinemaToggle) hud.cinemaToggle.checked = state.cinema.enabled
+    if (hud.startBtn) hud.startBtn.disabled = inPvp
+    if (hud.pauseBtn) hud.pauseBtn.disabled = inPvp
+    if (hud.cinemaToggle) {
+      hud.cinemaToggle.checked = state.cinema.enabled
+      hud.cinemaToggle.disabled = inPvp
+    }
     for (const button of hud.speedButtons) {
       const active = Number(button.dataset.speed) === state.playbackSpeed && !state.cinema.enabled
-      button.disabled = state.cinema.enabled
+      button.disabled = state.cinema.enabled || inPvp
       button.classList.toggle('active', active)
       button.setAttribute('aria-pressed', String(active))
     }
+    renderPvpStatus()
     updateMiniMap()
+  }
+
+  function updatePvpSetupTimer() {
+    if (!state.pvp.setupEndsAt) {
+      state.pvp.setupRemaining = 0
+      return
+    }
+    state.pvp.setupRemaining = Math.max(0, (state.pvp.setupEndsAt - Date.now()) / 1000)
+  }
+
+  function matchStateLabel() {
+    if (state.app.mode === 'pvpSetup') return 'PvP Teamsetup'
+    if (state.app.mode === 'pvpMatch') return state.paused ? 'Pause' : state.roundBreakTimer > 0 ? 'PvP Strategiepause' : 'PvP live'
+    if (state.app.mode === 'pvpLobby') return 'PvP Lobby'
+    return state.paused ? 'Pause' : state.roundBreakTimer > 0 ? 'Strategiepause' : state.running ? 'Autobattler live' : state.message
+  }
+
+  function renderPvpStatus() {
+    if (!hud.pvpStatusPanel) return
+    const show = state.app.mode === 'pvpSetup' || state.app.mode === 'pvpMatch'
+    hud.pvpStatusPanel.hidden = !show
+    if (!show) return
+    const local = state.pvp.localTeam
+    const other = local === 'blue' ? 'red' : 'blue'
+    hud.pvpStatusPanel.innerHTML = `
+      <header>
+        <span>${state.pvp.roomCode || 'PvP'}</span>
+        <strong>${state.app.mode === 'pvpSetup' ? `${Math.ceil(state.pvp.setupRemaining)}s` : TEAMS[local].name}</strong>
+      </header>
+      <small>${state.pvp.statusText || 'Synchronisiert'}</small>
+      <div class="pvp-team-choice">
+        <button type="button" data-team-choice="blue" class="${local === 'blue' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>Blau</button>
+        <button type="button" data-team-choice="red" class="${local === 'red' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>Rot</button>
+      </div>
+      <small>Gegner: ${TEAMS[other].name}</small>
+    `
   }
 
   function canvasScreenPointFromEvent(event) {

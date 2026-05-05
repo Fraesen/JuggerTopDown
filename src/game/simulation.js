@@ -83,6 +83,7 @@ export function createSimulation({
   cinema = null,
   headless = false,
   onLocalTeamConfigChanged = null,
+  onRoundBreakStarted = null,
 }) {
   const rng = state.rng
   const CHAIN_STRIKE_VISUAL_DURATION = 0.52
@@ -324,6 +325,7 @@ export function createSimulation({
   function setBlueSkill(index, key, delta) {
     const team = editableTeam()
     if (!canEditTeam(team)) return
+    if (state.app.mode === 'pvpMatch') return
     const skill = PLAYER_SKILLS[team][index]
     const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
     const otherKeys = keys.filter((candidate) => candidate !== key)
@@ -348,10 +350,19 @@ export function createSimulation({
   function renderSkillPanel() {
     const team = editableTeam()
     const enemyTeam = opponentTeam()
+    const editSetup = state.app.mode !== 'pvpMatch'
+    const editFormation = state.app.mode !== 'pvpSetup' || canEditTeam(team)
     if (hud.skillPanelTitle) hud.skillPanelTitle.textContent = state.app.mode.startsWith('pvp') ? `Mein Team (${TEAMS[team].name})` : 'Blau skillen'
-    renderTeamSkillPanel(hud.skillList, state, { team, editable: canEditTeam(team) })
+    renderTeamSkillPanel(hud.skillList, state, {
+      team,
+      editable: canEditTeam(team),
+      editSkills: editSetup,
+      editLoadout: editSetup,
+      editPositions: editFormation,
+      editStrategies: editFormation,
+    })
     if (hud.opponentSkillPanel && hud.opponentSkillList) {
-      const showOpponent = state.app.mode === 'pvpSetup' || state.app.mode === 'pvpMatch'
+      const showOpponent = false
       hud.opponentSkillPanel.hidden = !showOpponent
       if (hud.opponentTeamLabel) hud.opponentTeamLabel.textContent = TEAMS[enemyTeam].name
       if (showOpponent) renderTeamSkillPanel(hud.opponentSkillList, state, { team: enemyTeam, editable: false })
@@ -471,7 +482,7 @@ export function createSimulation({
     if (!headless && state.running && cinema?.isEnabled()) prepareCinemaPrecompute()
   }
   
-  function beginRoundBreak(message) {
+  function beginRoundBreak(message, { notify = true } = {}) {
     resetNextTeamStrategies()
     resetTeamsToGroundLinePreview()
     state.roundBreakTimer = ROUND_BREAK_SECONDS
@@ -487,6 +498,34 @@ export function createSimulation({
       player.vy = 0
     }
     renderSkillPanel()
+    if (notify && state.app.mode === 'pvpMatch') {
+      onRoundBreakStarted?.({
+        roundId: state.pvp.roundId,
+        label: message,
+        score: { ...state.score },
+      })
+    }
+  }
+
+  function syncPvpRoundBreak({ roundId, nextRoundId, label, score, breakEndsAt }) {
+    if (state.app.mode !== 'pvpMatch') return
+    const incomingRoundId = Number(roundId)
+    if (Number.isFinite(incomingRoundId) && incomingRoundId < state.pvp.roundId) return
+    state.pvp.roundId = Number.isFinite(incomingRoundId) ? incomingRoundId : state.pvp.roundId
+    state.pvp.nextRoundId = Number.isFinite(Number(nextRoundId)) ? Number(nextRoundId) : state.pvp.roundId + 1
+    state.pvp.roundBreakEndsAt = breakEndsAt ?? null
+    if (score?.blue !== undefined && score?.red !== undefined) {
+      state.score.blue = Number(score.blue) || 0
+      state.score.red = Number(score.red) || 0
+    }
+    if (state.roundBreakTimer <= 0) {
+      beginRoundBreak(label || 'Punkt', { notify: false })
+    } else {
+      state.roundBreakLabel = label || state.roundBreakLabel
+      state.message = `${state.roundBreakLabel} - Strategiepause ${ROUND_BREAK_STONES} Steine`
+    }
+    renderSkillPanel()
+    updateHud()
   }
   
   function resetMatch() {
@@ -508,6 +547,9 @@ export function createSimulation({
     state.roundBreakLabel = ''
     state.roundBreakLocked = false
     state.roundBreakPrecomputed = false
+    state.pvp.roundId = 1
+    state.pvp.nextRoundId = 1
+    state.pvp.roundBreakEndsAt = null
     state.camera.x = 0
     state.camera.y = 0
     state.camera.zoom = 1
@@ -743,7 +785,7 @@ export function createSimulation({
     if (!state.running) applyNextTeamStrategies({ resetOpening: true })
     state.running = true
     state.paused = false
-    state.message = 'Spiel laeuft'
+    state.message = 'Spiel läuft'
     state.messageTimer = 1.2
     hud.startBtn.textContent = 'Weiter'
     hud.pauseBtn.textContent = 'Pause'
@@ -754,7 +796,7 @@ export function createSimulation({
     if (!state.running) return
     state.paused = !state.paused
     hud.pauseBtn.textContent = state.paused ? 'Weiter' : 'Pause'
-    state.message = state.paused ? 'Pause' : 'Spiel laeuft'
+    state.message = state.paused ? 'Pause' : 'Spiel läuft'
     state.messageTimer = 0.8
     updatePlayerTooltip()
   }
@@ -1794,7 +1836,7 @@ export function createSimulation({
     if (pressured.length > 0) {
       state.jugg.contest = null
       state.jugg.cooldown = 0.32
-      state.message = 'Laeufer loesen'
+      state.message = 'Läufer:innen lösen'
       state.messageTimer = 0.55
       for (const { runner, pressure } of pressured) retreatRunnerFromPressure(runner, pressure.target)
       return true
@@ -1940,9 +1982,13 @@ export function createSimulation({
   
   function updateRoundBreak(dt) {
     if (state.roundBreakTimer <= 0) return false
-    const realDt = dt / Math.max(state.playbackSpeed, 0.001)
     const wasLocked = state.roundBreakLocked
-    state.roundBreakTimer = Math.max(0, state.roundBreakTimer - realDt)
+    if (state.app.mode === 'pvpMatch' && state.pvp.roundBreakEndsAt) {
+      state.roundBreakTimer = Math.max(0, (state.pvp.roundBreakEndsAt - Date.now()) / 1000)
+    } else {
+      const realDt = dt / Math.max(state.playbackSpeed, 0.001)
+      state.roundBreakTimer = Math.max(0, state.roundBreakTimer - realDt)
+    }
     state.roundBreakLocked = isRoundBreakLocked()
     const stonesLeft = roundBreakStonesLeft()
     state.message = stonesLeft > 0 ? `${state.roundBreakLabel} - Strategiepause ${stonesLeft} Steine` : 'Neuer Zug'
@@ -1963,6 +2009,10 @@ export function createSimulation({
     if (state.roundBreakTimer <= 0) {
       state.roundBreakLabel = ''
       state.roundBreakLocked = false
+      if (state.app.mode === 'pvpMatch') {
+        state.pvp.roundId = state.pvp.nextRoundId || state.pvp.roundId + 1
+        state.pvp.roundBreakEndsAt = null
+      }
       resetRound('Neuer Zug')
     }
   
@@ -2067,7 +2117,7 @@ export function createSimulation({
       } catch (error) {
         player.vx = 0
         player.vy = 0
-        reportFrameError(`Spieler ${player.id}`, error)
+        reportFrameError(`Spielende ${player.id}`, error)
       }
     }
   
@@ -2101,6 +2151,7 @@ export function createSimulation({
     deterministicSnapshot,
     applyTeamConfig,
     exportTeamConfig,
+    syncPvpRoundBreak,
     setCinemaMode,
     setBluePompfe,
     setBluePlayerStrategy,

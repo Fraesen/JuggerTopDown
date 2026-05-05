@@ -68,10 +68,10 @@ export const START_POSITIONS = {
 }
 
 export const POSITION_LABELS = {
-  1: 'Oben aussen',
+  1: 'Oben außen',
   2: 'Oben innen',
   3: 'Unten innen',
-  4: 'Unten aussen',
+  4: 'Unten außen',
 }
 
 export const PLAYER_POSITIONS = {

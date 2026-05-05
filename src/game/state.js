@@ -5,7 +5,7 @@ export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2]
 export const CAMERA_MIN_ZOOM = 1
 export const CAMERA_MAX_ZOOM = 4
 export const CAMERA_ZOOM_STEP = 1.18
-export const ROUND_BREAK_STONES = 10
+export const ROUND_BREAK_STONES = 20
 export const ROUND_BREAK_LOCK_STONES = 3
 export const ROUND_BREAK_SECONDS = ROUND_BREAK_STONES * STONE_SECONDS
 export const SIMULATION_STEP_SECONDS = 1 / 60
@@ -45,6 +45,8 @@ export function createInitialState(seed = DEFAULT_MATCH_SEED) {
       connectionStatus: 'idle',
       statusText: '',
       error: '',
+      publicRooms: [],
+      createPublic: false,
       role: null,
       playerId: null,
       localTeam: 'blue',
@@ -52,6 +54,11 @@ export function createInitialState(seed = DEFAULT_MATCH_SEED) {
       players: [],
       setupEndsAt: null,
       setupRemaining: 0,
+      setupSkillSaved: false,
+      serverTimeOffset: 0,
+      roundId: 1,
+      nextRoundId: 1,
+      roundBreakEndsAt: null,
       lastServerSeq: 0,
       teamVersions: { blue: 0, red: 0 },
     },

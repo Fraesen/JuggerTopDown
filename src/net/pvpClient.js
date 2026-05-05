@@ -1,6 +1,8 @@
 const DEFAULT_ENDPOINT = '/ws/pvp'
 
 export function defaultPvpWebSocketUrl() {
+  const configuredUrl = import.meta.env?.VITE_PVP_WS_URL
+  if (configuredUrl) return configuredUrl
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${protocol}//${window.location.host}${DEFAULT_ENDPOINT}`
 }
@@ -20,7 +22,7 @@ export function createPvpClient({ url = defaultPvpWebSocketUrl(), onEvent = () =
       try {
         onEvent(JSON.parse(event.data))
       } catch (error) {
-        onEvent({ type: 'error', code: 'invalid_json', message: 'Ungueltige WebSocket-Nachricht', detail: String(error) })
+        onEvent({ type: 'error', code: 'invalid_json', message: 'Ungültige WebSocket-Nachricht', detail: String(error) })
       }
     })
     return socket
@@ -48,7 +50,8 @@ export function createPvpClient({ url = defaultPvpWebSocketUrl(), onEvent = () =
 
   return {
     connect,
-    createRoom: () => send('create_room'),
+    createRoom: (options = {}) => send('create_room', { isPublic: Boolean(options.isPublic) }),
+    listPublicRooms: () => send('list_public_rooms'),
     joinRoom: (roomCode) => send('join_room', { roomCode }),
     leaveRoom: () => {
       if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'leave_room', requestId: nextRequestId() }))
@@ -56,6 +59,7 @@ export function createPvpClient({ url = defaultPvpWebSocketUrl(), onEvent = () =
     },
     selectTeam: (team) => send('select_team', { team }),
     sendTeamConfig: (config) => send('team_config_update', { config }),
+    reportRoundBreak: (payload) => send('round_break_report', payload),
     ping: () => send('ping', { clientTime: Date.now() }),
     close: () => socket?.close(),
   }

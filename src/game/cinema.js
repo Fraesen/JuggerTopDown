@@ -153,7 +153,7 @@ export function createCinemaDirector({ state, debug = true }) {
 
     if (event.type === 'runnerAttackMiss' && event.attackerId && event.runnerId) {
       enqueueScene(sceneFromEvent('runner_attack_miss', event, {
-        title: 'Laeufer entkommt',
+        title: 'Läufer:in entkommt',
         participantIds: [event.attackerId, event.runnerId],
         points: [event.attackerPoint, event.runnerPoint, event.juggPoint].filter(Boolean),
       }))
@@ -520,10 +520,10 @@ export function createCinemaDirector({ state, debug = true }) {
     if (!debug || !ensureCinemaState().enabled || typeof console === 'undefined') return
     const summaries = scenes.map((scene) => sceneDebugPayload(scene))
     if (!summaries.length) {
-      console.info('[Cinema] vorgeplant: keine Szenen fuer diesen Zug erkannt')
+      console.info('[Cinema] vorgeplant: keine Szenen für diesen Zug erkannt')
       return
     }
-    console.groupCollapsed(`[Cinema] vorgeplant: ${summaries.length} Szene${summaries.length === 1 ? '' : 'n'} fuer diesen Zug`)
+    console.groupCollapsed(`[Cinema] vorgeplant: ${summaries.length} Szene${summaries.length === 1 ? '' : 'n'} für diesen Zug`)
     for (const summary of summaries) console.info(summary)
     console.groupEnd()
   }

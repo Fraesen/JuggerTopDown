@@ -53,7 +53,7 @@ export function statsFromSkill(skill) {
 }
 
 export function roleLabel(index) {
-  return index === 0 ? 'Laeufer' : `Pompfer ${index}`
+  return index === 0 ? 'Läufer:in' : `Pompfer:in ${index}`
 }
 
 export function playerIndex(player) {

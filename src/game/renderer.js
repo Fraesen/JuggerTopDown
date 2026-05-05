@@ -572,6 +572,8 @@ export function createRenderer({ ctx, state }) {
   
   function drawOverlay() {
     if (state.running && state.messageTimer <= 0) return
+    if (state.roundBreakTimer > 0 && state.roundBreakLocked) return
+    if (state.message === 'Neuer Zug' && state.messageTimer > 0.85) return
   
     ctx.save()
     ctx.fillStyle = 'rgba(8,12,15,0.2)'
@@ -585,7 +587,7 @@ export function createRenderer({ ctx, state }) {
     if (!state.running && state.timeLeft > 0) {
       ctx.font = '600 24px system-ui'
       ctx.fillStyle = 'rgba(255,247,215,0.84)'
-      ctx.fillText('Start druecken', FIELD.width / 2, FIELD.height / 2 + 44)
+      ctx.fillText('Start drücken', FIELD.width / 2, FIELD.height / 2 + 44)
     }
     ctx.restore()
   }

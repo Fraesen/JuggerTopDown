@@ -1,9 +1,10 @@
 import { CAMERA_MAX_ZOOM, CAMERA_MIN_ZOOM, CAMERA_ZOOM_STEP } from '../game/state.js'
-import { FIELD, POSITION_LABELS, TEAM_STRATEGIES, TEAMS } from '../game/config.js'
+import { FIELD, TEAM_STRATEGIES } from '../game/config.js'
 import { clamp, distance } from '../game/geometry.js'
 import { isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot, roleLabel, skillForPlayer } from '../game/players.js'
-import { pompfeFor } from '../game/pompfen.js'
+import { pompfeFor, pompfeLabel } from '../game/pompfen.js'
 import { playerStrategy, playerStrategyLabel, teamStrategyLabel } from '../game/strategies.js'
+import { positionText, t, teamLabel } from '../i18n/index.js'
 
 export function createHudController({ state, hud, canvas, arenaWrap }) {
   function formatClock(seconds) {
@@ -43,7 +44,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     if (hud.docsNavBtn) hud.docsNavBtn.classList.toggle('active', mode === 'docs')
     updatePvpSetupTimer()
 
-    const possession = state.jugg.carrier ? `${TEAMS[state.jugg.carrier.team].name} Läufer:in` : 'frei'
+    const possession = state.jugg.carrier ? t('possession.runner', { team: teamLabel(state.jugg.carrier.team) }) : t('status.free')
     const pinCount = state.players.filter((player) => player.pinnedBy).length
     const inactiveCount = state.players.filter((player) => isInactive(player)).length
 
@@ -85,10 +86,27 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
   }
 
   function matchStateLabel() {
-    if (state.app.mode === 'pvpSetup') return 'PvP Teamsetup'
-    if (state.app.mode === 'pvpMatch') return state.paused ? 'Pause' : state.roundBreakTimer > 0 ? 'PvP Strategiepause' : 'PvP live'
-    if (state.app.mode === 'pvpLobby') return 'PvP Lobby'
-    return state.paused ? 'Pause' : state.roundBreakTimer > 0 ? 'Strategiepause' : state.running ? 'Autobattler live' : state.message
+    if (state.app.mode === 'pvpSetup') return t('match.pvpTeamSetup')
+    if (state.app.mode === 'pvpMatch') return state.paused ? t('match.pause') : state.roundBreakTimer > 0 ? t('match.pvpStrategyBreak') : t('match.pvpLive')
+    if (state.app.mode === 'pvpLobby') return t('match.pvpLobby')
+    return state.paused ? t('match.pause') : state.roundBreakTimer > 0 ? t('match.strategyBreak') : state.running ? t('match.autobattlerLive') : translateMessage(state.message)
+  }
+
+  function translateMessage(message) {
+    const messageMap = {
+      Bereit: 'match.ready',
+      Los: 'controls.start',
+      'Spiel läuft': 'match.running',
+      Pause: 'match.pause',
+      Punkt: 'match.point',
+      'Neuer Zug': 'match.newRound',
+      Unentschieden: 'match.draw',
+      'Blau gewinnt': 'match.teamWins',
+      'Rot gewinnt': 'match.teamWins',
+    }
+    if (message === 'Blau gewinnt') return t('match.teamWins', { team: teamLabel('blue') })
+    if (message === 'Rot gewinnt') return t('match.teamWins', { team: teamLabel('red') })
+    return messageMap[message] ? t(messageMap[message]) : message
   }
 
   function renderPvpStatus() {
@@ -100,15 +118,15 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     const other = local === 'blue' ? 'red' : 'blue'
     hud.pvpStatusPanel.innerHTML = `
       <header>
-        <span>${state.pvp.roomCode || 'PvP'}</span>
-        <strong>${state.app.mode === 'pvpSetup' ? `${Math.ceil(state.pvp.setupRemaining)}s` : TEAMS[local].name}</strong>
+        <span>${state.pvp.roomCode || t('status.pvp')}</span>
+        <strong>${state.app.mode === 'pvpSetup' ? `${Math.ceil(state.pvp.setupRemaining)}s` : teamLabel(local)}</strong>
       </header>
-      <small>${state.pvp.statusText || 'Synchronisiert'}</small>
+      <small>${state.pvp.statusText || t('status.synchronized')}</small>
       <div class="pvp-team-choice">
-        <button type="button" data-team-choice="blue" class="${local === 'blue' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>Blau</button>
-        <button type="button" data-team-choice="red" class="${local === 'red' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>Rot</button>
+        <button type="button" data-team-choice="blue" class="${local === 'blue' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>${teamLabel('blue')}</button>
+        <button type="button" data-team-choice="red" class="${local === 'red' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>${teamLabel('red')}</button>
       </div>
-      <small>Gegenseite: ${TEAMS[other].name}</small>
+      <small>${t('panel.opponent')}: ${teamLabel(other)}</small>
     `
   }
 
@@ -192,22 +210,22 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     const mouseY = state.hover.clientY - wrapRect.top
     const left = clamp(mouseX + 14, 10, wrapRect.width - tooltipWidth - 10)
     const inactive = isInactive(player)
-    const statusDetail = player.pinnedBy ? 'Pin' : player.grappledBy ? 'geklammert' : player.grappleTarget ? 'klammert' : '-'
-    const positionLabel = isPompfer(player) ? POSITION_LABELS[playerPositionSlot(player)] : 'Mitte'
+    const statusDetail = player.pinnedBy ? t('tooltip.pin') : player.grappledBy ? t('tooltip.grappled') : player.grappleTarget ? t('tooltip.grappling') : '-'
+    const positionLabel = isPompfer(player) ? positionText(playerPositionSlot(player)) : t('formation.middle')
     const pompfe = isPompfer(player) ? pompfeFor(player) : null
 
     hud.playerTooltip.innerHTML = `
       <header>
-        <span>${TEAMS[player.team].name}</span>
+        <span>${teamLabel(player.team)}</span>
         <strong>${roleLabel(playerIndex(player))}</strong>
       </header>
-      <div><span>Technik</span><strong>${player.technik}</strong><small>${skill.technik} SP</small></div>
-      <div><span>Geschwindigkeit</span><strong>${player.geschwindigkeit}</strong><small>${skill.geschwindigkeit} SP</small></div>
-      <div><span>Wahrnehmung</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} SP</small></div>
-      <div><span>Pompfe</span><strong>${pompfe ? pompfe.label : 'Jugg'}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
-      <div><span>Position</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? `Slot ${playerPositionSlot(player)}` : 'Läufer:in'}</small></div>
-      <div><span>Strategie</span><strong>${playerStrategyLabel(playerStrategy(player))}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
-      <div><span>Status</span><strong>${inactive ? 'inaktiv' : 'aktiv'}</strong><small>${statusDetail}</small></div>
+      <div><span>${t('skill.technik')}</span><strong>${player.technik}</strong><small>${skill.technik} ${t('skill.sp')}</small></div>
+      <div><span>${t('skill.geschwindigkeit')}</span><strong>${player.geschwindigkeit}</strong><small>${skill.geschwindigkeit} ${t('skill.sp')}</small></div>
+      <div><span>${t('skill.wahrnehmung')}</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} ${t('skill.sp')}</small></div>
+      <div><span>${t('tooltip.pompfe')}</span><strong>${pompfe ? pompfeLabel(pompfe) : t('pompfe.jugg')}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
+      <div><span>${t('tooltip.position')}</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? t('formation.slot', { slot: playerPositionSlot(player) }) : t('role.runner')}</small></div>
+      <div><span>${t('tooltip.strategy')}</span><strong>${playerStrategyLabel(playerStrategy(player))}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
+      <div><span>${t('tooltip.status')}</span><strong>${inactive ? t('status.inactive') : t('status.active')}</strong><small>${statusDetail}</small></div>
     `
     hud.playerTooltip.style.left = `${left}px`
     hud.playerTooltip.style.top = '0px'

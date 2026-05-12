@@ -1,11 +1,5 @@
 import {
-  CALL_BUBBLE_DURATION,
-  CALL_COOLDOWN,
-  CALL_CORRIDOR_LENGTH,
-  CALL_CORRIDOR_WIDTH,
-  CALL_DURATION,
   CARRIER_PRESSURE_COUNT,
-  DOUBLE_PIN_TRAP_DURATION,
   FIELD,
   OPENING_FAN_REACHED_RADIUS,
   OPENING_RUSH_SECONDS,
@@ -17,6 +11,9 @@ import {
   TEAMS,
   fieldPoint,
 } from './config.js'
+import { createCallDecisions } from './decisions/calls.js'
+import { createChainDecisions } from './decisions/chain.js'
+import { createFlankDecisions } from './decisions/flank.js'
 import { clamp, distance, normalize } from './geometry.js'
 import { canReceiveNewPin, isGrappling, isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot } from './players.js'
 import { attackRangeFor, canPinWithPompfe, isInAttackArc, maxPompfeAttackRange } from './pompfen.js'
@@ -25,23 +22,16 @@ import { isDefensiveStrategyPlayer, openingStrategyPoint, playerStrategy } from 
 const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
 const SIDE_PRESSURE_CURVE_STEPS = 9
-const DOUBLE_PIN_RANGE_FACTOR = 0.95
 const CHAIN_GUARD_RANGE_FACTOR = 0.9
-const CHAIN_COOLDOWN_THREAT_RANGE = 260
-const CHAIN_COOLDOWN_RETREAT_DISTANCE = 170
-const FLANK_CURVE_REACHED_DISTANCE = 38
 const POMPFER_DUEL_SEEK_RANGE = 260
 const PIN_TARGET_SEEK_RANGE = 260
 const OVERZAHL_DURATION = STONE_SECONDS * 2
-const OVERZAHL_SEARCH_RANGE = 260
 const FULL_TURN_SECONDS = 0.75
 const TURN_RATE = (Math.PI * 2) / FULL_TURN_SECONDS
 const SIDE_PRESSURE_LANES = {
   top: () => fieldPoint(20, 1.8).y,
   bottom: () => fieldPoint(20, FIELD.widthMeters - 1.8).y,
 }
-const MALSCHUTZ_FREE_JUGG_RANGE = 10 * FIELD.scale
-
 export function createDecisionEngine({ state, attack, rng = state.rng }) {
   function angleDelta(target, current) {
     return Math.atan2(Math.sin(target - current), Math.cos(target - current))
@@ -443,292 +433,32 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   
     return { x, y }
   }
-  
-  function callPerceivedBy(player, caller) {
-    return player === caller || rng.range(0, 100) < player.wahrnehmung
-  }
-  
-  function callLabel(type) {
-    if (type === 'malschutz') return 'Malschutz!'
-    if (type === 'hilfmir') return 'Hilf mir!'
-    if (type === 'doppelpin') return 'Doppelpin!'
-    if (type === 'ueberzahl') return 'Überzahl!'
-    return 'Mitkommen!'
-  }
-  
-  function setCallIntent(player, type, caller, duration = CALL_DURATION, context = null) {
-    player.callType = type
-    player.callSource = caller
-    player.callContext = context
-    player.callTimer = duration
-  }
-  
-  function clearCallIntent(player) {
-    if (player.callType === 'doppelpin') player.doublePinTrapTarget = null
-    player.callTimer = 0
-    player.callType = null
-    player.callSource = null
-    player.callContext = null
-  }
-  
-  function issueCall(caller, type, recipients, context = null) {
-    caller.callCooldown = CALL_COOLDOWN
-    caller.callBubbleText = callLabel(type)
-    caller.callBubbleTimer = CALL_BUBBLE_DURATION
-    for (const recipient of recipients) {
-      if (recipient.team !== caller.team || isInactive(recipient)) continue
-      if (callPerceivedBy(recipient, caller)) {
-        setCallIntent(recipient, type, caller, CALL_DURATION, context)
-      } else {
-        recipient.callMissTimer = CALL_BUBBLE_DURATION * 0.85
-      }
-    }
-  }
-  
-  function issueDoppelpinCall(caller, teammate, target) {
-    caller.callCooldown = CALL_COOLDOWN
-    caller.callBubbleText = callLabel('doppelpin')
-    caller.callBubbleTimer = CALL_BUBBLE_DURATION
-  
-    if (!callPerceivedBy(teammate, caller)) {
-      teammate.callMissTimer = CALL_BUBBLE_DURATION * 0.85
-      return
-    }
-  
-    caller.doublePinTrapTarget = target
-    setCallIntent(caller, 'doppelpin', caller, DOUBLE_PIN_TRAP_DURATION)
-    teammate.doublePinReleaseTarget = target
-    setCallIntent(teammate, 'doppelpin', caller, DOUBLE_PIN_TRAP_DURATION)
-  }
 
-  function duelInMutualRange(ally, enemy) {
-    if (!ally || !enemy || ally.team === enemy.team || isInactive(ally) || isInactive(enemy)) return false
-    if (!isPompfer(ally) || !isPompfer(enemy)) return false
-    const d = distance(ally, enemy)
-    return d <= attackRangeFor(ally, enemy) && d <= attackRangeFor(enemy, ally)
-  }
-
-  function nearbyDuelForOverzahl(caller, defeatedTarget) {
-    return state.players
-      .filter((ally) => ally !== caller && ally.team === caller.team && !isInactive(ally) && isPompfer(ally) && ally.callType !== 'ueberzahl')
-      .flatMap((ally) =>
-        state.players
-          .filter((enemy) => enemy !== defeatedTarget && enemy.team !== caller.team && duelInMutualRange(ally, enemy))
-          .map((enemy) => ({ ally, enemy })),
-      )
-      .filter(({ ally, enemy }) => Math.min(distance(caller, ally), distance(caller, enemy)) <= OVERZAHL_SEARCH_RANGE)
-      .sort((a, b) => distance(caller, a.enemy) + distance(caller, a.ally) * 0.35 - (distance(caller, b.enemy) + distance(caller, b.ally) * 0.35))[0]
-  }
-
-  function tryIssueOverzahlCall(caller, defeatedTarget) {
-    if (!caller || !defeatedTarget || caller.callCooldown > 0 || isInactive(caller) || !isPompfer(caller)) return false
-    const duel = nearbyDuelForOverzahl(caller, defeatedTarget)
-    if (!duel) return false
-
-    caller.callCooldown = CALL_COOLDOWN
-    caller.callBubbleText = callLabel('ueberzahl')
-    caller.callBubbleTimer = CALL_BUBBLE_DURATION
-    setCallIntent(caller, 'ueberzahl', caller, OVERZAHL_DURATION, { target: duel.enemy, ally: duel.ally })
-
-    if (callPerceivedBy(duel.ally, caller)) {
-      duel.ally.overzahlDefenseTimer = OVERZAHL_DURATION
-      setCallIntent(duel.ally, 'ueberzahl', caller, OVERZAHL_DURATION, { target: duel.enemy })
-    } else {
-      duel.ally.callMissTimer = CALL_BUBBLE_DURATION * 0.85
-    }
-
-    return true
-  }
-  
-  function callTargetFor(player) {
-    if (player.callTimer <= 0 || !player.callType) return null
-  
-    if (player.callType === 'malschutz') {
-      const carrier = state.jugg.carrier
-      const ownMal = TEAMS[player.team].mal
-      const mode = player.callContext?.mode
-      const expectedCarrier = player.callContext?.carrier
-
-      if (mode === 'carrier' && state.jugg.carrier !== expectedCarrier) {
-        clearCallIntent(player)
-        return null
-      }
-
-      if (mode === 'freeJugg' && carrier?.team === player.team) {
-        clearCallIntent(player)
-        return null
-      }
-  
-      if (
-        isPompfer(player) &&
-        carrier &&
-        carrier.team !== player.team &&
-        isRunner(carrier) &&
-        distance(player, ownMal) < distance(carrier, ownMal)
-      ) {
-        clearCallIntent(player)
-        player.angle = Math.atan2(carrier.y - player.y, carrier.x - player.x)
-        return null
-      }
-  
-      return ownMal
-    }
-  
-    if (player.callType === 'mitkommen') {
-      const caller = player.callSource
-      if (!caller || state.jugg.carrier !== caller || isInactive(caller)) {
-        clearCallIntent(player)
-        return null
-      }
-      return supportPoint(player, caller)
-    }
-  
-    if (player.callType === 'hilfmir') {
-      const caller = player.callSource
-      const target = caller?.grappledBy || caller?.grappleTarget
-      if (!target || isInactive(target)) return null
-      return target
-    }
-
-    if (player.callType === 'ueberzahl') {
-      const target = player.callContext?.target
-      if (!target || target.team === player.team || isInactive(target)) {
-        clearCallIntent(player)
-        return null
-      }
-      return player.callSource === player ? target : null
-    }
-  
-    return null
-  }
-  
-  function enemiesInRunnerLane(runner) {
-    const target = TEAMS[runner.team].attackMal
-    const forward = normalize(target.x - runner.x, target.y - runner.y)
-    const perpendicular = { x: -forward.y, y: forward.x }
-  
-    return state.players.filter((player) => {
-      if (player.team === runner.team || isInactive(player)) return false
-      const dx = player.x - runner.x
-      const dy = player.y - runner.y
-      const ahead = dx * forward.x + dy * forward.y
-      const lateral = Math.abs(dx * perpendicular.x + dy * perpendicular.y)
-      return ahead > 0 && ahead < CALL_CORRIDOR_LENGTH && lateral < CALL_CORRIDOR_WIDTH
-    })
-  }
-  
-  function bestMitkommenRecipient(runner) {
-    return activeTeamPompfers(runner.team)
-      .filter((player) => player.callTimer <= 0)
-      .sort((a, b) => distance(a, runner) - distance(b, runner))[0]
-  }
-  
-  function bestHilfMirRecipient(runner) {
-    const threat = runner.grappledBy || runner.grappleTarget || runner
-    return activeTeamPompfers(runner.team)
-      .filter((player) => player.callTimer <= 0)
-      .sort((a, b) => distance(a, threat) - distance(b, threat))[0]
-  }
-  
-  function doppelpinOpportunity(caller) {
-    if (!isPompfer(caller) || !canPinWithPompfe(caller) || isInactive(caller) || !caller.pinTarget || caller.callCooldown > 0) return null
-    if (caller.callType === 'doppelpin' || caller.doublePinTrapTarget || caller.doublePinReleaseTarget) return null
-  
-    return state.players
-      .filter((teammate) => {
-        if (teammate === caller || teammate.team !== caller.team || !isPompfer(teammate) || !canPinWithPompfe(teammate) || isInactive(teammate)) return false
-        if (teammate.callType === 'doppelpin' || teammate.doublePinTrapTarget) return false
-        if (!teammate.pinTarget || teammate.doublePinReleaseTarget || teammate.doublePinReleasePause > 0) return false
-        const target = teammate.pinTarget
-        return (
-          target !== caller.pinTarget &&
-          target.team !== caller.team &&
-          isPompfer(target) &&
-          target.pinnedBy === teammate &&
-          target.penaltyStones <= 1 &&
-          distance(caller, target) <= attackRangeFor(caller, target) * DOUBLE_PIN_RANGE_FACTOR
-        )
-      })
-      .map((teammate) => ({ teammate, target: teammate.pinTarget, distance: distance(caller, teammate.pinTarget) }))
-      .sort((a, b) => a.distance - b.distance)[0]
-  }
-  
-  function emitDoppelpinCalls() {
-    for (const caller of state.players) {
-      const opportunity = doppelpinOpportunity(caller)
-      if (!opportunity) continue
-      issueDoppelpinCall(caller, opportunity.teammate, opportunity.target)
-    }
-  }
-  
-  function shouldCallMalschutz(team) {
-    const carrier = state.jugg.carrier
-    if (enemyRunnerPinned(team)) return false
-    if (!carrier) return distance(state.jugg, TEAMS[team].mal) <= MALSCHUTZ_FREE_JUGG_RANGE
-    if (carrier.team === team || !isRunner(carrier) || isInactive(carrier)) return false
-  
-    return carrierThreatensMal(team, carrier)
-  }
-
-  function enemyRunnerPinned(team) {
-    return state.players.some((player) => player.team !== team && isRunner(player) && Boolean(player.pinnedBy))
-  }
-
-  function malschutzThreatPoint(team) {
-    const carrier = state.jugg.carrier
-    if (carrier && carrier.team !== team) return carrier
-    return state.jugg
-  }
-  
   function carrierThreatensMal(team, carrier) {
     if (!carrier || carrier.team === team || !isRunner(carrier) || isInactive(carrier)) return false
-  
+
     const ownMal = TEAMS[team].mal
     const ownHalf = team === 'blue' ? carrier.x < FIELD.center.x : carrier.x > FIELD.center.x
     const towardMal = normalize(ownMal.x - carrier.x, ownMal.y - carrier.y)
     const progress = carrier.vx * towardMal.x + carrier.vy * towardMal.y
-  
+
     return ownHalf && progress > 20
   }
   
-  function emitCalls() {
-    const carrier = state.jugg.carrier
-  
-    const grapplingRunners = state.players.filter(
-      (player) => isRunner(player) && !isInactive(player) && isGrappling(player) && player.callCooldown <= 0,
-    )
-    for (const runner of grapplingRunners) {
-      const recipient = bestHilfMirRecipient(runner)
-      if (recipient) issueCall(runner, 'hilfmir', [recipient])
-    }
-  
-    if (carrier && isRunner(carrier) && !isInactive(carrier) && carrier.callCooldown <= 0) {
-      const blockers = enemiesInRunnerLane(carrier)
-      const recipient = blockers.length === 1 ? bestMitkommenRecipient(carrier) : null
-      if (recipient) {
-        issueCall(carrier, 'mitkommen', [recipient])
-      }
-    }
-  
-    emitDoppelpinCalls()
-  
-    for (const team of Object.keys(TEAMS)) {
-      if (state.teamCallCooldowns[team] > 0) continue
-      if (!shouldCallMalschutz(team)) continue
-      const threatPoint = malschutzThreatPoint(team)
-      const caller = state.players
-        .filter((player) => player.team === team && player.callCooldown <= 0)
-        .sort((a, b) => distance(a, threatPoint) - distance(b, threatPoint))[0]
-  
-      if (!caller) continue
-      issueCall(caller, 'malschutz', state.players.filter((player) => player.team === team), {
-        mode: state.jugg.carrier ? 'carrier' : 'freeJugg',
-        carrier: state.jugg.carrier,
-      })
-      state.teamCallCooldowns[team] = CALL_COOLDOWN
-    }
-  }
-  
+  const calls = createCallDecisions({
+    state,
+    rng,
+    activeTeamPompfers,
+    supportPoint,
+    carrierThreatensMal,
+    overzahlDuration: OVERZAHL_DURATION,
+  })
+
+  const callTargetFor = calls.callTargetFor
+  const clearCallIntent = calls.clearCallIntent
+  const emitCalls = calls.emitCalls
+  const tryIssueOverzahlCall = calls.tryIssueOverzahlCall
+
   function stopDistanceFor(player, target) {
     if (typeof target?.stopDistance === 'number') return target.stopDistance
     if (target === state.jugg) return isRunner(player) ? 0 : 46
@@ -793,96 +523,15 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     }
   }
 
-  function chainGuardPoint(player, watched) {
-    const guardDistance = attackRangeFor(player, watched) * CHAIN_GUARD_RANGE_FACTOR
-    const away = normalize(player.x - watched.x, player.y - watched.y)
-    const laneFallback = playerPositionSlot(player) <= 2 ? { x: 0, y: -1 } : { x: 0, y: 1 }
-    const teamFallback = player.team === 'blue' ? { x: -0.35, y: laneFallback.y } : { x: 0.35, y: laneFallback.y }
-    const fallback = normalize(teamFallback.x, teamFallback.y)
-    const dir = away.x || away.y ? away : fallback
+  const chain = createChainDecisions({ state })
+  const chainCooldownThreat = chain.chainCooldownThreat
+  const chainGuardPoint = chain.chainGuardPoint
+  const chainRetreatPoint = chain.chainRetreatPoint
 
-    return {
-      x: watched.x + dir.x * guardDistance,
-      y: watched.y + dir.y * guardDistance,
-    }
-  }
+  const flank = createFlankDecisions({ state, distanceToSegment })
+  const flankPathBlocker = flank.flankPathBlocker
+  const flankStrategyTarget = flank.flankStrategyTarget
 
-  function chainCooldownThreat(chainPlayer) {
-    if (!isChain(chainPlayer) || chainPlayer.attackCooldown <= 0) return null
-
-    return state.players
-      .filter((enemy) => enemy.team !== chainPlayer.team && isPompfer(enemy) && !isInactive(enemy))
-      .map((enemy) => {
-        const d = distance(chainPlayer, enemy)
-        const towardChain = normalize(chainPlayer.x - enemy.x, chainPlayer.y - enemy.y)
-        const closingSpeed = enemy.vx * towardChain.x + enemy.vy * towardChain.y
-        return { enemy, distance: d, closingSpeed }
-      })
-      .filter(({ distance: d, closingSpeed }) => d < CHAIN_COOLDOWN_THREAT_RANGE && closingSpeed > 24)
-      .sort((a, b) => a.distance - b.distance)[0]?.enemy
-  }
-
-  function chainRetreatPoint(chainPlayer, threat) {
-    const away = normalize(chainPlayer.x - threat.x, chainPlayer.y - threat.y)
-    const ownMal = TEAMS[chainPlayer.team].mal
-    const towardOwnSide = normalize(ownMal.x - chainPlayer.x, ownMal.y - chainPlayer.y)
-    const laneBias = playerPositionSlot(chainPlayer) <= 2 ? { x: 0, y: -0.25 } : { x: 0, y: 0.25 }
-    const fallback = chainPlayer.team === 'blue' ? { x: -1, y: laneBias.y } : { x: 1, y: laneBias.y }
-    const retreat = normalize(away.x * 1.25 + towardOwnSide.x * 0.55 + laneBias.x, away.y * 1.25 + towardOwnSide.y * 0.55 + laneBias.y)
-
-    return {
-      x: chainPlayer.x + (retreat.x || fallback.x) * CHAIN_COOLDOWN_RETREAT_DISTANCE,
-      y: chainPlayer.y + (retreat.y || fallback.y) * CHAIN_COOLDOWN_RETREAT_DISTANCE,
-    }
-  }
-
-  function flankStrategyTarget(player) {
-    const flanks = state.players
-      .filter((enemy) => enemy.team !== player.team && !isInactive(enemy))
-      .map((enemy) => {
-        const range = attackRangeFor(player, enemy) * 0.72
-        const point = {
-          x: clamp(enemy.x - Math.cos(enemy.angle) * range, fieldPoint(1, 10).x, fieldPoint(FIELD.lengthMeters - 1, 10).x),
-          y: clamp(enemy.y - Math.sin(enemy.angle) * range, fieldPoint(20, 1.2).y, fieldPoint(20, FIELD.widthMeters - 1.2).y),
-        }
-        return { enemy, point, score: distance(player, point) - (isRunner(enemy) ? 20 : 0) }
-      })
-      .sort((a, b) => a.score - b.score)
-    const flank = flanks[0]
-    const laneOffset = playerPositionSlot(player) <= 2 ? -54 : 54
-    const fallback = fieldPoint(player.team === 'blue' ? 30 : 10, playerPositionSlot(player) <= 2 ? 5.4 : 14.6)
-
-    if (!flank) return { point: fallback, enemy: null }
-
-    const side = playerPositionSlot(player) <= 2 ? 'top' : 'bottom'
-    const sideY = side === 'top' ? fieldPoint(20, 1.6).y : fieldPoint(20, FIELD.widthMeters - 1.6).y
-    const entry = {
-      x: player.x + (flank.point.x - player.x) * 0.42,
-      y: sideY,
-    }
-    const curvePoint = Math.abs(player.y - sideY) > FLANK_CURVE_REACHED_DISTANCE ? entry : flank.point
-
-    return {
-      point:
-        Math.abs(curvePoint.y - flank.enemy.y) < 1
-          ? { x: curvePoint.x, y: clamp(curvePoint.y + laneOffset * 0.15, fieldPoint(20, 1.2).y, fieldPoint(20, FIELD.widthMeters - 1.2).y) }
-          : curvePoint,
-      enemy: flank.enemy,
-    }
-  }
-
-  function flankPathBlocker(player, flankPoint) {
-    return state.players
-      .filter((enemy) => enemy.team !== player.team && !isInactive(enemy))
-      .map((enemy) => ({
-        enemy,
-        pathDistance: distanceToSegment(enemy, player, flankPoint),
-        playerDistance: distance(player, enemy),
-      }))
-      .filter(({ enemy, pathDistance }) => pathDistance <= Math.max(PLAYER_RADIUS * 1.8, attackRangeFor(player, enemy) * 0.72))
-      .sort((a, b) => a.playerDistance - b.playerDistance)[0]?.enemy
-  }
-  
   function updateAi(player, dt = 0) {
     const team = TEAMS[player.team]
     const ownCarrier = state.jugg.carrier?.team === player.team

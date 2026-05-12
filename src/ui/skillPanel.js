@@ -5,23 +5,20 @@ import {
   POSITION_LABELS,
   SKILL_POINTS_PER_PLAYER,
   TEAM_LOADOUTS,
+  TEAM_STRATEGIES,
 } from '../game/config.js'
 import { roleLabel, statsFromSkill } from '../game/players.js'
-import { POMPFEN } from '../game/pompfen.js'
+import { POMPFEN_OPTIONS, pompfeLabel } from '../game/pompfen.js'
 import {
-  PLAYER_STRATEGY_OPTIONS,
-  RUNNER_STRATEGY_OPTIONS,
   TEAM_STRATEGY_OPTIONS,
   normalizeTeamStrategy,
+  playerStrategyLabel,
+  playerTechniqueOptionsForIndex,
   teamStrategyLabel,
 } from '../game/strategies.js'
+import { positionText, t } from '../i18n/index.js'
 
-export const POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
 export const BLUE_POMPFEN_OPTIONS = POMPFEN_OPTIONS
-
-export function playerTechniqueOptionsForIndex(index) {
-  return index === 0 ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
-}
 
 export function renderBlueSkillPanel(container, state) {
   renderTeamSkillPanel(container, state, { team: 'blue' })
@@ -39,14 +36,14 @@ export function renderTeamSkillPanel(
   const strategyControl = editStrategies ? `
     <article class="skill-row strategy-row">
       <header>
-        <span>Teamstrategie nächster Zug</span>
-        <strong>${strategyLocked ? 'Gesperrt' : teamStrategyLabel(currentTeamStrategy)}</strong>
+        <span>${t('formation.teamStrategyNext')}</span>
+        <strong>${strategyLocked ? t('status.locked') : teamStrategyLabel(currentTeamStrategy)}</strong>
       </header>
       <label class="position-control">
-        <span>Strategie</span>
+        <span>${t('formation.strategy')}</span>
         <select data-team-strategy ${strategyLocked ? 'disabled' : ''}>
           ${TEAM_STRATEGY_OPTIONS.map(
-            (option) => `<option value="${option.id}" ${currentTeamStrategy === option.id ? 'selected' : ''}>${option.label}</option>`,
+            (option) => `<option value="${option.id}" ${currentTeamStrategy === option.id ? 'selected' : ''}>${teamStrategyLabel(option.id)}</option>`,
           ).join('')}
         </select>
       </label>
@@ -76,9 +73,9 @@ export function renderTeamSkillPanel(
             showLoadout: editLoadout,
             showStrategy: editStrategies,
           })}
-          ${renderSkillControl(index, 'technik', 'T', skill, stats.technik, locked || !editSkills)}
-          ${renderSkillControl(index, 'geschwindigkeit', 'G', skill, stats.geschwindigkeit, locked || !editSkills)}
-          ${renderSkillControl(index, 'wahrnehmung', 'W', skill, `${stats.wahrnehmung}%`, locked || !editSkills)}
+          ${renderSkillControl(index, 'technik', t('skill.technik.short'), skill, stats.technik, locked || !editSkills)}
+          ${renderSkillControl(index, 'geschwindigkeit', t('skill.geschwindigkeit.short'), skill, stats.geschwindigkeit, locked || !editSkills)}
+          ${renderSkillControl(index, 'wahrnehmung', t('skill.wahrnehmung.short'), skill, `${stats.wahrnehmung}%`, locked || !editSkills)}
         </article>
       `
     })
@@ -102,7 +99,7 @@ export function renderFormationPanel(container, state, { team = 'blue', editable
         <article class="formation-row">
           <header>
             <span>${roleLabel(index)}</span>
-            <strong>${index === 0 ? 'Läufer:in' : POSITION_LABELS[PLAYER_POSITIONS[team][index]]}</strong>
+            <strong>${index === 0 ? t('role.runner') : positionText(PLAYER_POSITIONS[team][index])}</strong>
           </header>
           <div class="loadout-controls">
             ${
@@ -114,10 +111,10 @@ export function renderFormationPanel(container, state, { team = 'blue', editable
                 : ''
             }
             <label class="position-control">
-              <span>Strategie</span>
+              <span>${t('formation.strategy')}</span>
               <select data-player="${index}" data-player-strategy ${locked ? 'disabled' : ''}>
                 ${techniqueOptions
-                  .map((option) => `<option value="${option.id}" ${currentTechnique === option.id ? 'selected' : ''}>${option.label}</option>`)
+                  .map((option) => `<option value="${option.id}" ${currentTechnique === option.id ? 'selected' : ''}>${playerStrategyLabel(option.id)}</option>`)
                   .join('')}
               </select>
             </label>
@@ -130,14 +127,14 @@ export function renderFormationPanel(container, state, { team = 'blue', editable
   container.innerHTML = `
     <article class="formation-row strategy-row">
       <header>
-        <span>Teamstrategie</span>
-        <strong>${locked ? 'Gesperrt' : teamStrategyLabel(currentTeamStrategy)}</strong>
+        <span>${t('formation.teamStrategy')}</span>
+        <strong>${locked ? t('status.locked') : teamStrategyLabel(currentTeamStrategy)}</strong>
       </header>
       <label class="position-control">
-        <span>Strategie</span>
+        <span>${t('formation.strategy')}</span>
         <select data-team-strategy ${locked ? 'disabled' : ''}>
           ${TEAM_STRATEGY_OPTIONS.map(
-            (option) => `<option value="${option.id}" ${currentTeamStrategy === option.id ? 'selected' : ''}>${option.label}</option>`,
+            (option) => `<option value="${option.id}" ${currentTeamStrategy === option.id ? 'selected' : ''}>${teamStrategyLabel(option.id)}</option>`,
           ).join('')}
         </select>
       </label>
@@ -150,10 +147,10 @@ function renderLoadoutControls(team, index, chainOwner, currentTechnique, techni
   const pompferControls = index > 0 ? renderPompferControls(team, index, chainOwner, locks) : ''
   const strategyControl = locks.showStrategy ? `
     <label class="position-control">
-      <span>Strategie</span>
+      <span>${t('formation.strategy')}</span>
       <select data-player="${index}" data-player-strategy ${locks.strategyLocked ? 'disabled' : ''}>
         ${techniqueOptions
-          .map((option) => `<option value="${option.id}" ${currentTechnique === option.id ? 'selected' : ''}>${option.label}</option>`)
+          .map((option) => `<option value="${option.id}" ${currentTechnique === option.id ? 'selected' : ''}>${playerStrategyLabel(option.id)}</option>`)
           .join('')}
       </select>
     </label>
@@ -170,19 +167,19 @@ function renderLoadoutControls(team, index, chainOwner, currentTechnique, techni
 function renderPompferControls(team, index, chainOwner, locks) {
   return `
     ${locks.showPosition === false ? '' : `<label class="position-control">
-      <span>Position</span>
+      <span>${t('formation.position')}</span>
       <select data-player="${index}" data-position ${locks.positionLocked ? 'disabled' : ''}>
-        ${Object.entries(POSITION_LABELS)
-          .map(([slot, label]) => `<option value="${slot}" ${PLAYER_POSITIONS[team][index] === Number(slot) ? 'selected' : ''}>${label}</option>`)
+        ${Object.keys(POSITION_LABELS)
+          .map((slot) => `<option value="${slot}" ${PLAYER_POSITIONS[team][index] === Number(slot) ? 'selected' : ''}>${positionText(slot)}</option>`)
           .join('')}
       </select>
     </label>`}
     ${locks.showLoadout === false ? '' : `<label class="position-control">
-      <span>Pompfe</span>
+      <span>${t('formation.pompfe')}</span>
       <select data-player="${index}" data-pompfe ${locks.loadoutLocked ? 'disabled' : ''}>
         ${POMPFEN_OPTIONS.map((option) => {
           const disabled = option === 'chain' && chainOwner > 0 && chainOwner !== index
-          return `<option value="${option}" ${TEAM_LOADOUTS[team][index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${POMPFEN[option].label}</option>`
+          return `<option value="${option}" ${TEAM_LOADOUTS[team][index] === option ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${pompfeLabel(option)}</option>`
         }).join('')}
       </select>
     </label>`}

@@ -1,5 +1,6 @@
 import { createDecisionEngine } from './decisions.js'
 import { createCinemaDirector } from './cinema.js'
+import { CHAIN_STRIKE_VISUAL_DURATION, createChainVisuals } from './chainVisuals.js'
 import {
   ATTACK_COOLDOWN,
   ATTACK_DURATION,
@@ -28,7 +29,6 @@ import {
   RUNNER_JUGG_CONTEST_COOLDOWN,
   RUNNER_JUGG_CONTEST_PRESSURE_RANGE,
   RUNNING_ATTACK_SPEED_THRESHOLD,
-  SKILL_POINTS_PER_PLAYER,
   START_POSITIONS,
   STONE_SECONDS,
   TEAM_LOADOUTS,
@@ -51,8 +51,8 @@ import {
   playerSpeed,
   statsFromSkill,
 } from './players.js'
-import { attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor } from './pompfen.js'
-import { POMPFEN_OPTIONS, renderTeamSkillPanel, playerTechniqueOptionsForIndex } from '../ui/skillPanel.js'
+import { POMPFEN_OPTIONS, attackRangeFor, canPinWithPompfe, isInAttackArc, isShieldBlockFacing, pompfeFor, pompfeLabel } from './pompfen.js'
+import { renderTeamSkillPanel } from '../ui/skillPanel.js'
 import {
   AGGRESSIVE_DOUBLE_WINDOW_FACTOR,
   DEFENSIVE_HIT_MODIFIER,
@@ -62,16 +62,26 @@ import {
   isAggressiveStrategyPlayer,
   isDefensiveStrategyPlayer,
   normalizeTeamStrategy,
+  playerTechniqueOptionsForIndex,
 } from './strategies.js'
+import {
+  exportTeamConfigSnapshot,
+  normalizeLoadoutConfig,
+  normalizePlayerStrategiesConfig,
+  normalizePositionConfig,
+  normalizeSkillConfig,
+} from './teamConfig.js'
 import {
   PLAYBACK_SPEEDS,
   ROUND_BREAK_LOCK_STONES,
   ROUND_BREAK_SECONDS,
   ROUND_BREAK_STONES,
   SIMULATION_STEP_SECONDS,
-  createInitialState,
 } from './state.js'
 import { createSeededRng } from './rng.js'
+import { createParticleSystem } from './particles.js'
+import { cloneStateForCinemaPrecompute, createHeadlessHud } from './cinemaPrecomputeState.js'
+import { t, teamLabel } from '../i18n/index.js'
 
 const CINEMA_PRECOMPUTE_SECONDS = MATCH_SECONDS
 
@@ -86,15 +96,13 @@ export function createSimulation({
   onRoundBreakStarted = null,
 }) {
   const rng = state.rng
-  const CHAIN_STRIKE_VISUAL_DURATION = 0.52
   const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
   const CHAIN_BLOCKER_PADDING = 8
   const CHAIN_BAND_END_CLEARANCE = 0.84
-  const CHAIN_BAND_VISUAL = {
-    handleX: 12,
-    handleY: -12,
-    orbitRadius: 58,
-  }
+  const chainVisuals = createChainVisuals({ state })
+  const { chainBandSegment, chainVisualStrikeRadius } = chainVisuals
+  const particles = createParticleSystem({ state, rng })
+  const { burst, updateParticles } = particles
   
   function editableTeam() {
     return state.app.mode === 'pvpSetup' || state.app.mode === 'pvpMatch' || state.app.mode === 'pvpLobby' ? state.pvp.localTeam : 'blue'
@@ -109,64 +117,6 @@ export function createSimulation({
     if (state.app.mode === 'pvpMatch') return state.roundBreakTimer > 0 && !isRoundBreakLocked()
     if (state.app.mode === 'pvpSetup') return !isRoundBreakLocked()
     return !isRoundBreakLocked()
-  }
-
-  function normalizeSkillConfig(skill, fallbackSkill) {
-    const keys = ['technik', 'geschwindigkeit', 'wahrnehmung']
-    const normalized = Object.fromEntries(
-      keys.map((key) => {
-        const value = Number(skill?.[key])
-        return [key, Number.isInteger(value) && value >= 0 ? value : fallbackSkill[key]]
-      }),
-    )
-    const spent = keys.reduce((sum, key) => sum + normalized[key], 0)
-    return spent === SKILL_POINTS_PER_PLAYER ? normalized : { ...fallbackSkill }
-  }
-
-  function normalizePositionConfig(team, source = PLAYER_POSITIONS[team]) {
-    const fallback = PLAYER_POSITIONS[team] ?? [0, 1, 2, 3, 4]
-    const used = new Set([0])
-    const next = [0]
-    for (let index = 1; index < 5; index += 1) {
-      const raw = Number(source?.[index])
-      const fallbackSlot = Number(fallback[index])
-      let slot = Number.isInteger(raw) && raw >= 1 && raw <= 4 && !used.has(raw) ? raw : null
-      if (slot === null && Number.isInteger(fallbackSlot) && fallbackSlot >= 1 && fallbackSlot <= 4 && !used.has(fallbackSlot)) {
-        slot = fallbackSlot
-      }
-      if (slot === null) slot = [1, 2, 3, 4].find((candidate) => !used.has(candidate)) ?? index
-      next[index] = slot
-      used.add(slot)
-    }
-    return next
-  }
-
-  function normalizeLoadoutConfig(team, source = TEAM_LOADOUTS[team]) {
-    const fallback = TEAM_LOADOUTS[team] ?? ['runner', 'staff', 'staff', 'staff', 'staff']
-    const next = ['runner']
-    let chainUsed = false
-    for (let index = 1; index < 5; index += 1) {
-      const fallbackPompfe = POMPFEN_OPTIONS.includes(fallback[index]) ? fallback[index] : 'staff'
-      let pompfe = POMPFEN_OPTIONS.includes(source?.[index]) ? source[index] : fallbackPompfe
-      if (pompfe === 'chain') {
-        if (chainUsed) pompfe = fallbackPompfe !== 'chain' ? fallbackPompfe : 'staff'
-        if (pompfe === 'chain') chainUsed = true
-      }
-      next[index] = pompfe
-    }
-    return next
-  }
-
-  function normalizePlayerStrategiesConfig(team, source = PLAYER_STRATEGIES[team]) {
-    const fallback = PLAYER_STRATEGIES[team] ?? ['wide_middle', 'none', 'none', 'none', 'none']
-    return Array.from({ length: 5 }, (_, index) => {
-      const options = playerTechniqueOptionsForIndex(index)
-      const candidate = source?.[index] ?? fallback[index]
-      if (options.some((option) => option.id === candidate)) return candidate
-      const fallbackStrategy = fallback[index]
-      if (options.some((option) => option.id === fallbackStrategy)) return fallbackStrategy
-      return options[0]?.id ?? 'none'
-    })
   }
 
   function applyTeamSkills(team) {
@@ -244,7 +194,7 @@ export function createSimulation({
     const player = state.players.find((candidate) => candidate.team === team && playerIndex(candidate) === index)
     if (player) {
       player.pompfe = pompfe
-      player.pompfeLabel = pompfeFor(player).label
+      player.pompfeLabel = pompfeLabel(player.pompfe)
       player.attack = 0
       player.attackWindup = 0
       player.attackTarget = null
@@ -352,7 +302,11 @@ export function createSimulation({
     const enemyTeam = opponentTeam()
     const editSetup = state.app.mode !== 'pvpMatch'
     const editFormation = state.app.mode !== 'pvpSetup' || canEditTeam(team)
-    if (hud.skillPanelTitle) hud.skillPanelTitle.textContent = state.app.mode.startsWith('pvp') ? `Mein Team (${TEAMS[team].name})` : 'Blau skillen'
+    if (hud.skillPanelTitle) {
+      hud.skillPanelTitle.textContent = state.app.mode.startsWith('pvp')
+        ? t('panel.localTeam', { team: teamLabel(team) })
+        : t('panel.skillTitle', { team: teamLabel('blue') })
+    }
     renderTeamSkillPanel(hud.skillList, state, {
       team,
       editable: canEditTeam(team),
@@ -364,21 +318,13 @@ export function createSimulation({
     if (hud.opponentSkillPanel && hud.opponentSkillList) {
       const showOpponent = false
       hud.opponentSkillPanel.hidden = !showOpponent
-      if (hud.opponentTeamLabel) hud.opponentTeamLabel.textContent = TEAMS[enemyTeam].name
+      if (hud.opponentTeamLabel) hud.opponentTeamLabel.textContent = teamLabel(enemyTeam)
       if (showOpponent) renderTeamSkillPanel(hud.opponentSkillList, state, { team: enemyTeam, editable: false })
     }
   }
 
   function exportTeamConfig(team) {
-    return {
-      team,
-      version: state.pvp.teamVersions[team] ?? 0,
-      skills: PLAYER_SKILLS[team].map((skill) => ({ ...skill })),
-      positions: normalizePositionConfig(team),
-      loadout: normalizeLoadoutConfig(team),
-      playerStrategies: normalizePlayerStrategiesConfig(team),
-      teamStrategy: state.nextTeamStrategies[team] ?? TEAM_STRATEGIES[team],
-    }
+    return exportTeamConfigSnapshot(state, team)
   }
 
   function notifyLocalTeamConfigChanged(team) {
@@ -414,7 +360,7 @@ export function createSimulation({
       if (player.team !== team) continue
       const index = playerIndex(player)
       player.pompfe = TEAM_LOADOUTS[team][index] ?? player.pompfe
-      player.pompfeLabel = pompfeFor(player).label
+      player.pompfeLabel = pompfeLabel(player.pompfe)
       player.strategy = PLAYER_STRATEGIES[team][index] ?? player.strategy
       resetStrategyState(player)
     }
@@ -469,7 +415,7 @@ export function createSimulation({
     state.jugg.cooldown = 0.45
   }
   
-  function resetRound(message = 'Los') {
+  function resetRound(message = t('controls.start')) {
     applyNextTeamStrategies({ resetOpening: true })
     setupTeams()
     resetJugg()
@@ -489,7 +435,7 @@ export function createSimulation({
     state.roundBreakLabel = message
     state.roundBreakLocked = false
     state.roundBreakPrecomputed = false
-    state.message = `${message} - Strategiepause ${ROUND_BREAK_STONES} Steine`
+    state.message = t('match.strategyBreakWithStones', { label: message, stones: ROUND_BREAK_STONES })
     state.messageTimer = ROUND_BREAK_SECONDS
     state.jugg.carrier = null
     state.jugg.contest = null
@@ -519,10 +465,10 @@ export function createSimulation({
       state.score.red = Number(score.red) || 0
     }
     if (state.roundBreakTimer <= 0) {
-      beginRoundBreak(label || 'Punkt', { notify: false })
+      beginRoundBreak(label || t('match.point'), { notify: false })
     } else {
       state.roundBreakLabel = label || state.roundBreakLabel
-      state.message = `${state.roundBreakLabel} - Strategiepause ${ROUND_BREAK_STONES} Steine`
+      state.message = t('match.strategyBreakWithStones', { label: state.roundBreakLabel, stones: ROUND_BREAK_STONES })
     }
     renderSkillPanel()
     updateHud()
@@ -560,9 +506,9 @@ export function createSimulation({
     state.particles = []
     state.hover.player = null
     hud.playerTooltip.hidden = true
-    hud.startBtn.textContent = 'Start'
-    hud.pauseBtn.textContent = 'Pause'
-    resetRound('Bereit')
+    hud.startBtn.textContent = t('controls.start')
+    hud.pauseBtn.textContent = t('controls.pause')
+    resetRound(t('match.ready'))
     updateHud()
   }
 
@@ -661,122 +607,7 @@ export function createSimulation({
   }
 
   function cloneStateForPrecompute() {
-    const fork = createInitialState(state.matchSeed)
-    const rngSnapshot = rng.snapshot()
-    fork.rng = createSeededRng(rngSnapshot.seed, rngSnapshot.state)
-    fork.matchSeed = state.matchSeed
-    fork.running = true
-    fork.paused = false
-    fork.playbackSpeed = state.playbackSpeed
-    fork.timeLeft = state.timeLeft
-    fork.score = { ...state.score }
-    fork.message = state.message
-    fork.messageTimer = state.messageTimer
-    fork.roundBreakTimer = 0
-    fork.roundBreakLabel = ''
-    fork.nextTeamStrategies = { ...state.nextTeamStrategies }
-    fork.roundTime = state.roundBreakTimer > 0 ? 0 : state.roundTime
-    fork.stoneTimer = state.roundBreakTimer > 0 ? 0 : state.stoneTimer
-    fork.stoneCount = state.stoneCount
-    fork.teamCallCooldowns = { ...state.teamCallCooldowns }
-    fork.camera = { ...state.camera }
-    fork.particles = []
-    fork.hover = { active: false, x: 0, y: 0, clientX: 0, clientY: 0, player: null }
-
-    const playerPairs = state.players.map((player) => [player, clonePlayerForPrecompute(player)])
-    const playerMap = new Map(playerPairs.map(([source, clone]) => [source.id, clone]))
-    fork.players = playerPairs.map(([, clone]) => clone)
-    for (const [source, clone] of playerPairs) relinkPlayerRefs(source, clone, playerMap)
-
-    fork.jugg = {
-      ...state.jugg,
-      carrier: state.jugg.carrier ? playerMap.get(state.jugg.carrier.id) ?? null : null,
-      contest: state.jugg.contest
-        ? {
-            ...state.jugg.contest,
-            runners: state.jugg.contest.runners.map((runner) => playerMap.get(runner.id)).filter(Boolean),
-          }
-        : null,
-    }
-    fork.cinema.enabled = true
-    return fork
-  }
-
-  function clonePlayerForPrecompute(player) {
-    const clone = { ...player }
-    for (const key of [
-      'attackTarget',
-      'chainStrikeTarget',
-      'grappleTarget',
-      'grappledBy',
-      'callSource',
-      'pinnedBy',
-      'pinTarget',
-      'pinClaimedBy',
-      'doublePinTrapTarget',
-      'doublePinReleaseTarget',
-    ]) {
-      clone[key] = null
-    }
-    clone.callContext = cloneCallContext(player.callContext)
-    return clone
-  }
-
-  function relinkPlayerRefs(source, clone, playerMap) {
-    for (const key of [
-      'attackTarget',
-      'chainStrikeTarget',
-      'grappleTarget',
-      'grappledBy',
-      'callSource',
-      'pinnedBy',
-      'pinTarget',
-      'pinClaimedBy',
-      'doublePinTrapTarget',
-      'doublePinReleaseTarget',
-    ]) {
-      clone[key] = source[key]?.id ? playerMap.get(source[key].id) ?? null : null
-    }
-    clone.callContext = relinkCallContext(source.callContext, playerMap)
-  }
-
-  function cloneCallContext(context) {
-    if (!context) return null
-    const clone = { ...context }
-    for (const key of ['target', 'ally', 'carrier']) {
-      if (clone[key]?.id) clone[key] = { id: clone[key].id }
-    }
-    return clone
-  }
-
-  function relinkCallContext(context, playerMap) {
-    if (!context) return null
-    const clone = { ...context }
-    for (const key of ['target', 'ally', 'carrier']) {
-      if (context[key]?.id) clone[key] = playerMap.get(context[key].id) ?? null
-    }
-    return clone
-  }
-
-  function createHeadlessHud() {
-    return {
-      blueScore: { textContent: '' },
-      redScore: { textContent: '' },
-      clock: { textContent: '' },
-      matchState: { textContent: '' },
-      possession: { textContent: '' },
-      pins: { textContent: '' },
-      inactive: { textContent: '' },
-      stone: { textContent: '' },
-      miniMap: { innerHTML: '' },
-      skillList: { innerHTML: '' },
-      playerTooltip: { hidden: true },
-      startBtn: { textContent: '' },
-      pauseBtn: { textContent: '' },
-      resetBtn: { textContent: '' },
-      seedInput: { value: '' },
-      speedButtons: [],
-    }
+    return cloneStateForCinemaPrecompute({ state, rng })
   }
   
   function startMatch() {
@@ -785,18 +616,18 @@ export function createSimulation({
     if (!state.running) applyNextTeamStrategies({ resetOpening: true })
     state.running = true
     state.paused = false
-    state.message = 'Spiel läuft'
+    state.message = t('match.running')
     state.messageTimer = 1.2
-    hud.startBtn.textContent = 'Weiter'
-    hud.pauseBtn.textContent = 'Pause'
+    hud.startBtn.textContent = t('controls.continue')
+    hud.pauseBtn.textContent = t('controls.pause')
     if (!wasRunning && cinema?.isEnabled()) prepareCinemaPrecompute()
   }
   
   function togglePause() {
     if (!state.running) return
     state.paused = !state.paused
-    hud.pauseBtn.textContent = state.paused ? 'Weiter' : 'Pause'
-    state.message = state.paused ? 'Pause' : 'Spiel läuft'
+    hud.pauseBtn.textContent = state.paused ? t('controls.continue') : t('controls.pause')
+    state.message = state.paused ? t('match.pause') : t('match.running')
     state.messageTimer = 0.8
     updatePlayerTooltip()
   }
@@ -988,7 +819,7 @@ export function createSimulation({
   function announceDouble(attacker, target) {
     if (!attacker || !target) return
     for (const player of [attacker, target]) {
-      player.callBubbleText = 'Doppel!'
+      player.callBubbleText = t('call.double')
       player.callBubbleTimer = 0.95
     }
   }
@@ -1172,88 +1003,6 @@ export function createSimulation({
     return {
       distance: Math.hypot(point.x - x, point.y - y),
       t,
-    }
-  }
-  
-  function chainPhaseForPlayer(player) {
-    const idNumber = Number(player.id.split('-')[1]) || 0
-    return idNumber * 1.37 + (player.team === 'blue' ? 0 : Math.PI)
-  }
-  
-  function easeInOut(t) {
-    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
-  }
-  
-  function chainOrbitBall(player) {
-    const speed = Math.hypot(player.vx, player.vy)
-    const phase = chainPhaseForPlayer(player)
-    const direction = player.team === 'blue' ? 1 : -1
-    const frequency = speed > 20 ? 7.2 : 5.4
-    const angle = state.roundTime * frequency * direction + phase
-    const pulse = Math.sin(state.roundTime * 4 + phase) * 3
-    const radius = CHAIN_BAND_VISUAL.orbitRadius + pulse
-    return {
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
-    }
-  }
-  
-  function chainVisualStrikeRadius(player) {
-    return Math.max(CHAIN_BAND_VISUAL.orbitRadius, pompfeFor(player).attackRange - 8)
-  }
-  
-  function chainStrikeBall(player) {
-    const target = player.chainStrikeTarget
-    const strikeRadius = chainVisualStrikeRadius(player)
-    const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * strikeRadius
-    const targetY = target?.y ?? player.chainStrikeY ?? player.y + Math.sin(player.angle) * strikeRadius
-    const dx = targetX - player.x
-    const dy = targetY - player.y
-    const cos = Math.cos(-player.angle)
-    const sin = Math.sin(-player.angle)
-    const localX = dx * cos - dy * sin
-    const localY = dx * sin + dy * cos
-    const localDistance = Math.hypot(localX, localY) || 1
-    const radius = clamp(localDistance, CHAIN_BAND_VISUAL.orbitRadius * 0.85, strikeRadius)
-    return {
-      x: (localX / localDistance) * radius,
-      y: (localY / localDistance) * radius,
-    }
-  }
-  
-  function chainBallLocal(player) {
-    const orbit = chainOrbitBall(player)
-    const duration = player.chainStrikeDuration || 0
-    const progress = duration > 0 && player.chainStrikeTimer > 0 ? clamp(1 - player.chainStrikeTimer / duration, 0, 1) : 1
-    if (progress >= 1) return orbit
-  
-    const target = chainStrikeBall(player)
-    let mix = 0
-    if (progress < 0.4) {
-      mix = easeInOut(progress / 0.4)
-    } else if (progress < 0.78) {
-      mix = 1 - easeInOut((progress - 0.4) / 0.38)
-    }
-  
-    return {
-      x: orbit.x + (target.x - orbit.x) * mix,
-      y: orbit.y + (target.y - orbit.y) * mix,
-    }
-  }
-  
-  function localToWorld(player, point) {
-    const cos = Math.cos(player.angle)
-    const sin = Math.sin(player.angle)
-    return {
-      x: player.x + point.x * cos - point.y * sin,
-      y: player.y + point.x * sin + point.y * cos,
-    }
-  }
-  
-  function chainBandSegment(player) {
-    return {
-      start: localToWorld(player, { x: CHAIN_BAND_VISUAL.handleX, y: CHAIN_BAND_VISUAL.handleY }),
-      end: localToWorld(player, chainBallLocal(player)),
     }
   }
   
@@ -1542,7 +1291,7 @@ export function createSimulation({
   
     attacker.strategyTriggered = true
     attacker.flankTimer = FLANK_DURATION
-    attacker.callBubbleText = 'Umlaufen!'
+    attacker.callBubbleText = t('call.umlaufen')
     attacker.callBubbleTimer = 1
   }
   
@@ -1760,7 +1509,7 @@ export function createSimulation({
     defender.vy = 0
     carrier.vx = 0
     carrier.vy = 0
-    state.message = `${TEAMS[defender.team].name} klammert`
+    state.message = t('match.teamGrapples', { team: teamLabel(defender.team) })
     state.messageTimer = 0.8
     burst(carrier.x, carrier.y, TEAMS[defender.team].color, 12)
   }
@@ -1791,7 +1540,7 @@ export function createSimulation({
     if (challengerWins) {
       state.jugg.carrier = challenger
       challenger.holdOffset = 0
-      state.message = `${TEAMS[challenger.team].name} erobert den Jugg`
+      state.message = t('match.teamCapturesJugg', { team: teamLabel(challenger.team) })
       state.messageTimer = 0.9
     }
   
@@ -1851,7 +1600,7 @@ export function createSimulation({
     }
   
     if (result) {
-      assignJuggCarrier(result, `${TEAMS[result.team].name} sichert den Jugg`)
+      assignJuggCarrier(result, t('match.teamSecuresJugg', { team: teamLabel(result.team) }))
       return true
     }
   
@@ -1944,16 +1693,16 @@ export function createSimulation({
         ...cinema.runnerOddsPayload(carrier),
       })
       state.score[carrier.team] += 1
-      state.message = `${TEAMS[carrier.team].name} punktet`
+      state.message = t('match.teamScores', { team: teamLabel(carrier.team) })
       state.messageTimer = 2
       burst(mal.x, mal.y, TEAMS[carrier.team].color, 28)
   
       if (state.score[carrier.team] >= MATCH_POINT) {
         state.running = false
-        state.message = `${TEAMS[carrier.team].name} gewinnt`
+        state.message = t('match.teamWins', { team: teamLabel(carrier.team) })
         state.messageTimer = 99
         state.jugg.carrier = null
-        hud.startBtn.textContent = 'Neues Match'
+        hud.startBtn.textContent = t('controls.newMatch')
         return
       }
   
@@ -1975,7 +1724,9 @@ export function createSimulation({
   
     if (state.timeLeft <= 0) {
       state.running = false
-      state.message = state.score.blue === state.score.red ? 'Unentschieden' : state.score.blue > state.score.red ? 'Blau gewinnt' : 'Rot gewinnt'
+      state.message = state.score.blue === state.score.red
+        ? t('match.draw')
+        : t('match.teamWins', { team: teamLabel(state.score.blue > state.score.red ? 'blue' : 'red') })
       state.messageTimer = 99
     }
   }
@@ -1991,7 +1742,7 @@ export function createSimulation({
     }
     state.roundBreakLocked = isRoundBreakLocked()
     const stonesLeft = roundBreakStonesLeft()
-    state.message = stonesLeft > 0 ? `${state.roundBreakLabel} - Strategiepause ${stonesLeft} Steine` : 'Neuer Zug'
+    state.message = stonesLeft > 0 ? t('match.strategyBreakWithStones', { label: state.roundBreakLabel, stones: stonesLeft }) : t('match.newRound')
     state.messageTimer = 0.4
 
     if (!wasLocked && state.roundBreakLocked) {
@@ -2013,38 +1764,11 @@ export function createSimulation({
         state.pvp.roundId = state.pvp.nextRoundId || state.pvp.roundId + 1
         state.pvp.roundBreakEndsAt = null
       }
-      resetRound('Neuer Zug')
+      resetRound(t('match.newRound'))
     }
   
     updateParticles(dt)
     return true
-  }
-  
-  function burst(x, y, color, amount) {
-    for (let i = 0; i < amount; i += 1) {
-      const angle = rng.range(0, Math.PI * 2)
-      const speed = rng.range(80, 240)
-      state.particles.push({
-        x,
-        y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: rng.range(0.35, 0.7),
-        maxLife: 0.7,
-        color,
-      })
-    }
-  }
-  
-  function updateParticles(dt) {
-    for (const particle of state.particles) {
-      particle.x += particle.vx * dt
-      particle.y += particle.vy * dt
-      particle.vx *= 0.94
-      particle.vy *= 0.94
-      particle.life -= dt
-    }
-    state.particles = state.particles.filter((particle) => particle.life > 0)
   }
   
   function update(dt) {

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node scripts/deterministic-check.mjs",
     "preview": "vite preview",
     "start": "node server/index.js",
     "serve:pvp": "npm run build && node server/index.js"

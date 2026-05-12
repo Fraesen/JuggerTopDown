@@ -1,21 +1,26 @@
 import { FIELD, PLAYER_POSITIONS, PLAYER_STRATEGIES, TEAM_STRATEGIES, fieldPoint } from './config.js'
+import { t } from '../i18n/index.js'
 
 export const TEAM_STRATEGY_OPTIONS = [
-  { id: 'standard', label: 'Standard' },
-  { id: 'wide_line', label: 'Breite Linie' },
-  { id: 'top_defense', label: 'Rechts Druck' },
-  { id: 'bottom_defense', label: 'Links Druck' },
+  { id: 'standard', labelKey: 'strategy.standard' },
+  { id: 'wide_line', labelKey: 'strategy.wideLine' },
+  { id: 'top_defense', labelKey: 'strategy.topDefense' },
+  { id: 'bottom_defense', labelKey: 'strategy.bottomDefense' },
 ]
 
 export const PLAYER_STRATEGY_OPTIONS = [
-  { id: 'none', label: 'Keine' },
-  { id: 'flank', label: 'Umlaufen' },
+  { id: 'none', labelKey: 'strategy.none' },
+  { id: 'flank', labelKey: 'strategy.flank' },
 ]
 
 export const RUNNER_STRATEGY_OPTIONS = [
-  { id: 'wide_middle', label: 'Breite Mitte' },
-  { id: 'direct_jugg', label: 'Direkt zum Jugg' },
+  { id: 'wide_middle', labelKey: 'strategy.wideMiddle' },
+  { id: 'direct_jugg', labelKey: 'strategy.directJugg' },
 ]
+
+export function playerTechniqueOptionsForIndex(index) {
+  return index === 0 ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
+}
 
 export const DEFENSIVE_HIT_MODIFIER = 0.15
 export const AGGRESSIVE_DOUBLE_WINDOW_FACTOR = 0.25
@@ -34,7 +39,8 @@ export function playerStrategy(player) {
 }
 
 export function teamStrategyLabel(strategy) {
-  return TEAM_STRATEGY_OPTIONS.find((option) => option.id === strategy)?.label ?? strategy
+  const option = TEAM_STRATEGY_OPTIONS.find((candidate) => candidate.id === strategy)
+  return option ? t(option.labelKey) : strategy
 }
 
 export function normalizeTeamStrategy(strategy) {
@@ -42,11 +48,10 @@ export function normalizeTeamStrategy(strategy) {
 }
 
 export function playerStrategyLabel(strategy) {
-  return (
-    RUNNER_STRATEGY_OPTIONS.find((option) => option.id === strategy)?.label ??
-    PLAYER_STRATEGY_OPTIONS.find((option) => option.id === strategy)?.label ??
-    strategy
-  )
+  const option =
+    RUNNER_STRATEGY_OPTIONS.find((candidate) => candidate.id === strategy) ??
+    PLAYER_STRATEGY_OPTIONS.find((candidate) => candidate.id === strategy)
+  return option ? t(option.labelKey) : strategy
 }
 
 export function isWideLineStrategy(team) {

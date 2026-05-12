@@ -14,7 +14,8 @@ import {
   WAHRNEHMUNG_BASE,
   WAHRNEHMUNG_PER_POINT,
 } from './config.js'
-import { pompfeFor } from './pompfen.js'
+import { pompfeLabel } from './pompfen.js'
+import { roleText } from '../i18n/index.js'
 
 export function isRunner(player) {
   return player.role === 'runner'
@@ -53,7 +54,7 @@ export function statsFromSkill(skill) {
 }
 
 export function roleLabel(index) {
-  return index === 0 ? 'Läufer:in' : `Pompfer:in ${index}`
+  return roleText(index)
 }
 
 export function playerIndex(player) {
@@ -89,7 +90,7 @@ export function createPlayer(team, index, role) {
     role,
     positionSlot,
     pompfe,
-    pompfeLabel: pompfeFor({ pompfe }).label,
+    pompfeLabel: pompfeLabel(pompfe),
     strategy: PLAYER_STRATEGIES[team]?.[index] ?? 'none',
     strategyTriggered: false,
     defensiveStrategyDone: false,

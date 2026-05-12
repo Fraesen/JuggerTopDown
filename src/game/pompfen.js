@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js'
+
 const POMPFEN_RANGE_PIXELS_PER_CM = 70 / 110
 
 function rangePixels(centimeters) {
@@ -7,7 +9,7 @@ function rangePixels(centimeters) {
 export const POMPFEN = {
   staff: {
     id: 'staff',
-    label: 'Stab',
+    labelKey: 'pompfe.staff',
     lengthCm: 180,
     reachCm: 110,
     attackRange: rangePixels(110),
@@ -21,7 +23,7 @@ export const POMPFEN = {
   },
   qtip: {
     id: 'qtip',
-    label: 'Q-Tip',
+    labelKey: 'pompfe.qtip',
     kind: 'melee',
     lengthCm: 200,
     reachCm: 140,
@@ -36,7 +38,7 @@ export const POMPFEN = {
   },
   chain: {
     id: 'chain',
-    label: 'Kette',
+    labelKey: 'pompfe.chain',
     kind: 'chain',
     lengthCm: 320,
     reachCm: 320,
@@ -53,7 +55,7 @@ export const POMPFEN = {
   },
   shield: {
     id: 'shield',
-    label: 'Schild',
+    labelKey: 'pompfe.shield',
     kind: 'melee',
     lengthCm: 85,
     reachCm: 85,
@@ -68,6 +70,8 @@ export const POMPFEN = {
   },
 }
 
+export const POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
+
 POMPFEN.staff.kind = 'melee'
 POMPFEN.staff.canPin = true
 POMPFEN.qtip.canPin = true
@@ -75,6 +79,11 @@ POMPFEN.shield.canPin = true
 
 export function pompfeFor(player) {
   return POMPFEN[player.pompfe] ?? POMPFEN.staff
+}
+
+export function pompfeLabel(pompfe) {
+  const profile = typeof pompfe === 'string' ? POMPFEN[pompfe] : pompfe
+  return profile ? t(profile.labelKey) : t('pompfe.staff')
 }
 
 export function attackRangeFor(attacker, target) {

@@ -240,6 +240,29 @@ kbd {
   background: rgba(240, 214, 106, 0.08);
 }
 
+.language-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.language-control select {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(33, 45, 49, 0.92);
+  color: var(--text);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .game-shell {
   display: flex;
   flex: 1;

@@ -81,12 +81,16 @@ export const DOCS_HTML = `
       <p>
         Die Reichweiten sind visuell angepasst und nicht als maßstabsgetreue Draufsicht der echten Pompfenlängen gemeint.
         Treffer werden nur geprüft, wenn Ziel, Reichweite und Blickwinkel passen.
+        Die relativen Reichweiten leiten sich aus den Regelmaßen ab: Schild/Kurzpompfe 85 cm, Stab 110 cm,
+        Langpompfe 140 cm, Q-Tip 140 cm und Kette 320 cm.
       </p>
       <dl>
         <dt>Stab</dt>
         <dd>Solide Nahpompfe mit mittlerer Reichweite, frontalem Trefferbogen und Pin-Fähigkeit.</dd>
+        <dt>Langpompfe</dt>
+        <dd>Lange, einseitige Nahpompfe mit großer Reichweite, frontalem Trefferbogen und Pin-Fähigkeit. Sie teilt sich die Reichweite mit dem Q-Tip, hat aber keine Rückseiten-Trefferfläche.</dd>
         <dt>Q-Tip</dt>
-        <dd>Längere Nahpompfe mit größerer Reichweite. Sie hat zusätzlich eine kleine Rückseiten-Trefferfläche.</dd>
+        <dd>Lange zweiseitige Nahpompfe mit großer Reichweite. Sie hat zusätzlich eine kleine Rückseiten-Trefferfläche und bleibt dadurch spielmechanisch von der Langpompfe unterscheidbar.</dd>
         <dt>Schild</dt>
         <dd>Kürzere Nahpompfe. Der Schild erhöht frontal die Blockwirkung der verteidigenden Person; Treffer in den Rücken umgehen diese Blockwirkung.</dd>
         <dt>Kette</dt>

@@ -1,41 +1,138 @@
 import { t } from '../i18n/index.js'
 
 const POMPFEN_RANGE_PIXELS_PER_CM = 70 / 110
+const POMPFEN_VISUAL_PIXELS_PER_CM = 0.42
 
 function rangePixels(centimeters) {
   return Math.round(centimeters * POMPFEN_RANGE_PIXELS_PER_CM)
 }
 
+function visualLength(reachCm) {
+  return Math.round(reachCm * POMPFEN_VISUAL_PIXELS_PER_CM)
+}
+
+function oneSidedVisual({ reachCm, startX = 14, startY = -17, angle = -0.34, lineWidth = 5, gripLength = 19, accent = false }) {
+  const length = visualLength(reachCm)
+  return {
+    kind: 'one_sided',
+    startX,
+    startY,
+    endX: startX + length,
+    endY: startY + Math.round(Math.sin(angle) * length),
+    lineWidth,
+    gripStartX: startX - 2,
+    gripStartY: startY + 5,
+    gripEndX: startX + gripLength,
+    gripEndY: startY - 2,
+    accent,
+  }
+}
+
+function qtipVisual(reachCm) {
+  const length = visualLength(reachCm)
+  return {
+    kind: 'double_ended',
+    backEndX: -Math.round(length * 0.72),
+    backEndY: Math.round(length * 0.3),
+    gripBackX: -14,
+    gripBackY: 7,
+    gripFrontX: 16,
+    gripFrontY: -6,
+    frontEndX: Math.round(length * 0.92),
+    frontEndY: -Math.round(length * 0.38),
+    lineWidth: 5,
+    gripWidth: 6,
+  }
+}
+
+function shieldVisual() {
+  return {
+    kind: 'shield',
+    shieldX: 13,
+    shieldY: -21,
+    shieldWidth: 18,
+    shieldHeight: 42,
+    shieldRadius: 7,
+    strike: oneSidedVisual({ reachCm: 85, startX: 14, startY: -14, angle: -0.37, lineWidth: 4, gripLength: 13 }),
+  }
+}
+
+function meleeProfile({
+  id,
+  labelKey,
+  lengthCm,
+  reachCm,
+  attackArc,
+  rearAttackArc = 0,
+  closeStrikeRange = 46,
+  runnerRangeBonusCm = Math.round(reachCm * 0.2),
+  runningAttackPenalty = 0.25,
+  shieldBlockBonus = 0,
+  visual,
+}) {
+  return {
+    id,
+    labelKey,
+    kind: 'melee',
+    lengthCm,
+    reachCm,
+    attackRange: rangePixels(reachCm),
+    attackArc,
+    rearAttackArc,
+    closeStrikeRange,
+    runnerRangeBonus: rangePixels(runnerRangeBonusCm),
+    runnerHitBonus: 0.75,
+    runningAttackPenalty,
+    shieldBlockBonus,
+    canPin: true,
+    visual,
+  }
+}
+
 export const POMPFEN = {
-  staff: {
+  shield: meleeProfile({
+    id: 'shield',
+    labelKey: 'pompfe.shield',
+    lengthCm: 85,
+    reachCm: 85,
+    attackArc: 0.82,
+    closeStrikeRange: 42,
+    runnerRangeBonusCm: 17,
+    runningAttackPenalty: 0.18,
+    shieldBlockBonus: 35,
+    visual: shieldVisual(),
+  }),
+  longpompfe: meleeProfile({
+    id: 'longpompfe',
+    labelKey: 'pompfe.longpompfe',
+    lengthCm: 200,
+    reachCm: 140,
+    attackArc: 0.84,
+    closeStrikeRange: 46,
+    runnerRangeBonusCm: 28,
+    visual: oneSidedVisual({ reachCm: 140, startY: -18, angle: -0.29, gripLength: 25, accent: true }),
+  }),
+  staff: meleeProfile({
     id: 'staff',
     labelKey: 'pompfe.staff',
     lengthCm: 180,
     reachCm: 110,
-    attackRange: rangePixels(110),
     attackArc: 0.95,
-    rearAttackArc: 0,
     closeStrikeRange: 46,
-    runnerRangeBonus: rangePixels(22),
-    runnerHitBonus: 0.75,
-    runningAttackPenalty: 0.25,
-    shieldBlockBonus: 0,
-  },
-  qtip: {
+    runnerRangeBonusCm: 22,
+    visual: oneSidedVisual({ reachCm: 110 }),
+  }),
+  qtip: meleeProfile({
     id: 'qtip',
     labelKey: 'pompfe.qtip',
-    kind: 'melee',
     lengthCm: 200,
     reachCm: 140,
-    attackRange: rangePixels(140),
     attackArc: 0.9,
     rearAttackArc: 0.72,
     closeStrikeRange: 48,
-    runnerRangeBonus: rangePixels(28),
-    runnerHitBonus: 0.75,
-    runningAttackPenalty: 0.25,
-    shieldBlockBonus: 0,
-  },
+    runnerRangeBonusCm: 28,
+    visual: qtipVisual(140),
+  }),
   chain: {
     id: 'chain',
     labelKey: 'pompfe.chain',
@@ -52,33 +149,25 @@ export const POMPFEN = {
     runningAttackPenalty: 0.3,
     shieldBlockBonus: 0,
     canPin: false,
-  },
-  shield: {
-    id: 'shield',
-    labelKey: 'pompfe.shield',
-    kind: 'melee',
-    lengthCm: 85,
-    reachCm: 85,
-    attackRange: 58,
-    attackArc: 0.82,
-    rearAttackArc: 0,
-    closeStrikeRange: 42,
-    runnerRangeBonus: 10,
-    runnerHitBonus: 0.75,
-    runningAttackPenalty: 0.18,
-    shieldBlockBonus: 35,
+    visual: {
+      kind: 'chain',
+      handleX: 12,
+      handleY: -12,
+      orbitRadius: 58,
+      ballRadius: 10,
+    },
   },
 }
 
-export const POMPFEN_OPTIONS = ['shield', 'qtip', 'staff', 'chain']
+export const POMPFEN_OPTIONS = ['shield', 'longpompfe', 'staff', 'qtip', 'chain']
 
-POMPFEN.staff.kind = 'melee'
-POMPFEN.staff.canPin = true
-POMPFEN.qtip.canPin = true
-POMPFEN.shield.canPin = true
-
-export function pompfeFor(player) {
+export function pompfeFor(player = {}) {
   return POMPFEN[player.pompfe] ?? POMPFEN.staff
+}
+
+export function pompfeVisualFor(pompfe) {
+  const profile = typeof pompfe === 'string' ? POMPFEN[pompfe] : pompfe?.visual ? pompfe : pompfeFor(pompfe)
+  return profile?.visual ?? POMPFEN.staff.visual
 }
 
 export function pompfeLabel(pompfe) {

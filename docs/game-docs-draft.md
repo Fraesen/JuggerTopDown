@@ -105,7 +105,7 @@ Wenn keine aktiven Gegner:innen mehr stehen, suchen Pompfer:innen ohne Kette nac
 
 ## Pompfen
 
-Die Pompfenwerte sind spielmechanische Top-Down-Werte. Die echten Längen werden nicht 1:1 gezeichnet, weil das aus der Draufsicht unleserlich wäre.
+Die Pompfenwerte sind spielmechanische Top-Down-Werte. Die echten Längen werden nicht 1:1 gezeichnet, weil das aus der Draufsicht unleserlich wäre. Die relativen Ingame-Reichweiten leiten sich aus den Regelmaßen ab: Schild/Kurzpompfe 85 cm, Stab 110 cm, Langpompfe 140 cm, Q-Tip 140 cm und Kette 320 cm.
 
 ### Stab
 
@@ -127,9 +127,19 @@ Der Stab ist der einfache mittlere Standard: gute Reichweite, keine besondere Bl
 
 Der Q-Tip hat eine längere Reichweite als Stab und darf im Code auch nach hinten treffen. Das macht ihn stark gegen Personen, die in den Rücken laufen oder eng um ihn herumstehen.
 
+### Langpompfe
+
+- Ingame-Reichweite: ca. 89 Pixel.
+- Trefferfläche: langer vorderer Schlag- und Stichbogen.
+- Kann pinnen.
+- Gegen Läufer:innen: 75 Prozentpunkte Bonus.
+- Laufangriff: 25 Prozentpunkte Malus.
+
+Die Langpompfe teilt sich die maximale Reichweite mit dem Q-Tip, ist aber einseitig. Sie hat deshalb keine Rückseiten-Trefferfläche und ist visuell als längere einseitige Pompfe vom Stab unterscheidbar.
+
 ### Schild
 
-- Ingame-Reichweite: 58 Pixel.
+- Ingame-Reichweite: ca. 54 Pixel.
 - Trefferfläche: kurzer vorderer Schlagbogen.
 - Kann pinnen.
 - Gegen Läufer:innen: 75 Prozentpunkte Bonus.

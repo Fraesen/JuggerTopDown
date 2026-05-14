@@ -25,7 +25,7 @@ const rateWindowMs = Number(process.env.PVP_RATE_WINDOW_MS || 10_000)
 const maxMessagesPerWindow = Number(process.env.PVP_MAX_MESSAGES_PER_WINDOW || 80)
 const maxCreateRoomsPerWindow = Number(process.env.PVP_MAX_CREATE_ROOMS_PER_WINDOW || 8)
 const skillKeys = ['technik', 'geschwindigkeit', 'wahrnehmung']
-const pompfenOptions = ['shield', 'qtip', 'staff', 'chain']
+const pompfenOptions = ['shield', 'longpompfe', 'qtip', 'staff', 'chain']
 const runnerStrategies = ['wide_middle', 'direct_jugg']
 const pompferStrategies = ['none', 'flank']
 const teamStrategies = ['standard', 'wide_line', 'top_defense', 'bottom_defense']
@@ -55,6 +55,21 @@ const mimeTypes = {
 }
 
 const server = createServer(async (request, response) => {
+  const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`)
+  if (url.pathname === '/healthz') {
+    response.writeHead(200, {
+      'cache-control': 'no-store',
+      'content-type': 'application/json; charset=utf-8',
+    })
+    response.end(JSON.stringify({
+      ok: true,
+      rooms: rooms.size,
+      sockets: sockets.size,
+      uptimeSeconds: Math.round(process.uptime()),
+    }))
+    return
+  }
+
   if (request.url?.startsWith('/ws/pvp')) {
     response.writeHead(426, { 'content-type': 'text/plain; charset=utf-8' })
     response.end('WebSocket upgrade required.')

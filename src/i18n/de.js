@@ -55,7 +55,7 @@ export const de = {
   'status.matchStartingSoon': 'Match startet gleich',
   'status.pvpConnectionLost': 'PvP-Verbindung unterbrochen',
   'status.noPvpServer': 'Keine Verbindung zum PvP-Server',
-  'status.serverMissing': 'Der Spring-Boot-WebSocket ist noch nicht erreichbar.',
+  'status.serverMissing': 'Der PvP-WebSocket ist noch nicht erreichbar.',
   'status.otherPlayerLeft': 'Die zweite Person ist nicht mehr verbunden.',
   'status.pvpServerOutdated': 'PvP-Server neu starten',
   'status.pvpServerOutdatedDetail': 'Der PvP-Server ist veraltet. Bitte Server neu starten, damit Zugpausen synchronisiert werden.',
@@ -136,6 +136,7 @@ export const de = {
   'position.4': 'Unten außen',
 
   'pompfe.staff': 'Stab',
+  'pompfe.longpompfe': 'Langpompfe',
   'pompfe.qtip': 'Q-Tip',
   'pompfe.chain': 'Kette',
   'pompfe.shield': 'Schild',

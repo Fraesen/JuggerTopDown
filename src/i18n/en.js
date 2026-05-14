@@ -53,7 +53,7 @@ export const en = {
   'status.matchStartingSoon': 'Match starts shortly',
   'status.pvpConnectionLost': 'PvP connection interrupted',
   'status.noPvpServer': 'No connection to the PvP server',
-  'status.serverMissing': 'The Spring Boot WebSocket is not reachable yet.',
+  'status.serverMissing': 'The PvP WebSocket is not reachable yet.',
   'status.otherPlayerLeft': 'The second player is no longer connected.',
   'status.pvpServerOutdated': 'Restart PvP server',
   'status.pvpServerOutdatedDetail': 'The PvP server is outdated. Please restart the server so round breaks can be synchronized.',
@@ -134,6 +134,7 @@ export const en = {
   'position.4': 'Bottom outside',
 
   'pompfe.staff': 'Staff',
+  'pompfe.longpompfe': 'Long Pompfe',
   'pompfe.qtip': 'Q-tip',
   'pompfe.chain': 'Chain',
   'pompfe.shield': 'Shield',
@@ -160,7 +161,7 @@ export const en = {
   'call.malschutz': 'Goal defense!',
   'call.hilfmir': 'Help me!',
   'call.doppelpin': 'Double pin!',
-  'call.ueberzahl': 'Numbers!',
+  'call.ueberzahl': 'Advantage!',
   'call.mitkommen': 'Come with me!',
   'call.umlaufen': 'Flank!',
 
@@ -235,11 +236,17 @@ export const en = {
 
       <section>
         <h2>Pompfen</h2>
+        <p>
+          Relative in-game ranges are derived from the rule measurements: shield/short Pompfe 85 cm,
+          staff 110 cm, long Pompfe 140 cm, Q-tip 140 cm and chain 320 cm.
+        </p>
         <dl>
           <dt>Staff</dt>
           <dd>A solid melee Pompfe with medium range and pin capability.</dd>
+          <dt>Long Pompfe</dt>
+          <dd>A long one-sided melee Pompfe with high frontal reach and pin capability. It has Q-tip-like reach, but no rear hit area.</dd>
           <dt>Q-tip</dt>
-          <dd>A longer melee Pompfe with extra reach and a small rear hit area.</dd>
+          <dd>A long double-ended melee Pompfe with high reach and a small rear hit area.</dd>
           <dt>Shield</dt>
           <dd>A shorter melee Pompfe. The shield improves frontal blocking; back hits bypass that block.</dd>
           <dt>Chain</dt>

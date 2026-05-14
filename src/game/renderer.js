@@ -1,32 +1,7 @@
 import { CALL_BUBBLE_DURATION, FIELD, FIELD_POLYGON, JUGG_RADIUS, PLAYER_RADIUS, TEAMS, fieldPoint } from './config.js'
 import { clamp } from './geometry.js'
 import { isInactive, isPompfer, isRunner } from './players.js'
-import { attackArcFor, pompfeFor } from './pompfen.js'
-
-const POMPFEN_VISUALS = {
-  staff: {
-    startX: 14,
-    startY: -17,
-    endX: 56,
-    endY: -32,
-  },
-  qtip: {
-    backEndX: -42,
-    backEndY: 18,
-    gripBackX: -14,
-    gripBackY: 7,
-    gripFrontX: 16,
-    gripFrontY: -6,
-    frontEndX: 54,
-    frontEndY: -22,
-  },
-  chain: {
-    handleX: 12,
-    handleY: -12,
-    orbitRadius: 58,
-    ballRadius: 10,
-  },
-}
+import { attackArcFor, pompfeFor, pompfeVisualFor } from './pompfen.js'
 
 
 export function createRenderer({ ctx, state }) {
@@ -44,7 +19,7 @@ export function createRenderer({ ctx, state }) {
   }
 
   function chainOrbitPose(player, timeOffset = 0) {
-    const visual = POMPFEN_VISUALS.chain
+    const visual = pompfeVisualFor('chain')
     if (isInactive(player)) {
       return {
         handleX: visual.handleX,
@@ -74,7 +49,7 @@ export function createRenderer({ ctx, state }) {
   }
 
   function chainStrikePoint(player) {
-    const visual = POMPFEN_VISUALS.chain
+    const visual = pompfeVisualFor('chain')
     const strikeRadius = Math.max(visual.orbitRadius, pompfeFor(player).attackRange - 8)
     const target = player.chainStrikeTarget
     const targetX = target?.x ?? player.chainStrikeX ?? player.x + Math.cos(player.angle) * strikeRadius
@@ -170,12 +145,60 @@ export function createRenderer({ ctx, state }) {
     ctx.fill()
     ctx.stroke()
 
-    ctx.strokeStyle = '#c9b663'
-    ctx.lineWidth = 5
+  }
+
+  function drawOneSidedPompfe(visual) {
+    ctx.strokeStyle = '#e7dfc6'
+    ctx.lineWidth = visual.lineWidth ?? 5
+    ctx.lineCap = 'round'
     ctx.beginPath()
-    ctx.moveTo(5, -7)
-    ctx.lineTo(pose.handleX, pose.handleY)
+    ctx.moveTo(visual.startX, visual.startY)
+    ctx.lineTo(visual.endX, visual.endY)
     ctx.stroke()
+
+    if (visual.accent) {
+      ctx.fillStyle = '#e7dfc6'
+      ctx.beginPath()
+      ctx.arc(visual.endX, visual.endY, 3, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  function drawDoubleEndedPompfe(visual) {
+    ctx.strokeStyle = '#e7dfc6'
+    ctx.lineWidth = visual.lineWidth ?? 5
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(visual.backEndX, visual.backEndY)
+    ctx.lineTo(visual.gripBackX, visual.gripBackY)
+    ctx.moveTo(visual.gripFrontX, visual.gripFrontY)
+    ctx.lineTo(visual.frontEndX, visual.frontEndY)
+    ctx.stroke()
+
+  }
+
+  function drawShieldPompfe(visual) {
+    ctx.fillStyle = '#d6c36b'
+    ctx.strokeStyle = '#4a3c1e'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.roundRect(visual.shieldX, visual.shieldY, visual.shieldWidth, visual.shieldHeight, visual.shieldRadius)
+    ctx.fill()
+    ctx.stroke()
+    drawOneSidedPompfe(visual.strike)
+  }
+
+  function drawPompfe(player) {
+    const visual = pompfeVisualFor(player)
+    if (visual.kind === 'chain') {
+      drawChain(player)
+    } else if (visual.kind === 'shield') {
+      drawShieldPompfe(visual)
+    } else if (visual.kind === 'double_ended') {
+      drawDoubleEndedPompfe(visual)
+    } else {
+      drawOneSidedPompfe(visual)
+    }
   }
 
   function drawField() {
@@ -411,51 +434,7 @@ export function createRenderer({ ctx, state }) {
     ctx.fill()
   
     if (isPompfer(player)) {
-      const profile = pompfeFor(player)
-      if (player.pompfe === 'shield') {
-        ctx.fillStyle = '#d6c36b'
-        ctx.strokeStyle = '#4a3c1e'
-        ctx.lineWidth = 3
-        ctx.beginPath()
-        ctx.roundRect(13, -21, 18, 42, 7)
-        ctx.fill()
-        ctx.stroke()
-        ctx.strokeStyle = '#e7dfc6'
-        ctx.lineWidth = 4
-        ctx.lineCap = 'round'
-        ctx.beginPath()
-        ctx.moveTo(14, -14)
-        ctx.lineTo(40, -24)
-        ctx.stroke()
-      } else if (player.pompfe === 'qtip') {
-        const visual = POMPFEN_VISUALS.qtip
-        ctx.strokeStyle = '#e7dfc6'
-        ctx.lineWidth = 5
-        ctx.lineCap = 'round'
-        ctx.beginPath()
-        ctx.moveTo(visual.backEndX, visual.backEndY)
-        ctx.lineTo(visual.gripBackX, visual.gripBackY)
-        ctx.moveTo(visual.gripFrontX, visual.gripFrontY)
-        ctx.lineTo(visual.frontEndX, visual.frontEndY)
-        ctx.stroke()
-        ctx.strokeStyle = '#c9b663'
-        ctx.lineWidth = 6
-        ctx.beginPath()
-        ctx.moveTo(visual.gripBackX, visual.gripBackY)
-        ctx.lineTo(visual.gripFrontX, visual.gripFrontY)
-        ctx.stroke()
-      } else if (player.pompfe === 'chain') {
-        drawChain(player)
-      } else {
-        const visual = POMPFEN_VISUALS.staff
-        ctx.strokeStyle = '#e7dfc6'
-        ctx.lineWidth = 5
-        ctx.lineCap = 'round'
-        ctx.beginPath()
-        ctx.moveTo(visual.startX, visual.startY)
-        ctx.lineTo(visual.endX, visual.endY)
-        ctx.stroke()
-      }
+      drawPompfe(player)
     } else {
       ctx.fillStyle = '#f0d66a'
       ctx.beginPath()

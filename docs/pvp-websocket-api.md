@@ -50,6 +50,8 @@ docker build -t jugger-pvp .
 docker run -p 3000:3000 jugger-pvp
 ```
 
+Coolify-Deployment ist in [`docs/coolify-deployment.md`](./coolify-deployment.md) beschrieben. Der Produktionsserver stellt zusätzlich `/healthz` für Container- und Coolify-Healthchecks bereit.
+
 Konfiguration per Environment:
 
 - `PORT`: HTTP/WebSocket-Port, Default `3000`.
@@ -72,7 +74,7 @@ Konfiguration per Environment:
     { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
   ],
   "positions": [0, 1, 2, 3, 4],
-  "loadout": ["runner", "shield", "qtip", "staff", "chain"],
+  "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],
   "playerStrategies": ["direct_jugg", "flank", "none", "none", "flank"],
   "teamStrategy": "standard"
 }
@@ -84,7 +86,7 @@ Konfiguration per Environment:
 
 - `team`: `blue` oder `red`.
 - `positions`: Index `0` ist immer die Läufer:in und bleibt `0`. Die Indizes `1-4` sind die vier Pompfer:innen-Slots und müssen eine eindeutige Permutation aus `1, 2, 3, 4` sein.
-- `loadout`: Index `0` ist immer `runner`. Indizes `1-4` erlauben `shield`, `qtip`, `staff` oder `chain`. Pro Team darf höchstens eine `chain` in den vier Pompfer:innen-Slots vorkommen.
+- `loadout`: Index `0` ist immer `runner`. Indizes `1-4` erlauben `shield`, `longpompfe`, `qtip`, `staff` oder `chain`. Pro Team darf höchstens eine `chain` in den vier Pompfer:innen-Slots vorkommen.
 - `playerStrategies`: Index `0` ist die Läufer:innenstrategie und erlaubt `wide_middle` (`Breite Mitte`) oder `direct_jugg` (`Direkt zum Jugg`). Indizes `1-4` sind Pompfer:innenstrategien und erlauben `none` (`Keine`) oder `flank` (`Umlaufen`).
 - `teamStrategy`: `standard`, `wide_line`, `top_defense` oder `bottom_defense`.
 
@@ -154,7 +156,7 @@ Wählt oder tauscht die lokale Farbe. Falls beide Personen dieselbe Farbe wollen
       { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
     ],
     "positions": [0, 1, 2, 3, 4],
-    "loadout": ["runner", "shield", "qtip", "staff", "chain"],
+    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],
     "playerStrategies": ["direct_jugg", "flank", "none", "none", "flank"],
     "teamStrategy": "standard"
   }
@@ -318,7 +320,7 @@ Optionales Event für Server, die Teamwechsel als eigenes Event broadcasten. Der
       { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
     ],
     "positions": [0, 1, 2, 3, 4],
-    "loadout": ["runner", "shield", "qtip", "staff", "chain"],
+    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],
     "playerStrategies": ["direct_jugg", "flank", "none", "none", "flank"],
     "teamStrategy": "standard"
   }

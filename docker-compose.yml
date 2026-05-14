@@ -1,0 +1,29 @@
+services:
+  jugger-topdown:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jugger-topdown:latest
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      PVP_SETUP_MS: "${PVP_SETUP_MS:-60000}"
+      PVP_START_DELAY_MS: "${PVP_START_DELAY_MS:-800}"
+      PVP_ROUND_BREAK_MS: "${PVP_ROUND_BREAK_MS:-30000}"
+      PVP_MAX_WS_PAYLOAD_BYTES: "${PVP_MAX_WS_PAYLOAD_BYTES:-32768}"
+      PVP_MAX_ROOMS: "${PVP_MAX_ROOMS:-100}"
+      PVP_MAX_ROOMS_PER_ADDRESS: "${PVP_MAX_ROOMS_PER_ADDRESS:-10}"
+      PVP_MAX_SOCKETS_PER_ADDRESS: "${PVP_MAX_SOCKETS_PER_ADDRESS:-20}"
+      PVP_ROOM_IDLE_MS: "${PVP_ROOM_IDLE_MS:-300000}"
+      PVP_RATE_WINDOW_MS: "${PVP_RATE_WINDOW_MS:-10000}"
+      PVP_MAX_MESSAGES_PER_WINDOW: "${PVP_MAX_MESSAGES_PER_WINDOW:-80}"
+      PVP_MAX_CREATE_ROOMS_PER_WINDOW: "${PVP_MAX_CREATE_ROOMS_PER_WINDOW:-8}"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

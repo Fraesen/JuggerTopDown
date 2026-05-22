@@ -170,7 +170,7 @@ function handleMessage(ws, data) {
       sendPublicRooms(ws)
       break
     case 'join_room':
-      joinRoom(ws, message.roomCode)
+      joinRoom(ws, message.roomCode, message.playerName)
       break
     case 'leave_room':
       leaveRoom(ws)
@@ -183,6 +183,9 @@ function handleMessage(ws, data) {
       break
     case 'round_break_report':
       reportRoundBreak(ws, message)
+      break
+    case 'request_rematch':
+      requestRematch(ws)
       break
     case 'ping':
       send(ws, { type: 'pong', clientTime: message.clientTime })
@@ -217,6 +220,7 @@ function createRoom(ws, message = {}) {
     roundId: 1,
     roundBreak: null,
     roundBreakReports: new Map(),
+    rematchRequests: new Set(),
     score: { blue: 0, red: 0 },
     isPublic: Boolean(message.isPublic),
     setupEndsAt: null,
@@ -232,7 +236,7 @@ function createRoom(ws, message = {}) {
   rooms.set(room.code, room)
   scheduleRoomIdleCleanup(room)
 
-  const player = attachPlayer(ws, room, 'blue')
+  const player = attachPlayer(ws, room, 'blue', message.playerName)
   send(ws, {
     type: 'room_created',
     serverSeq: nextSeq(room),
@@ -246,7 +250,7 @@ function createRoom(ws, message = {}) {
   broadcastPublicRooms()
 }
 
-function joinRoom(ws, roomCode) {
+function joinRoom(ws, roomCode, playerName = '') {
   const normalizedCode = String(roomCode ?? '').trim().toUpperCase()
   if (!/^[A-Z0-9]{5}$/.test(normalizedCode)) {
     send(ws, { type: 'join_failed', code: 'invalid_code', message: 'Der Raumcode ist ungueltig.' })
@@ -267,7 +271,7 @@ function joinRoom(ws, roomCode) {
   }
 
   leaveRoom(ws, { silent: true })
-  attachPlayer(ws, room, availableTeam(room))
+  attachPlayer(ws, room, availableTeam(room), playerName)
   broadcastRoomState(room, 'player_joined')
   broadcastPublicRooms()
   if (connectedPlayers(room).length === 2 && room.phase === 'lobby') startSetup(room)
@@ -365,6 +369,7 @@ function startMatch(room) {
   room.roundId = 1
   room.roundBreak = null
   room.roundBreakReports.clear()
+  room.rematchRequests.clear()
   room.score = { blue: 0, red: 0 }
   clearTimeout(room.idleTimer)
   const startAt = Date.now() + matchStartDelayMs
@@ -380,6 +385,24 @@ function startMatch(room) {
       teamConfigs: teamConfigs(room),
     })
   }
+}
+
+function requestRematch(ws) {
+  const player = sockets.get(ws)
+  if (!player) {
+    send(ws, { type: 'error', code: 'not_in_room', message: 'Du bist in keinem Raum.' })
+    return
+  }
+  const room = player.room
+  if (room.phase !== 'match') return
+  room.rematchRequests.add(player.playerId)
+  broadcast(room, { type: 'rematch_requested', serverSeq: nextSeq(room), playerId: player.playerId })
+  if (room.rematchRequests.size < connectedPlayers(room).length) return
+
+  room.rematchRequests.clear()
+  room.roundBreak = null
+  room.roundBreakReports.clear()
+  startSetup(room)
 }
 
 function reportRoundBreak(ws, message) {
@@ -515,6 +538,7 @@ function publicRoomSummaries() {
   return [...rooms.values()]
     .filter((room) => room.isPublic && room.phase === 'lobby' && connectedPlayers(room).length < 2)
     .map((room) => ({
+      hostName: connectedPlayers(room)[0]?.name ?? 'Host',
       roomCode: room.code,
       players: connectedPlayers(room).length,
       maxPlayers: 2,
@@ -528,9 +552,10 @@ function closeWithError(ws, code, message) {
   ws.close(1008, code)
 }
 
-function attachPlayer(ws, room, team) {
+function attachPlayer(ws, room, team, name = '') {
   const player = {
     playerId: `p${room.players.length + 1}`,
+    name: sanitizePlayerName(name, `Spieler ${room.players.length + 1}`),
     room,
     socket: ws,
     team,
@@ -539,6 +564,11 @@ function attachPlayer(ws, room, team) {
   room.players.push(player)
   sockets.set(ws, player)
   return player
+}
+
+function sanitizePlayerName(name, fallback = 'Spieler') {
+  const normalized = String(name ?? '').trim().replace(/\s+/g, ' ').slice(0, 24)
+  return normalized || fallback
 }
 
 function connectedPlayers(room) {
@@ -610,6 +640,7 @@ function deleteRoom(room) {
 function publicPlayers(room) {
   return room.players.map((player) => ({
     playerId: player.playerId,
+    name: player.name,
     team: player.team,
     connected: player.connected,
   }))

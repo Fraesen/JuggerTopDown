@@ -563,7 +563,7 @@ export function createRenderer({ ctx, state }) {
     ctx.textBaseline = 'middle'
     ctx.fillText(state.message, FIELD.width / 2, FIELD.height / 2 - 8)
   
-    if (!state.running && state.timeLeft > 0) {
+    if (!state.running && state.timeLeft > 0 && !state.app.mode.startsWith('pvp')) {
       ctx.font = '600 24px system-ui'
       ctx.fillStyle = 'rgba(255,247,215,0.84)'
       ctx.fillText('Start drücken', FIELD.width / 2, FIELD.height / 2 + 44)

@@ -2,7 +2,6 @@ import {
   PLAYER_POSITIONS,
   PLAYER_STRATEGIES,
   PLAYER_SKILLS,
-  POSITION_LABELS,
   SKILL_POINTS_PER_PLAYER,
   TEAM_LOADOUTS,
   TEAM_STRATEGIES,
@@ -29,15 +28,22 @@ export function renderTeamSkillPanel(
   state,
   { team = 'blue', editable = true, editSkills = editable, editPositions = editable, editLoadout = editable, editStrategies = editable } = {},
 ) {
+  const openCards = new Set(
+    [...(container.querySelectorAll?.('details[data-player-card][open]') ?? [])]
+      .map((card) => `${card.dataset.team}:${card.dataset.player}`),
+  )
   const chainOwner = TEAM_LOADOUTS[team].findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
   const currentTeamStrategy = normalizeTeamStrategy(state.nextTeamStrategies[team] ?? TEAM_STRATEGIES[team])
   const locked = Boolean(state.roundBreakLocked || !editable)
   const strategyLocked = locked || !editStrategies
   const strategyControl = editStrategies ? `
-    <article class="skill-row strategy-row">
-      <header>
-        <span>${t('formation.teamStrategyNext')}</span>
-        <strong>${strategyLocked ? t('status.locked') : teamStrategyLabel(currentTeamStrategy)}</strong>
+    <article class="skill-row strategy-row team-playbook-card">
+      <header class="player-card-header">
+        <div>
+          <span>${t('bench.teamPlan')}</span>
+          <strong>${t('formation.teamStrategyNext')}</strong>
+        </div>
+        <small>${strategyLocked ? t('status.locked') : teamStrategyLabel(currentTeamStrategy)}</small>
       </header>
       <label class="position-control">
         <span>${t('formation.strategy')}</span>
@@ -50,33 +56,57 @@ export function renderTeamSkillPanel(
     </article>
   ` : ''
 
-  const skillRows = PLAYER_SKILLS[team]
-    .map((skill, index) => {
+  const orderedPlayerIndexes = [
+    0,
+    ...PLAYER_SKILLS[team]
+      .map((_, index) => index)
+      .filter((index) => index > 0)
+      .sort((a, b) => PLAYER_POSITIONS[team][a] - PLAYER_POSITIONS[team][b]),
+  ]
+
+  const skillRows = orderedPlayerIndexes
+    .map((index) => {
+      const skill = PLAYER_SKILLS[team][index]
       const stats = statsFromSkill(skill)
       const spent = skill.technik + skill.geschwindigkeit + skill.wahrnehmung
       const techniqueOptions = playerTechniqueOptionsForIndex(index)
       const currentTechnique = techniqueOptions.some((option) => option.id === PLAYER_STRATEGIES[team][index])
         ? PLAYER_STRATEGIES[team][index]
         : techniqueOptions[0].id
+      const isRunner = index === 0
+      const loadoutSummary = isRunner ? playerStrategyLabel(currentTechnique) : pompfeLabel(TEAM_LOADOUTS[team][index])
+      const slot = PLAYER_POSITIONS[team][index] ?? index
+      const draggable = !isRunner && editPositions && !locked
+      const slotLabel = draggable ? positionText(slot) : ''
+      const open = openCards.has(`${team}:${index}`)
 
       return `
-        <article class="skill-row">
-          <header>
-            <span>${roleLabel(index)}</span>
-            <strong>${spent}/${SKILL_POINTS_PER_PLAYER}</strong>
-          </header>
-          ${renderLoadoutControls(team, index, chainOwner, currentTechnique, techniqueOptions, {
-            positionLocked: locked || !editPositions,
-            loadoutLocked: locked || !editLoadout,
-            strategyLocked: locked || !editStrategies,
-            showPosition: editPositions,
-            showLoadout: editLoadout,
-            showStrategy: editStrategies,
-          })}
-          ${renderSkillControl(index, 'technik', t('skill.technik.short'), skill, stats.technik, locked || !editSkills)}
-          ${renderSkillControl(index, 'geschwindigkeit', t('skill.geschwindigkeit.short'), skill, stats.geschwindigkeit, locked || !editSkills)}
-          ${renderSkillControl(index, 'wahrnehmung', t('skill.wahrnehmung.short'), skill, `${stats.wahrnehmung}%`, locked || !editSkills)}
-        </article>
+        ${slotLabel ? `<div class="position-lane-label">${slotLabel}</div>` : ''}
+        <details class="skill-row player-card ${isRunner ? 'runner-card' : 'pompfer-card'} ${draggable ? 'draggable-card' : ''}" data-player-card data-player="${index}" data-slot="${slot}" data-team="${team}" ${draggable ? 'draggable="true"' : ''} ${open ? 'open' : ''}>
+          <summary class="player-card-header">
+            ${draggable ? '<span class="drag-handle" aria-hidden="true"></span>' : ''}
+            <div>
+              <span>${roleLabel(index)}</span>
+              <strong>${loadoutSummary}</strong>
+            </div>
+            <small>${spent}/${SKILL_POINTS_PER_PLAYER}</small>
+          </summary>
+          <div class="player-card-body">
+            ${renderLoadoutControls(team, index, chainOwner, currentTechnique, techniqueOptions, {
+              positionLocked: locked || !editPositions,
+              loadoutLocked: locked || !editLoadout,
+              strategyLocked: locked || !editStrategies,
+              showPosition: editPositions,
+              showLoadout: editLoadout,
+              showStrategy: editStrategies,
+            })}
+            <div class="stat-stack">
+              ${renderSkillControl(index, 'technik', t('skill.technik'), skill, stats.technik, locked || !editSkills)}
+              ${renderSkillControl(index, 'geschwindigkeit', t('skill.geschwindigkeit'), skill, stats.geschwindigkeit, locked || !editSkills)}
+              ${renderSkillControl(index, 'wahrnehmung', t('skill.wahrnehmung'), skill, `${stats.wahrnehmung}%`, locked || !editSkills)}
+            </div>
+          </div>
+        </details>
       `
     })
     .join('')
@@ -88,16 +118,27 @@ export function renderFormationPanel(container, state, { team = 'blue', editable
   const currentTeamStrategy = normalizeTeamStrategy(state.nextTeamStrategies[team] ?? TEAM_STRATEGIES[team])
   const chainOwner = TEAM_LOADOUTS[team].findIndex((candidate, candidateIndex) => candidateIndex > 0 && candidate === 'chain')
   const locked = Boolean(state.roundBreakLocked || !editable)
-  const rows = PLAYER_SKILLS[team]
-    .map((_, index) => {
+  const orderedPlayerIndexes = [
+    0,
+    ...PLAYER_SKILLS[team]
+      .map((_, index) => index)
+      .filter((index) => index > 0)
+      .sort((a, b) => PLAYER_POSITIONS[team][a] - PLAYER_POSITIONS[team][b]),
+  ]
+  const rows = orderedPlayerIndexes
+    .map((index) => {
       const techniqueOptions = playerTechniqueOptionsForIndex(index)
       const currentTechnique = techniqueOptions.some((option) => option.id === PLAYER_STRATEGIES[team][index])
         ? PLAYER_STRATEGIES[team][index]
         : techniqueOptions[0].id
+      const slot = PLAYER_POSITIONS[team][index] ?? index
+      const draggable = index > 0 && !locked
 
       return `
-        <article class="formation-row">
+        ${draggable ? `<div class="position-lane-label">${positionText(slot)}</div>` : ''}
+        <article class="formation-row ${draggable ? 'draggable-formation-row draggable-card' : ''}" data-player-card data-player="${index}" data-slot="${slot}" data-team="${team}" ${draggable ? 'draggable="true"' : ''}>
           <header>
+            ${draggable ? '<span class="drag-handle" aria-hidden="true"></span>' : ''}
             <span>${roleLabel(index)}</span>
             <strong>${index === 0 ? t('role.runner') : positionText(PLAYER_POSITIONS[team][index])}</strong>
           </header>
@@ -166,14 +207,6 @@ function renderLoadoutControls(team, index, chainOwner, currentTechnique, techni
 
 function renderPompferControls(team, index, chainOwner, locks) {
   return `
-    ${locks.showPosition === false ? '' : `<label class="position-control">
-      <span>${t('formation.position')}</span>
-      <select data-player="${index}" data-position ${locks.positionLocked ? 'disabled' : ''}>
-        ${Object.keys(POSITION_LABELS)
-          .map((slot) => `<option value="${slot}" ${PLAYER_POSITIONS[team][index] === Number(slot) ? 'selected' : ''}>${positionText(slot)}</option>`)
-          .join('')}
-      </select>
-    </label>`}
     ${locks.showLoadout === false ? '' : `<label class="position-control">
       <span>${t('formation.pompfe')}</span>
       <select data-player="${index}" data-pompfe ${locks.loadoutLocked ? 'disabled' : ''}>
@@ -189,13 +222,13 @@ function renderPompferControls(team, index, chainOwner, locks) {
 function renderSkillControl(index, key, label, skill, displayValue, locked) {
   const donors = ['technik', 'geschwindigkeit', 'wahrnehmung'].filter((candidate) => candidate !== key)
   const canIncrease = donors.some((candidate) => skill[candidate] > 0)
+  const fill = Math.round((skill[key] / SKILL_POINTS_PER_PLAYER) * 100)
   return `
-    <div class="skill-control">
-      <span>${label}</span>
+    <div class="skill-control stat-control" style="--stat-fill: ${fill}%">
+      <span>${label}<small>${displayValue}</small></span>
       <button type="button" data-player="${index}" data-skill="${key}" data-delta="-1" ${locked || skill[key] <= 0 ? 'disabled' : ''}>-</button>
       <strong>${skill[key]}</strong>
       <button type="button" data-player="${index}" data-skill="${key}" data-delta="1" ${locked || !canIncrease ? 'disabled' : ''}>+</button>
-      <small>${displayValue}</small>
     </div>
   `
 }

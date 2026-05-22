@@ -50,9 +50,9 @@ export function createPvpClient({ url = defaultPvpWebSocketUrl(), onEvent = () =
 
   return {
     connect,
-    createRoom: (options = {}) => send('create_room', { isPublic: Boolean(options.isPublic) }),
+    createRoom: (options = {}) => send('create_room', { isPublic: Boolean(options.isPublic), playerName: options.playerName }),
     listPublicRooms: () => send('list_public_rooms'),
-    joinRoom: (roomCode) => send('join_room', { roomCode }),
+    joinRoom: (roomCode, options = {}) => send('join_room', { roomCode, playerName: options.playerName }),
     leaveRoom: () => {
       if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'leave_room', requestId: nextRequestId() }))
       socket?.close()
@@ -60,6 +60,7 @@ export function createPvpClient({ url = defaultPvpWebSocketUrl(), onEvent = () =
     selectTeam: (team) => send('select_team', { team }),
     sendTeamConfig: (config) => send('team_config_update', { config }),
     reportRoundBreak: (payload) => send('round_break_report', payload),
+    requestRematch: () => send('request_rematch'),
     ping: () => send('ping', { clientTime: Date.now() }),
     close: () => socket?.close(),
   }

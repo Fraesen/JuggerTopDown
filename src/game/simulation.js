@@ -77,6 +77,7 @@ import {
   ROUND_BREAK_SECONDS,
   ROUND_BREAK_STONES,
   SIMULATION_STEP_SECONDS,
+  createInitialState,
 } from './state.js'
 import { createSeededRng } from './rng.js'
 import { createParticleSystem } from './particles.js'
@@ -94,6 +95,7 @@ export function createSimulation({
   headless = false,
   onLocalTeamConfigChanged = null,
   onRoundBreakStarted = null,
+  onRoundStarted = null,
 }) {
   const rng = state.rng
   const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
@@ -422,10 +424,12 @@ export function createSimulation({
     state.roundBreakTimer = 0
     state.roundBreakLocked = false
     state.roundBreakPrecomputed = false
+    state.roundSetupOpen = false
     state.roundTime = 0
     state.message = message
     state.messageTimer = 1.5
     if (!headless && state.running && cinema?.isEnabled()) prepareCinemaPrecompute()
+    if (!headless && state.running) onRoundStarted?.({ reason: 'new-round' })
   }
   
   function beginRoundBreak(message, { notify = true } = {}) {
@@ -435,6 +439,7 @@ export function createSimulation({
     state.roundBreakLabel = message
     state.roundBreakLocked = false
     state.roundBreakPrecomputed = false
+    state.roundSetupOpen = true
     state.message = t('match.strategyBreakWithStones', { label: message, stones: ROUND_BREAK_STONES })
     state.messageTimer = ROUND_BREAK_SECONDS
     state.jugg.carrier = null
@@ -493,6 +498,7 @@ export function createSimulation({
     state.roundBreakLabel = ''
     state.roundBreakLocked = false
     state.roundBreakPrecomputed = false
+    state.roundSetupOpen = false
     state.pvp.roundId = 1
     state.pvp.nextRoundId = 1
     state.pvp.roundBreakEndsAt = null
@@ -609,6 +615,26 @@ export function createSimulation({
   function cloneStateForPrecompute() {
     return cloneStateForCinemaPrecompute({ state, rng })
   }
+
+  function analyzeCinemaScenes({ seed = null, fresh = false } = {}) {
+    if (!fresh && (seed === null || String(seed) === state.matchSeed)) return precomputeCinemaScenes().scenes
+
+    const forkState = createInitialState(String(seed ?? state.matchSeed))
+    forkState.app.mode = state.app.mode
+    forkState.nextTeamStrategies = { ...state.nextTeamStrategies }
+    forkState.playbackSpeed = state.playbackSpeed
+    const forkCinema = createCinemaDirector({ state: forkState, debug: false })
+    const forkSimulation = createSimulation({
+      state: forkState,
+      hud: createHeadlessHud(),
+      updateHud: () => {},
+      updatePlayerTooltip: () => {},
+      cinema: forkCinema,
+      headless: true,
+    })
+    forkSimulation.resetMatch()
+    return forkSimulation.analyzeCinemaScenes()
+  }
   
   function startMatch() {
     if (state.timeLeft <= 0 || state.score.blue >= MATCH_POINT || state.score.red >= MATCH_POINT) resetMatch()
@@ -621,6 +647,7 @@ export function createSimulation({
     hud.startBtn.textContent = t('controls.continue')
     hud.pauseBtn.textContent = t('controls.pause')
     if (!wasRunning && cinema?.isEnabled()) prepareCinemaPrecompute()
+    if (!wasRunning) onRoundStarted?.({ reason: 'match-start' })
   }
   
   function togglePause() {
@@ -1734,9 +1761,10 @@ export function createSimulation({
   function updateRoundBreak(dt) {
     if (state.roundBreakTimer <= 0) return false
     const wasLocked = state.roundBreakLocked
+    const setupPaused = state.app.mode === 'bot' && state.roundSetupOpen && !state.roundBreakLocked
     if (state.app.mode === 'pvpMatch' && state.pvp.roundBreakEndsAt) {
       state.roundBreakTimer = Math.max(0, (state.pvp.roundBreakEndsAt - Date.now()) / 1000)
-    } else {
+    } else if (!setupPaused) {
       const realDt = dt / Math.max(state.playbackSpeed, 0.001)
       state.roundBreakTimer = Math.max(0, state.roundBreakTimer - realDt)
     }
@@ -1874,6 +1902,7 @@ export function createSimulation({
     renderSkillPanel,
     deterministicSnapshot,
     applyTeamConfig,
+    analyzeCinemaScenes,
     exportTeamConfig,
     syncPvpRoundBreak,
     setCinemaMode,

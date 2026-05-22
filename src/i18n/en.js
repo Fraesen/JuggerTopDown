@@ -4,8 +4,15 @@ export const en = {
 
   'nav.aria': 'Main navigation',
   'nav.home': 'Home',
+  'nav.formation': 'Formation',
   'nav.docs': 'Docs',
+  'nav.theme': 'Color theme',
   'nav.language': 'Language',
+
+  'theme.classic': 'Dark field',
+  'theme.floodlight': 'Floodlight',
+  'theme.ember': 'Ember',
+  'theme.chalk': 'Chalk',
 
   'team.blue': 'Blue',
   'team.red': 'Red',
@@ -13,6 +20,7 @@ export const en = {
   'team.my': 'My team ({team})',
 
   'menu.botGame': 'Play against bots',
+  'menu.formation': 'Formation',
   'menu.createGame': 'Create game',
   'menu.joinGame': 'Join game',
   'menu.publicRooms': 'Public rooms',
@@ -25,6 +33,8 @@ export const en = {
   'controls.pause': 'Pause',
   'controls.reset': 'Reset',
   'controls.newMatch': 'New match',
+  'controls.done': 'Done',
+  'controls.rematch': 'Play again',
   'controls.speed': 'Game speed',
   'controls.seed': 'Seed',
   'controls.cinema': 'Cinema Mode',
@@ -57,6 +67,8 @@ export const en = {
   'status.otherPlayerLeft': 'The second player is no longer connected.',
   'status.pvpServerOutdated': 'Restart PvP server',
   'status.pvpServerOutdatedDetail': 'The PvP server is outdated. Please restart the server so round breaks can be synchronized.',
+  'status.rematchRequested': 'Rematch requested',
+  'status.rematchIncoming': 'Opponent wants a rematch',
 
   'match.autobattler': 'Autobattler',
   'match.autobattlerLive': 'Autobattler live',
@@ -79,6 +91,8 @@ export const en = {
   'match.strategyBreakWithStones': '{label} - strategy break, {stones} stones',
 
   'possession.runner': '{team} runner',
+  'pvp.yourTeamColor': 'Your team color',
+  'pvp.opponentTeamColor': 'Opponent team color',
   'arena.aria': 'Jugger field',
   'modal.close': 'Close',
   'modal.createTitle': 'Create game',
@@ -108,6 +122,11 @@ export const en = {
   'panel.rules': 'Rules',
   'panel.opponent': 'Opponent',
   'panel.localTeam': 'My team ({team})',
+  'panel.tactics': 'Tactics',
+  'panel.matchTools': 'Direction',
+  'panel.direction': 'Match',
+
+  'bench.teamPlan': 'Game plan',
 
   'skill.technik.short': 'T',
   'skill.geschwindigkeit.short': 'S',
@@ -118,6 +137,12 @@ export const en = {
   'skill.wahrnehmung': 'Awareness',
 
   'formation.teamStrategyNext': 'Team strategy for next round',
+  'formation.managerTitle': 'Manage formation',
+  'formation.presetName': 'Formation name',
+  'formation.playerNames': 'Player names',
+  'formation.noPresets': 'No saved formation',
+  'formation.loadPreset': 'Load',
+  'formation.savePreset': 'Save',
   'formation.teamStrategy': 'Team strategy',
   'formation.strategy': 'Strategy',
   'formation.position': 'Position',
@@ -193,6 +218,11 @@ export const en = {
   'rule.26': 'Aggressive: much smaller double window',
   'rule.27': 'Flank: after a clear first hit, attack from behind',
   'rule.28': 'Cinema Mode: automatic camera and slow motion',
+  'ruleGroup.match': 'Match',
+  'ruleGroup.roles': 'Roles',
+  'ruleGroup.duels': 'Hits & duels',
+  'ruleGroup.pompfen': 'Pompfen',
+  'ruleGroup.tactics': 'Calls & strategies',
 
   'docs.html': `
     <article class="docs-article">

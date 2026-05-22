@@ -1,5 +1,6 @@
 import './style.css'
 import { createCinemaDirector } from './game/cinema.js'
+import { createMenuCinema } from './game/menuCinema.js'
 import { MATCH_SECONDS, STONE_SECONDS } from './game/config.js'
 import { createRenderer } from './game/renderer.js'
 import { ROUND_BREAK_LOCK_STONES, SIMULATION_STEP_SECONDS, createInitialState } from './game/state.js'
@@ -9,18 +10,28 @@ import { mountAppShell } from './ui/appShell.js'
 import { createHudController } from './ui/hudController.js'
 import { renderFormationPanel, renderTeamSkillPanel } from './ui/skillPanel.js'
 import { applyTranslations, setLanguage, t, teamLabel } from './i18n/index.js'
+import { getTheme, setTheme, themeOptionsHtml } from './ui/themes.js'
 
 const { canvas, ctx, arenaWrap, hud } = mountAppShell()
 
 const state = createInitialState()
+const PLAYER_NAME_STORAGE_KEY = 'juggerTopDown.playerName'
+const FORMATION_PRESETS_STORAGE_KEY = 'juggerTopDown.formationPresets'
 
 const renderer = createRenderer({ ctx, state })
 const hudController = createHudController({ state, hud, canvas, arenaWrap })
 const { canvasPointFromEvent, hidePlayerTooltip, updateHud, updatePlayerTooltip, zoomCameraAt } = hudController
 const cinema = createCinemaDirector({ state })
+const menuCinema = createMenuCinema({
+  canvas: hud.menuCinemaCanvas,
+  appMode: () => state.app.mode,
+})
 let pvpClient = null
 let pvpPrepModalKey = ''
 let roundSetupOverlayKey = ''
+let draggedFormationPlayer = null
+let seedPreviewTimer = null
+let formationPresetSurfaceKey = ''
 const simulation = createSimulation({
   state,
   hud,
@@ -33,9 +44,13 @@ const simulation = createSimulation({
   onRoundBreakStarted: (payload) => {
     if (state.app.mode === 'pvpMatch') pvpClient?.reportRoundBreak(payload)
   },
+  onRoundStarted: () => {
+    if (state.app.mode === 'bot') logMenuCinemaReelSnippet()
+  },
 })
 const {
   applyTeamConfig,
+  analyzeCinemaScenes,
   exportTeamConfig,
   reportFrameError,
   resetMatch,
@@ -64,6 +79,7 @@ function loop(time) {
   const rawDt = Math.min(inPvpMatch ? MATCH_SECONDS : 0.033, elapsedDt)
   state.lastTime = time
   try {
+    menuCinema.update(rawDt)
     if (state.running && !state.paused) {
       cinema.update(rawDt)
       const playbackSpeed = state.cinema.enabled ? state.cinema.playbackSpeed : state.playbackSpeed
@@ -80,6 +96,7 @@ function loop(time) {
     renderer.draw()
     updateHud()
     syncPreparationUi()
+    syncFormationPresetSurfaces()
   } catch (error) {
     reportFrameError('Frame', error)
   }
@@ -93,6 +110,7 @@ function bindInput() {
   })
 
   hud.botGameBtn.addEventListener('click', startBotGame)
+  hud.openFormationBtn.addEventListener('click', showFormationManager)
   hud.createGameBtn.addEventListener('click', openCreateGameModal)
   hud.joinGameBtn.addEventListener('click', openJoinGameModal)
   hud.refreshPublicRoomsBtn.addEventListener('click', () => pvpClient.listPublicRooms())
@@ -101,14 +119,21 @@ function bindInput() {
     if (button) joinPublicRoom(button.dataset.publicRoom)
   })
   hud.homeNavBtn.addEventListener('click', goHome)
+  hud.formationNavBtn.addEventListener('click', showFormationManager)
   hud.docsNavBtn.addEventListener('click', showDocs)
+  hud.drawerToggle.addEventListener('click', toggleTacticalDrawer)
+  hud.drawerClose.addEventListener('click', closeTacticalDrawer)
   hud.languageSelect.addEventListener('change', () => {
     setLanguage(hud.languageSelect.value)
     syncLanguageUi()
   })
+  hud.themeSelect.addEventListener('change', () => setTheme(hud.themeSelect.value))
+  hud.profileNameBtn.addEventListener('click', openProfileNameDialog)
+  hud.profileForm.addEventListener('submit', saveProfileName)
   hud.pvpModalClose.addEventListener('click', closePvpModal)
   hud.pvpModal.addEventListener('click', (event) => {
     if (event.target === hud.pvpModal && state.app.mode === 'pvpLobby') closePvpModal()
+    handleFormationPresetClick(event)
     const finishSkillButton = event.target.closest('[data-finish-skill-setup]')
     if (finishSkillButton) finishInitialSkillSetup()
     const teamButton = event.target.closest('[data-team-choice]')
@@ -134,11 +159,39 @@ function bindInput() {
     if (button && state.app.mode !== 'pvpMatch') selectPvpTeam(button.dataset.teamChoice)
   })
   hud.roundSetupOverlay.addEventListener('change', handleTeamConfigChange)
+  hud.roundSetupOverlay.addEventListener('click', (event) => {
+    if (event.target.closest('[data-close-round-setup]')) closeRoundSetupOverlay()
+    handleFormationPresetClick(event)
+    handleTeamConfigClick(event)
+  })
+  bindFormationDrag(hud.skillList)
+  bindFormationDrag(hud.pvpModal)
+  bindFormationDrag(hud.roundSetupOverlay)
+  bindFormationDrag(hud.formationManagerFormation)
+  hud.formationBackBtn.addEventListener('click', goHome)
+  hud.formationManagerPresets.addEventListener('click', handleFormationPresetClick)
+  hud.formationManagerPresets.addEventListener('change', handleTeamConfigChange)
+  hud.botFormationPresets.addEventListener('click', handleFormationPresetClick)
+  hud.botFormationPresets.addEventListener('change', handleTeamConfigChange)
+  hud.formationManagerSkills.addEventListener('click', (event) => {
+    handleTeamConfigClick(event)
+    renderFormationManager()
+  })
+  hud.formationManagerSkills.addEventListener('change', (event) => {
+    handleTeamConfigChange(event)
+    renderFormationManager()
+  })
+  hud.formationManagerFormation.addEventListener('change', (event) => {
+    handleTeamConfigChange(event)
+    renderFormationManager()
+  })
 
   hud.startBtn.addEventListener('click', startMatch)
   hud.pauseBtn.addEventListener('click', togglePause)
-  hud.resetBtn.addEventListener('click', resetMatch)
+  hud.resetBtn.addEventListener('click', handleResetClick)
+  hud.rematchBtn?.addEventListener('click', requestPvpRematch)
   hud.seedInput.addEventListener('change', applySeedFromInput)
+  hud.seedInput.addEventListener('input', scheduleSeedCinemaPreview)
   hud.seedInput.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return
     event.preventDefault()
@@ -177,8 +230,142 @@ function bindInput() {
   hud.skillList.addEventListener('change', handleTeamConfigChange)
 }
 
+function requestPvpRematch() {
+  if (state.app.mode !== 'pvpMatch') return
+  state.pvp.statusText = t('status.rematchRequested')
+  pvpClient?.requestRematch()
+  updateHud()
+}
+
+function handleResetClick() {
+  if (state.app.mode.startsWith('pvp')) return
+  resetMatch()
+}
+
+function bindFormationDrag(container) {
+  container.addEventListener('dragstart', (event) => {
+    const card = event.target.closest('[data-player-card][draggable="true"]')
+    if (!card || Number(card.dataset.player) <= 0) return
+    draggedFormationPlayer = Number(card.dataset.player)
+    card.classList.add('dragging')
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(draggedFormationPlayer))
+  })
+
+  container.addEventListener('dragover', (event) => {
+    const target = event.target.closest('[data-player-card][data-slot]')
+    if (!target || Number(target.dataset.player) <= 0 || draggedFormationPlayer === null) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    target.classList.add('drag-over')
+  })
+
+  container.addEventListener('dragleave', (event) => {
+    event.target.closest('[data-player-card]')?.classList.remove('drag-over')
+  })
+
+  container.addEventListener('drop', (event) => {
+    const target = event.target.closest('[data-player-card][data-slot]')
+    if (!target || Number(target.dataset.player) <= 0 || draggedFormationPlayer === null) return
+    event.preventDefault()
+    const targetSlot = Number(target.dataset.slot)
+    if (Number.isFinite(targetSlot)) {
+      setBluePosition(draggedFormationPlayer, targetSlot)
+      renderFormationManager()
+      rerenderPvpPreparationModal()
+      rerenderRoundSetupOverlay()
+    }
+    clearFormationDragState()
+  })
+
+  container.addEventListener('dragend', clearFormationDragState)
+}
+
+function logMenuCinemaReelSnippet() {
+  const blue = exportTeamConfig('blue')
+  const red = exportTeamConfig('red')
+  const reel = {
+    seed: state.matchSeed,
+    durationSeconds: 18,
+    blueStrategy: blue.teamStrategy,
+    redStrategy: red.teamStrategy,
+    loadouts: {
+      blue: blue.loadout,
+      red: red.loadout,
+    },
+    positions: {
+      blue: blue.positions,
+      red: red.positions,
+    },
+    playerStrategies: {
+      blue: blue.playerStrategies,
+      red: red.playerStrategies,
+    },
+    skills: {
+      blue: blue.skills,
+      red: red.skills,
+    },
+  }
+  console.info(`[MenuCinema] Runde als Reel kopieren:\n${JSON.stringify(reel, null, 2)},`)
+}
+
+function scheduleSeedCinemaPreview() {
+  window.clearTimeout(seedPreviewTimer)
+  seedPreviewTimer = window.setTimeout(() => {
+    applySeedFromInput({ previewOnly: true })
+  }, 350)
+}
+
+function logSeedCinemaPreview(seed) {
+  try {
+    const scenes = analyzeCinemaScenes({ seed, fresh: true })
+    const summaries = scenes.map((scene) => ({
+      type: scene.type,
+      title: scene.title,
+      startAt: Number((scene.startAt ?? 0).toFixed(2)),
+      endAt: Number((scene.endAt ?? 0).toFixed(2)),
+      priority: scene.priority,
+      participants: scene.participantIds,
+    }))
+    const label = scenes.length === 1 ? 'Cinemaeinsatz' : 'Cinemaeinsätze'
+    console.info(`[MenuCinema] Seed "${seed}": ${scenes.length} ${label} vorgeplant`, summaries)
+    if (scenes.length > 0) logMenuCinemaReelSnippet()
+  } catch (error) {
+    console.error('[MenuCinema] Seed konnte nicht vorgeplant werden', error)
+  }
+}
+
+function clearFormationDragState() {
+  draggedFormationPlayer = null
+  document.querySelectorAll('.dragging, .drag-over').forEach((element) => {
+    element.classList.remove('dragging', 'drag-over')
+  })
+}
+
+function toggleTacticalDrawer() {
+  const open = hud.gameShell.classList.toggle('tactics-open')
+  hud.gameShell.classList.toggle('drawer-collapsed', !open)
+  hud.drawerToggle.setAttribute('aria-expanded', String(open))
+}
+
+function closeTacticalDrawer() {
+  hud.gameShell.classList.remove('tactics-open')
+  hud.gameShell.classList.add('drawer-collapsed')
+  hud.drawerToggle.setAttribute('aria-expanded', 'false')
+}
+
+function closeRoundSetupOverlay() {
+  state.roundSetupOpen = false
+  hud.roundSetupOverlay.hidden = true
+  roundSetupOverlayKey = ''
+}
+
 function syncLanguageUi() {
   applyTranslations(document)
+  if (hud.themeSelect) {
+    hud.themeSelect.innerHTML = themeOptionsHtml()
+    hud.themeSelect.value = getTheme()
+  }
   const docsShell = hud.docsView?.querySelector('.docs-shell')
   if (docsShell) docsShell.innerHTML = t('docs.html')
   renderSkillPanel()
@@ -191,11 +378,171 @@ function syncLanguageUi() {
 }
 
 function handleTeamConfigClick(event) {
+  const positionButton = event.target.closest('button[data-position]')
+  if (positionButton) {
+    setBluePosition(Number(positionButton.dataset.player), Number(positionButton.dataset.position))
+    rerenderPvpPreparationModal()
+    rerenderRoundSetupOverlay()
+    return
+  }
+
   const button = event.target.closest('button[data-player]')
   if (!button || !button.dataset.skill) return
   setBlueSkill(Number(button.dataset.player), button.dataset.skill, Number(button.dataset.delta))
   rerenderPvpPreparationModal()
   rerenderRoundSetupOverlay()
+}
+
+function handleFormationPresetClick(event) {
+  const saveButton = event.target.closest('[data-save-formation-preset]')
+  if (saveButton) {
+    saveFormationPreset()
+    return
+  }
+  const loadButton = event.target.closest('[data-load-formation-preset]')
+  if (loadButton) loadSelectedFormationPreset(loadButton.dataset.loadFormationPreset)
+}
+
+function saveFormationPreset() {
+  const name = normalizePresetName(hud.formationPresetName?.value || window.prompt('Name der Aufstellung?', currentPresetName()))
+  if (!name) return
+  const team = editablePvpFormationTeam()
+  const config = exportTeamConfig(team)
+  const presets = formationPresets().filter((preset) => preset.name !== name)
+  presets.unshift({
+    name,
+    skills: config.skills,
+    loadout: config.loadout,
+    positions: config.positions,
+    playerStrategies: config.playerStrategies,
+    teamStrategy: config.teamStrategy,
+    playerNames: collectFormationPlayerNames(),
+  })
+  localStorage.setItem(FORMATION_PRESETS_STORAGE_KEY, JSON.stringify(presets.slice(0, 12)))
+  renderFormationPresetSurfaces()
+  rerenderPvpPreparationModal()
+  rerenderRoundSetupOverlay()
+}
+
+function loadSelectedFormationPreset(name) {
+  const presetName = normalizePresetName(name)
+  const preset = formationPresets().find((candidate) => candidate.name === presetName)
+  if (!preset) return
+  const team = editablePvpFormationTeam()
+  const version = (state.pvp.teamVersions[team] ?? 0) + 1
+  applyTeamConfig({
+    team,
+    version,
+    skills: canLoadPresetSkills() ? preset.skills : undefined,
+    loadout: preset.loadout,
+    positions: preset.positions,
+    playerStrategies: preset.playerStrategies,
+    teamStrategy: preset.teamStrategy,
+  })
+  renderFormationPlayerNames(preset.playerNames)
+  if (state.app.mode.startsWith('pvp')) pvpClient?.sendTeamConfig(exportTeamConfig(team))
+  renderFormationManager()
+  renderFormationPresetSurfaces()
+  rerenderPvpPreparationModal()
+  rerenderRoundSetupOverlay()
+}
+
+function formationPresets() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FORMATION_PRESETS_STORAGE_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed.filter((preset) => preset?.name) : []
+  } catch {
+    return []
+  }
+}
+
+function formationPresetControlsHtml({ allowSave = true } = {}) {
+  const presets = formationPresets()
+  return `
+    <div class="formation-presets">
+      <select data-formation-preset ${presets.length ? '' : 'disabled'}>
+      ${presets.length
+          ? presets.map((preset) => `<option value="${escapeHtml(preset.name)}">${escapeHtml(preset.name)}</option>`).join('')
+          : `<option>${t('formation.noPresets')}</option>`}
+      </select>
+      <button type="button" data-load-formation-preset="${escapeHtml(presets[0]?.name ?? '')}" ${presets.length ? '' : 'disabled'}>${t('formation.loadPreset')}</button>
+      ${allowSave ? `<button type="button" data-save-formation-preset>${t('formation.savePreset')}</button>` : ''}
+    </div>
+  `
+}
+
+function syncFormationPresetLoadButtons(container) {
+  const select = container.querySelector('[data-formation-preset]')
+  const button = container.querySelector('[data-load-formation-preset]')
+  if (select && button) button.dataset.loadFormationPreset = select.value
+}
+
+function editablePvpFormationTeam() {
+  return state.app.mode === 'pvpMatch' || state.app.mode === 'pvpSetup' ? state.pvp.localTeam : 'blue'
+}
+
+function canLoadPresetSkills() {
+  return state.app.mode === 'formation' || state.app.mode === 'bot' || state.app.mode === 'pvpSetup'
+}
+
+function collectFormationPlayerNames() {
+  const inputs = hud.formationPlayerNames?.querySelectorAll?.('[data-player-name]')
+  if (!inputs?.length) return []
+  return [...inputs].map((input) => normalizePlayerName(input.value))
+}
+
+function renderFormationPlayerNames(names = []) {
+  if (!hud.formationPlayerNames) return
+  hud.formationPlayerNames.innerHTML = Array.from({ length: 5 }, (_, index) => {
+    const fallback = index === 0 ? t('role.runner') : t('role.pompfer', { index })
+    return `
+      <label>
+        <span>${fallback}</span>
+        <input type="text" data-player-name="${index}" maxlength="24" value="${escapeHtml(names[index] || fallback)}" />
+      </label>
+    `
+  }).join('')
+}
+
+function renderFormationPresetSurfaces() {
+  if (hud.formationManagerPresets) hud.formationManagerPresets.innerHTML = formationPresetControlsHtml()
+  if (hud.botFormationPresets) {
+    const show = state.app.mode === 'bot' && (!state.running || state.roundBreakTimer > 0)
+    hud.botFormationPresets.hidden = !show
+    hud.botFormationPresets.innerHTML = show ? formationPresetControlsHtml() : ''
+  }
+}
+
+function syncFormationPresetSurfaces() {
+  const key = `${state.app.mode}:${state.running}:${Math.ceil(state.roundBreakTimer)}:${formationPresets().length}`
+  if (key === formationPresetSurfaceKey) return
+  formationPresetSurfaceKey = key
+  renderFormationPresetSurfaces()
+}
+
+function renderFormationManager() {
+  if (!hud.formationView || state.app.mode !== 'formation') return
+  if (!hud.formationPresetName.value) hud.formationPresetName.value = currentPresetName()
+  renderFormationPresetSurfaces()
+  if (!hud.formationPlayerNames.innerHTML) renderFormationPlayerNames(formationPresets()[0]?.playerNames)
+  renderFormationPanel(hud.formationManagerFormation, state, { team: 'blue', editable: true })
+  renderTeamSkillPanel(hud.formationManagerSkills, state, {
+    team: 'blue',
+    editable: true,
+    editSkills: true,
+    editLoadout: false,
+    editPositions: false,
+    editStrategies: false,
+  })
+}
+
+function currentPresetName() {
+  const date = new Date()
+  return `Aufstellung ${date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+function normalizePresetName(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, 32)
 }
 
 function finishInitialSkillSetup() {
@@ -237,6 +584,11 @@ function handleTeamConfigChange(event) {
       rerenderPvpPreparationModal()
       rerenderRoundSetupOverlay()
     }
+
+    const presetSelect = event.target.closest('select[data-formation-preset]')
+    if (presetSelect) {
+      syncFormationPresetLoadButtons(presetSelect.closest('.formation-presets'))
+    }
 }
 
 function startBotGame() {
@@ -247,7 +599,68 @@ function startBotGame() {
   hud.roundCountdownOverlay.hidden = true
   resetMatch()
   renderSkillPanel()
+  renderFormationPresetSurfaces()
   updateHud()
+}
+
+function showFormationManager() {
+  if (state.app.mode.startsWith('pvp')) pvpClient?.leaveRoom()
+  resetPvpState()
+  state.app.mode = 'formation'
+  hud.pvpModal.hidden = true
+  hud.roundSetupOverlay.hidden = true
+  hud.roundCountdownOverlay.hidden = true
+  state.running = false
+  state.paused = false
+  resetMatch()
+  renderFormationPlayerNames(formationPresets()[0]?.playerNames)
+  renderFormationManager()
+  updateHud()
+}
+
+function initializePlayerName() {
+  const savedName = normalizePlayerName(localStorage.getItem(PLAYER_NAME_STORAGE_KEY))
+  if (savedName) {
+    state.pvp.playerName = savedName
+    updateProfileNameButton()
+    return
+  }
+  state.pvp.playerName = ''
+  openProfileNameDialog()
+}
+
+function openProfileNameDialog() {
+  hud.profileNameInput.value = state.pvp.playerName || ''
+  hud.profileModal.hidden = false
+  setTimeout(() => hud.profileNameInput.focus(), 0)
+}
+
+function saveProfileName(event) {
+  event.preventDefault()
+  const name = normalizePlayerName(hud.profileNameInput.value)
+  if (!name) {
+    hud.profileNameInput.focus()
+    return
+  }
+  state.pvp.playerName = name
+  localStorage.setItem(PLAYER_NAME_STORAGE_KEY, name)
+  hud.profileModal.hidden = true
+  updateProfileNameButton()
+  if (state.app.mode.startsWith('pvp') || state.pvp.modal) renderPvpModal()
+  updateHud()
+}
+
+function updateProfileNameButton() {
+  if (hud.profileNameBtn) hud.profileNameBtn.textContent = state.pvp.playerName || 'Name'
+}
+
+function normalizePlayerName(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, 24)
+}
+
+function currentPlayerName() {
+  if (!state.pvp.playerName) initializePlayerName()
+  return state.pvp.playerName || 'Spieler'
 }
 
 function goHome() {
@@ -260,6 +673,7 @@ function goHome() {
   resetMatch()
   renderSkillPanel()
   renderPublicRooms()
+  renderFormationPresetSurfaces()
   pvpClient?.connect()
   updateHud()
 }
@@ -323,7 +737,7 @@ function joinPvpRoom(code) {
   state.pvp.error = ''
   state.pvp.statusText = t('status.connectingRoom')
   renderPvpModal()
-  pvpClient.joinRoom(code)
+  pvpClient.joinRoom(code, { playerName: currentPlayerName() })
 }
 
 function joinPublicRoom(code) {
@@ -341,7 +755,7 @@ function createPvpRoom(form) {
   state.pvp.error = ''
   state.pvp.statusText = t('status.createRoom')
   renderPvpModal()
-  pvpClient.createRoom({ isPublic: state.pvp.createPublic })
+  pvpClient.createRoom({ isPublic: state.pvp.createPublic, playerName: currentPlayerName() })
 }
 
 function selectPvpTeam(team) {
@@ -419,7 +833,7 @@ function roundSetupTeam() {
 }
 
 function syncRoundSetupOverlay() {
-  const show = (state.app.mode === 'bot' || state.app.mode === 'pvpMatch') && state.roundBreakTimer > 0 && !state.roundBreakLocked
+  const show = (state.app.mode === 'bot' || state.app.mode === 'pvpMatch') && state.roundBreakTimer > 0 && !state.roundBreakLocked && state.roundSetupOpen
   hud.roundSetupOverlay.hidden = !show
   if (!show) {
     roundSetupOverlayKey = ''
@@ -451,7 +865,9 @@ function renderRoundSetupOverlay(team, stonesLeft) {
           <strong>${t('setup.nextFormation')}</strong>
         </div>
         <b id="round-setup-stones">${t('setup.stones', { count: stonesLeft })}</b>
+        <button type="button" data-close-round-setup>${t('controls.done')}</button>
       </header>
+      ${state.app.mode === 'pvpMatch' ? formationPresetControlsHtml({ allowSave: false }) : state.app.mode === 'bot' ? formationPresetControlsHtml() : ''}
       <div id="round-formation-list" class="formation-list"></div>
     </section>
   `
@@ -505,6 +921,7 @@ function renderPvpPreparationModal() {
           </div>
           <b id="pvp-modal-countdown">${secondsLeft}s</b>
         </div>
+        ${formationPresetControlsHtml({ allowSave: false })}
         <div id="pvp-modal-local-team" class="skill-list pvp-skill-setup-grid"></div>
         <button class="primary pvp-setup-save" type="button" data-finish-skill-setup>${t('setup.saveSkills')}</button>
       </div>
@@ -530,20 +947,12 @@ function renderPvpPreparationModal() {
         <b id="pvp-modal-countdown">${secondsLeft}s</b>
       </div>
       <div id="pvp-modal-local-team" class="formation-list"></div>
-      <details class="collapsible-panel skill-panel">
-        <summary class="panel-heading">
-          <span>${t('panel.opponent')}</span>
-          <strong>${teamLabel(opponent)}</strong>
-        </summary>
-        <div id="pvp-modal-opponent-team" class="skill-list"></div>
-      </details>
+      ${formationPresetControlsHtml({ allowSave: false })}
     </div>
   `
 
   const localContainer = hud.pvpModalBody.querySelector('#pvp-modal-local-team')
-  const opponentContainer = hud.pvpModalBody.querySelector('#pvp-modal-opponent-team')
   renderFormationPanel(localContainer, state, { team, editable: isInitialSetup || (!locked && state.roundBreakTimer > 0) })
-  renderTeamSkillPanel(opponentContainer, state, { team: opponent, editable: false })
 }
 
 function createRoomModalHtml() {
@@ -555,6 +964,7 @@ function createRoomModalHtml() {
           <span>${t('modal.publicRoom')}</span>
         </label>
         <button class="primary" type="submit">${t('modal.createRoom')}</button>
+        <p class="modal-status">Name: ${escapeHtml(currentPlayerName())}</p>
         <p class="modal-status">${state.pvp.statusText || t('status.chooseRoomOptions')}</p>
         ${state.pvp.error ? `<p class="modal-error">${state.pvp.error}</p>` : ''}
         ${teamChoiceHtml()}
@@ -565,6 +975,7 @@ function createRoomModalHtml() {
     <div class="modal-body-grid">
       <div class="room-code">${state.pvp.roomCode || '-----'}</div>
       <p class="modal-status">${state.pvp.createPublic ? t('status.publicListed') : t('status.privateRoom')}</p>
+      ${pvpPlayersHtml()}
       <p class="modal-status">${state.pvp.connected ? t('status.playersConnected') : state.pvp.statusText || t('status.waitingSecondPlayer')}</p>
       ${state.pvp.error ? `<p class="modal-error">${state.pvp.error}</p>` : ''}
       ${teamChoiceHtml()}
@@ -577,11 +988,37 @@ function joinRoomModalHtml() {
     <form data-join-form>
       <input name="roomCode" maxlength="5" pattern="[A-Za-z0-9]{5}" autocomplete="off" placeholder="${t('modal.codePlaceholder')}" value="${state.pvp.roomCode}" />
       <button class="primary" type="submit">${t('modal.join')}</button>
+      <p class="modal-status">Name: ${escapeHtml(currentPlayerName())}</p>
       <p class="modal-status">${state.pvp.statusText || t('modal.enterFiveCharCode')}</p>
       ${state.pvp.error ? `<p class="modal-error">${state.pvp.error}</p>` : ''}
       ${teamChoiceHtml()}
     </form>
   `
+}
+
+function pvpPlayersHtml() {
+  const players = Array.isArray(state.pvp.players) ? state.pvp.players : []
+  if (!players.length) return ''
+  return `
+    <div class="pvp-player-list">
+      ${players
+        .map((player) => {
+          const local = player.playerId === state.pvp.playerId
+          const label = local ? t('pvp.yourTeamColor') : t('pvp.opponentTeamColor')
+          return `<span>${label}</span><strong>${teamLabel(player.team)}</strong>`
+        })
+        .join('')}
+    </div>
+  `
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function teamChoiceHtml() {
@@ -607,10 +1044,12 @@ function publicRoomHtml(room) {
   if (!/^[A-Z0-9]{5}$/.test(code)) return ''
   const players = Math.max(0, Math.min(Number(room.players) || 0, Number(room.maxPlayers) || 2))
   const maxPlayers = Math.max(2, Number(room.maxPlayers) || 2)
+  const hostName = escapeHtml(room.hostName || 'Host')
   return `
     <article class="public-room-card">
       <div>
         <strong>${code}</strong>
+        <span>${hostName}</span>
         <span>${t('menu.roomPlayers', { players, maxPlayers })}</span>
       </div>
       <button type="button" data-public-room="${code}">${t('modal.join')}</button>
@@ -694,6 +1133,9 @@ function handlePvpEvent(message) {
       break
     case 'match_start':
       startPvpMatch(message)
+      break
+    case 'rematch_requested':
+      state.pvp.statusText = message.playerId === state.pvp.playerId ? t('status.rematchRequested') : t('status.rematchIncoming')
       break
     case 'round_break_started':
       syncPvpRoundBreak({
@@ -819,16 +1261,18 @@ function parseServerTimestamp(serverValue) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function applySeedFromInput() {
+function applySeedFromInput({ previewOnly = false } = {}) {
   const seed = hud.seedInput.value.trim() || state.matchSeed
   const changed = seed !== state.matchSeed
   setMatchSeed(seed, { resetRng: !state.running })
   if (!state.running && changed) resetMatch()
+  if (state.app.mode === 'bot') logSeedCinemaPreview(seed)
   updateHud()
 }
 
 resetMatch()
 bindInput()
+initializePlayerName()
 renderSkillPanel()
 renderPublicRooms()
 setPlaybackSpeed(state.playbackSpeed)

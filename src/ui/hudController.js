@@ -1,5 +1,5 @@
 import { CAMERA_MAX_ZOOM, CAMERA_MIN_ZOOM, CAMERA_ZOOM_STEP } from '../game/state.js'
-import { FIELD, TEAM_STRATEGIES } from '../game/config.js'
+import { FIELD, STONE_SECONDS, TEAM_STRATEGIES } from '../game/config.js'
 import { clamp, distance } from '../game/geometry.js'
 import { isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot, roleLabel, skillForPlayer } from '../game/players.js'
 import { pompfeFor, pompfeLabel } from '../game/pompfen.js'
@@ -39,8 +39,15 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     const inPvp = mode.startsWith('pvp')
     if (hud.mainMenu) hud.mainMenu.hidden = mode !== 'menu' && mode !== 'pvpLobby'
     if (hud.gameShell) hud.gameShell.hidden = mode === 'menu' || mode === 'pvpLobby' || mode === 'docs'
+    if (hud.formationView) hud.formationView.hidden = mode !== 'formation'
+    if (hud.gameShell && mode === 'formation') hud.gameShell.hidden = true
+    if (hud.gameShell && inPvp) {
+      hud.gameShell.classList.remove('tactics-open')
+      hud.gameShell.classList.add('drawer-collapsed')
+    }
     if (hud.docsView) hud.docsView.hidden = mode !== 'docs'
     if (hud.homeNavBtn) hud.homeNavBtn.classList.toggle('active', mode === 'menu' || mode === 'pvpLobby')
+    if (hud.formationNavBtn) hud.formationNavBtn.classList.toggle('active', mode === 'formation')
     if (hud.docsNavBtn) hud.docsNavBtn.classList.toggle('active', mode === 'docs')
     updatePvpSetupTimer()
 
@@ -50,19 +57,37 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
 
     hud.blueScore.textContent = state.score.blue
     hud.redScore.textContent = state.score.red
+    if (hud.blueTeamLabel) hud.blueTeamLabel.textContent = scoreboardLabel('blue')
+    if (hud.redTeamLabel) hud.redTeamLabel.textContent = scoreboardLabel('red')
     hud.clock.textContent = mode === 'pvpSetup' ? formatClock(state.pvp.setupRemaining) : formatClock(state.timeLeft)
     hud.matchState.textContent = matchStateLabel()
     hud.possession.textContent = possession
+    if (hud.possessionChip) {
+      hud.possessionChip.classList.toggle('blue-possession', state.jugg.carrier?.team === 'blue')
+      hud.possessionChip.classList.toggle('red-possession', state.jugg.carrier?.team === 'red')
+      hud.possessionChip.classList.toggle('free-possession', !state.jugg.carrier)
+    }
     hud.pins.textContent = pinCount
     hud.inactive.textContent = inactiveCount
     hud.stone.textContent = state.stoneCount
+    if (hud.stoneChip) {
+      const progress = state.roundBreakTimer > 0 ? 1 - ((state.roundBreakTimer % STONE_SECONDS) / STONE_SECONDS) : state.stoneTimer / STONE_SECONDS
+      hud.stoneChip.style.setProperty('--stone-progress', `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`)
+    }
     if (hud.seedInput && document.activeElement !== hud.seedInput) hud.seedInput.value = state.matchSeed
     if (hud.seedControl) hud.seedControl.hidden = inPvp
     if (hud.speedControl) hud.speedControl.hidden = inPvp
     if (hud.cinemaControl) hud.cinemaControl.hidden = inPvp
+    if (hud.matchToolsPanel) hud.matchToolsPanel.hidden = inPvp
     if (hud.localSkillPanel) hud.localSkillPanel.hidden = inPvp
+    if (hud.drawerToggle) hud.drawerToggle.hidden = inPvp
+    if (hud.rematchBtn) {
+      const pvpMatchOver = state.app.mode === 'pvpMatch' && (state.score.blue >= 3 || state.score.red >= 3 || (state.timeLeft <= 0 && !state.running))
+      hud.rematchBtn.hidden = !pvpMatchOver
+    }
     if (hud.startBtn) hud.startBtn.disabled = inPvp
     if (hud.pauseBtn) hud.pauseBtn.disabled = inPvp
+    if (hud.resetBtn) hud.resetBtn.disabled = inPvp
     if (hud.cinemaToggle) {
       hud.cinemaToggle.checked = state.cinema.enabled
       hud.cinemaToggle.disabled = inPvp
@@ -83,6 +108,13 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       return
     }
     state.pvp.setupRemaining = Math.max(0, (state.pvp.setupEndsAt - Date.now()) / 1000)
+  }
+
+  function scoreboardLabel(team) {
+    if (!state.app.mode.startsWith('pvp')) return teamLabel(team)
+    const player = state.pvp.players.find((candidate) => candidate.team === team && candidate.connected !== false)
+    const name = player?.name || (state.pvp.localTeam === team ? state.pvp.playerName : '')
+    return name ? `${name} ${teamLabel(team)}` : teamLabel(team)
   }
 
   function matchStateLabel() {
@@ -116,18 +148,31 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     if (!show) return
     const local = state.pvp.localTeam
     const other = local === 'blue' ? 'red' : 'blue'
+    const localPlayer = state.pvp.players.find((player) => player.playerId === state.pvp.playerId)
+    const opponentPlayer = state.pvp.players.find((player) => player.team === other && player.connected !== false)
+    const localName = localPlayer?.name || state.pvp.playerName || teamLabel(local)
+    const opponentName = opponentPlayer?.name || teamLabel(other)
     hud.pvpStatusPanel.innerHTML = `
       <header>
         <span>${state.pvp.roomCode || t('status.pvp')}</span>
-        <strong>${state.app.mode === 'pvpSetup' ? `${Math.ceil(state.pvp.setupRemaining)}s` : teamLabel(local)}</strong>
+        <strong>${state.app.mode === 'pvpSetup' ? `${Math.ceil(state.pvp.setupRemaining)}s` : escapeHtml(localName)}</strong>
       </header>
       <small>${state.pvp.statusText || t('status.synchronized')}</small>
       <div class="pvp-team-choice">
         <button type="button" data-team-choice="blue" class="${local === 'blue' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>${teamLabel('blue')}</button>
         <button type="button" data-team-choice="red" class="${local === 'red' ? 'active' : ''}" ${state.app.mode === 'pvpMatch' ? 'disabled' : ''}>${teamLabel('red')}</button>
       </div>
-      <small>${t('panel.opponent')}: ${teamLabel(other)}</small>
+      <small>${t('panel.opponent')}: ${escapeHtml(opponentName)} (${teamLabel(other)})</small>
     `
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
   }
 
   function canvasScreenPointFromEvent(event) {

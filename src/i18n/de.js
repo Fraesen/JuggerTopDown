@@ -6,8 +6,15 @@ export const de = {
 
   'nav.aria': 'Hauptnavigation',
   'nav.home': 'Home',
+  'nav.formation': 'Aufstellung',
   'nav.docs': 'Docs',
+  'nav.theme': 'Farbkonzept',
   'nav.language': 'Sprache',
+
+  'theme.classic': 'Dunkles Feld',
+  'theme.floodlight': 'Flutlicht',
+  'theme.ember': 'Glut',
+  'theme.chalk': 'Kreide',
 
   'team.blue': 'Blau',
   'team.red': 'Rot',
@@ -15,6 +22,7 @@ export const de = {
   'team.my': 'Mein Team ({team})',
 
   'menu.botGame': 'Spiel gegen Bots',
+  'menu.formation': 'Aufstellung',
   'menu.createGame': 'Spiel erstellen',
   'menu.joinGame': 'Spiel beitreten',
   'menu.publicRooms': 'Öffentliche Räume',
@@ -27,6 +35,8 @@ export const de = {
   'controls.pause': 'Pause',
   'controls.reset': 'Reset',
   'controls.newMatch': 'Neues Match',
+  'controls.done': 'Fertig',
+  'controls.rematch': 'Erneut spielen',
   'controls.speed': 'Spielgeschwindigkeit',
   'controls.seed': 'Seed',
   'controls.cinema': 'Cinema Mode',
@@ -59,6 +69,8 @@ export const de = {
   'status.otherPlayerLeft': 'Die zweite Person ist nicht mehr verbunden.',
   'status.pvpServerOutdated': 'PvP-Server neu starten',
   'status.pvpServerOutdatedDetail': 'Der PvP-Server ist veraltet. Bitte Server neu starten, damit Zugpausen synchronisiert werden.',
+  'status.rematchRequested': 'Revanche angefragt',
+  'status.rematchIncoming': 'Gegenseite möchte erneut spielen',
 
   'match.autobattler': 'Autobattler',
   'match.autobattlerLive': 'Autobattler live',
@@ -81,6 +93,8 @@ export const de = {
   'match.strategyBreakWithStones': '{label} - Strategiepause {stones} Steine',
 
   'possession.runner': '{team} Läufer:in',
+  'pvp.yourTeamColor': 'Deine Teamfarbe',
+  'pvp.opponentTeamColor': 'Teamfarbe Gegenseite',
   'arena.aria': 'Jugger Spielfeld',
   'modal.close': 'Schließen',
   'modal.createTitle': 'Spiel erstellen',
@@ -110,6 +124,11 @@ export const de = {
   'panel.rules': 'Regeln',
   'panel.opponent': 'Gegenseite',
   'panel.localTeam': 'Mein Team ({team})',
+  'panel.tactics': 'Taktik',
+  'panel.matchTools': 'Regie',
+  'panel.direction': 'Match',
+
+  'bench.teamPlan': 'Spielplan',
 
   'skill.technik.short': 'T',
   'skill.geschwindigkeit.short': 'G',
@@ -120,6 +139,12 @@ export const de = {
   'skill.wahrnehmung': 'Wahrnehmung',
 
   'formation.teamStrategyNext': 'Teamstrategie nächster Zug',
+  'formation.managerTitle': 'Aufstellung verwalten',
+  'formation.presetName': 'Name der Aufstellung',
+  'formation.playerNames': 'Spieler:innen-Namen',
+  'formation.noPresets': 'Keine gespeicherte Aufstellung',
+  'formation.loadPreset': 'Laden',
+  'formation.savePreset': 'Speichern',
   'formation.teamStrategy': 'Teamstrategie',
   'formation.strategy': 'Strategie',
   'formation.position': 'Position',
@@ -195,6 +220,12 @@ export const de = {
   'rule.26': 'Aggressiv: deutlich kleineres Doppelfenster',
   'rule.27': 'Umlaufen: nach klarem Ersttreffer in den Rücken',
   'rule.28': 'Cinema Mode: automatische Kamera und Slowmotion',
+
+  'ruleGroup.match': 'Match',
+  'ruleGroup.roles': 'Rollen',
+  'ruleGroup.duels': 'Treffer & Duelle',
+  'ruleGroup.pompfen': 'Pompfen',
+  'ruleGroup.tactics': 'Calls & Strategien',
 
   'docs.html': DOCS_HTML,
 }

@@ -28,8 +28,8 @@ assert.deepEqual(
 )
 
 assert.deepEqual(
-  normalizeLoadoutConfig('blue', ['runner', 'chain', 'chain', 'bogus', 'shield']),
-  ['runner', 'chain', 'qtip', 'staff', 'shield'],
+  normalizeLoadoutConfig('blue', ['quick', 'chain', 'chain', 'bogus', 'shield']),
+  ['quick', 'chain', 'qtip', 'staff', 'shield'],
   'loadouts allow at most one chain and fall back slot-wise',
 )
 
@@ -39,7 +39,7 @@ assert.deepEqual(
       team: 'blue',
       version: 7,
       skills: [{ technik: 6, geschwindigkeit: 0, wahrnehmung: 0 }],
-      loadout: ['runner', 'staff', 'staff', 'staff', 'staff'],
+      loadout: ['quick', 'staff', 'staff', 'staff', 'staff'],
       teamStrategy: 'wide_line',
     },
     fallback,

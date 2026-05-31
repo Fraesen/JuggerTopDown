@@ -45,14 +45,14 @@ export function slotForPlayer(player) {
 }
 
 export function isDefensiveStrategyPlayer(player) {
-  if (player.role === 'runner') return false
+  if (player.role === 'quick') return false
   const strategy = teamStrategy(player.team)
   const side = strategySideForSlot(slotForPlayer(player))
   return (strategy === 'top_defense' && side === 'top') || (strategy === 'bottom_defense' && side === 'bottom')
 }
 
 export function isAggressiveStrategyPlayer(player) {
-  return player.role !== 'runner' && isSideDefenseStrategy(player.team) && !isDefensiveStrategyPlayer(player)
+  return player.role !== 'quick' && isSideDefenseStrategy(player.team) && !isDefensiveStrategyPlayer(player)
 }
 
 export function doubleWindowFactorFor(player) {
@@ -60,7 +60,7 @@ export function doubleWindowFactorFor(player) {
 }
 
 export function openingStrategyPoint(player) {
-  if (player.role === 'runner') return null
+  if (player.role === 'quick') return null
 
   const slot = slotForPlayer(player)
   const strategy = teamStrategy(player.team)

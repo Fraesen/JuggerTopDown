@@ -95,7 +95,7 @@ export function createInitialState(seed = DEFAULT_MATCH_SEED) {
       y: FIELD.height / 2,
       vx: 0,
       vy: 0,
-      carrier: null,
+      quick: null,
       contest: null,
       cooldown: 0,
     },

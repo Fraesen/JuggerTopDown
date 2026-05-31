@@ -1,8 +1,17 @@
 {
   "name": "juggertopdown",
   "version": "0.0.0",
-  "private": true,
+  "description": "Top-down Jugger autobattler and PvP tactics sandbox.",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fraesen/JuggerTopDown.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Fraesen/JuggerTopDown/issues"
+  },
+  "homepage": "https://github.com/Fraesen/JuggerTopDown#readme",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

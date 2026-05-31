@@ -7,12 +7,12 @@ import {
   DOUBLE_PIN_TRAP_DURATION,
   FIELD,
   PLAYER_RADIUS,
-  RUNNER_DUEL_RANGE,
+  QUICK_DUEL_RANGE,
   TEAMS,
   MALSCHUTZ_FREE_JUGG_RANGE,
 } from '../config.js'
 import { distance, normalize } from '../geometry.js'
-import { isGrappling, isInactive, isPompfer, isRunner } from '../players.js'
+import { isGrappling, isInactive, isPompfer, isQuick } from '../players.js'
 import { attackRangeFor, canPinWithPompfe } from '../pompfen.js'
 import { t } from '../../i18n/index.js'
 
@@ -24,7 +24,7 @@ export function createCallDecisions({
   rng,
   activeTeamPompfers,
   supportPoint,
-  carrierThreatensMal,
+  quickThreatensMal,
   overzahlDuration,
 }) {
   function callPerceivedBy(player, caller) {
@@ -127,30 +127,30 @@ export function createCallDecisions({
     if (player.callTimer <= 0 || !player.callType) return null
 
     if (player.callType === 'malschutz') {
-      const carrier = state.jugg.carrier
+      const quick = state.jugg.quick
       const ownMal = TEAMS[player.team].mal
       const mode = player.callContext?.mode
-      const expectedCarrier = player.callContext?.carrier
+      const expectedQuick = player.callContext?.quick
 
-      if (mode === 'carrier' && state.jugg.carrier !== expectedCarrier) {
+      if (mode === 'quick' && state.jugg.quick !== expectedQuick) {
         clearCallIntent(player)
         return null
       }
 
-      if (mode === 'freeJugg' && carrier?.team === player.team) {
+      if (mode === 'freeJugg' && quick?.team === player.team) {
         clearCallIntent(player)
         return null
       }
 
       if (
         isPompfer(player) &&
-        carrier &&
-        carrier.team !== player.team &&
-        isRunner(carrier) &&
-        distance(player, ownMal) < distance(carrier, ownMal)
+        quick &&
+        quick.team !== player.team &&
+        isQuick(quick) &&
+        distance(player, ownMal) < distance(quick, ownMal)
       ) {
         clearCallIntent(player)
-        player.angle = Math.atan2(carrier.y - player.y, carrier.x - player.x)
+        player.angle = Math.atan2(quick.y - player.y, quick.x - player.x)
         return null
       }
 
@@ -159,7 +159,7 @@ export function createCallDecisions({
 
     if (player.callType === 'mitkommen') {
       const caller = player.callSource
-      if (!caller || state.jugg.carrier !== caller || isInactive(caller)) {
+      if (!caller || state.jugg.quick !== caller || isInactive(caller)) {
         clearCallIntent(player)
         return null
       }
@@ -185,30 +185,30 @@ export function createCallDecisions({
     return null
   }
 
-  function enemiesInRunnerLane(runner) {
-    const target = TEAMS[runner.team].attackMal
-    const forward = normalize(target.x - runner.x, target.y - runner.y)
+  function enemiesInQuickLane(quick) {
+    const target = TEAMS[quick.team].attackMal
+    const forward = normalize(target.x - quick.x, target.y - quick.y)
     const perpendicular = { x: -forward.y, y: forward.x }
 
     return state.players.filter((player) => {
-      if (player.team === runner.team || isInactive(player)) return false
-      const dx = player.x - runner.x
-      const dy = player.y - runner.y
+      if (player.team === quick.team || isInactive(player)) return false
+      const dx = player.x - quick.x
+      const dy = player.y - quick.y
       const ahead = dx * forward.x + dy * forward.y
       const lateral = Math.abs(dx * perpendicular.x + dy * perpendicular.y)
       return ahead > 0 && ahead < CALL_CORRIDOR_LENGTH && lateral < CALL_CORRIDOR_WIDTH
     })
   }
 
-  function bestMitkommenRecipient(runner) {
-    return activeTeamPompfers(runner.team)
+  function bestMitkommenRecipient(quick) {
+    return activeTeamPompfers(quick.team)
       .filter((player) => player.callTimer <= 0)
-      .sort((a, b) => distance(a, runner) - distance(b, runner))[0]
+      .sort((a, b) => distance(a, quick) - distance(b, quick))[0]
   }
 
-  function bestHilfMirRecipient(runner) {
-    const threat = runner.grappledBy || runner.grappleTarget || runner
-    return activeTeamPompfers(runner.team)
+  function bestHilfMirRecipient(quick) {
+    const threat = quick.grappledBy || quick.grappleTarget || quick
+    return activeTeamPompfers(quick.team)
       .filter((player) => player.callTimer <= 0)
       .sort((a, b) => distance(a, threat) - distance(b, threat))[0]
   }
@@ -244,41 +244,41 @@ export function createCallDecisions({
     }
   }
 
-  function enemyRunnerPinned(team) {
-    return state.players.some((player) => player.team !== team && isRunner(player) && Boolean(player.pinnedBy))
+  function enemyQuickPinned(team) {
+    return state.players.some((player) => player.team !== team && isQuick(player) && Boolean(player.pinnedBy))
   }
 
   function shouldCallMalschutz(team) {
-    const carrier = state.jugg.carrier
-    if (enemyRunnerPinned(team)) return false
-    if (!carrier) return distance(state.jugg, TEAMS[team].mal) <= MALSCHUTZ_FREE_JUGG_RANGE
-    if (carrier.team === team || !isRunner(carrier) || isInactive(carrier)) return false
+    const quick = state.jugg.quick
+    if (enemyQuickPinned(team)) return false
+    if (!quick) return distance(state.jugg, TEAMS[team].mal) <= MALSCHUTZ_FREE_JUGG_RANGE
+    if (quick.team === team || !isQuick(quick) || isInactive(quick)) return false
 
-    return carrierThreatensMal(team, carrier)
+    return quickThreatensMal(team, quick)
   }
 
   function malschutzThreatPoint(team) {
-    const carrier = state.jugg.carrier
-    if (carrier && carrier.team !== team) return carrier
+    const quick = state.jugg.quick
+    if (quick && quick.team !== team) return quick
     return state.jugg
   }
 
   function emitCalls() {
-    const carrier = state.jugg.carrier
+    const quick = state.jugg.quick
 
-    const grapplingRunners = state.players.filter(
-      (player) => isRunner(player) && !isInactive(player) && isGrappling(player) && player.callCooldown <= 0,
+    const grapplingQuicks = state.players.filter(
+      (player) => isQuick(player) && !isInactive(player) && isGrappling(player) && player.callCooldown <= 0,
     )
-    for (const runner of grapplingRunners) {
-      const recipient = bestHilfMirRecipient(runner)
-      if (recipient) issueCall(runner, 'hilfmir', [recipient])
+    for (const quick of grapplingQuicks) {
+      const recipient = bestHilfMirRecipient(quick)
+      if (recipient) issueCall(quick, 'hilfmir', [recipient])
     }
 
-    if (carrier && isRunner(carrier) && !isInactive(carrier) && carrier.callCooldown <= 0) {
-      const blockers = enemiesInRunnerLane(carrier)
-      const recipient = blockers.length === 1 ? bestMitkommenRecipient(carrier) : null
+    if (quick && isQuick(quick) && !isInactive(quick) && quick.callCooldown <= 0) {
+      const blockers = enemiesInQuickLane(quick)
+      const recipient = blockers.length === 1 ? bestMitkommenRecipient(quick) : null
       if (recipient) {
-        issueCall(carrier, 'mitkommen', [recipient])
+        issueCall(quick, 'mitkommen', [recipient])
       }
     }
 
@@ -294,8 +294,8 @@ export function createCallDecisions({
 
       if (!caller) continue
       issueCall(caller, 'malschutz', state.players.filter((player) => player.team === team), {
-        mode: state.jugg.carrier ? 'carrier' : 'freeJugg',
-        carrier: state.jugg.carrier,
+        mode: state.jugg.quick ? 'quick' : 'freeJugg',
+        quick: state.jugg.quick,
       })
       state.teamCallCooldowns[team] = CALL_COOLDOWN
     }

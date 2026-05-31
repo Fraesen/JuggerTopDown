@@ -18,7 +18,7 @@ export function createDefaultTeamConfig(team) {
     version: 0,
     skills: defaultSkillsForTeam(team).map((skill) => ({ ...skill })),
     positions: [...(PLAYER_POSITIONS[team] ?? [0, ...POSITION_SLOTS])],
-    loadout: [...(TEAM_LOADOUTS[team] ?? ['runner', 'shield', 'qtip', 'staff', 'chain'])],
+    loadout: [...(TEAM_LOADOUTS[team] ?? ['quick', 'shield', 'qtip', 'staff', 'chain'])],
     teamStrategy: normalizeTeamStrategyId(TEAM_STRATEGIES[team]),
   }
 }
@@ -76,8 +76,8 @@ export function normalizePositionConfig(team, source = PLAYER_POSITIONS[team]) {
 }
 
 export function normalizeLoadoutConfig(team, source = TEAM_LOADOUTS[team]) {
-  const fallback = TEAM_LOADOUTS[team] ?? ['runner', 'shield', 'qtip', 'staff', 'chain']
-  const next = ['runner']
+  const fallback = TEAM_LOADOUTS[team] ?? ['quick', 'shield', 'qtip', 'staff', 'chain']
+  const next = ['quick']
   let chainUsed = false
   for (let index = 1; index < 5; index += 1) {
     const fallbackPompfe = POMPFEN_OPTIONS.includes(fallback[index]) ? fallback[index] : 'staff'

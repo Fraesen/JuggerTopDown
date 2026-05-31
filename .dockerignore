@@ -3,4 +3,7 @@ dist
 .git
 .gitignore
 npm-debug.log
+*.log
+test-results
+playwright-report
 Dockerfile

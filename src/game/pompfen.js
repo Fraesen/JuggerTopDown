@@ -66,7 +66,7 @@ function meleeProfile({
   attackArc,
   rearAttackArc = 0,
   closeStrikeRange = 46,
-  runnerRangeBonusCm = Math.round(reachCm * 0.2),
+  quickRangeBonusCm = Math.round(reachCm * 0.2),
   runningAttackPenalty = 0.25,
   shieldBlockBonus = 0,
   visual,
@@ -81,8 +81,8 @@ function meleeProfile({
     attackArc,
     rearAttackArc,
     closeStrikeRange,
-    runnerRangeBonus: rangePixels(runnerRangeBonusCm),
-    runnerHitBonus: 0.75,
+    quickRangeBonus: rangePixels(quickRangeBonusCm),
+    quickHitBonus: 0.75,
     runningAttackPenalty,
     shieldBlockBonus,
     canPin: true,
@@ -98,7 +98,7 @@ export const POMPFEN = {
     reachCm: 85,
     attackArc: 0.82,
     closeStrikeRange: 42,
-    runnerRangeBonusCm: 17,
+    quickRangeBonusCm: 17,
     runningAttackPenalty: 0.18,
     shieldBlockBonus: 35,
     visual: shieldVisual(),
@@ -110,7 +110,7 @@ export const POMPFEN = {
     reachCm: 140,
     attackArc: 0.84,
     closeStrikeRange: 46,
-    runnerRangeBonusCm: 28,
+    quickRangeBonusCm: 28,
     visual: oneSidedVisual({ reachCm: 140, startY: -18, angle: -0.29, gripLength: 25, accent: true }),
   }),
   staff: meleeProfile({
@@ -120,7 +120,7 @@ export const POMPFEN = {
     reachCm: 110,
     attackArc: 0.95,
     closeStrikeRange: 46,
-    runnerRangeBonusCm: 22,
+    quickRangeBonusCm: 22,
     visual: oneSidedVisual({ reachCm: 110 }),
   }),
   qtip: meleeProfile({
@@ -131,7 +131,7 @@ export const POMPFEN = {
     attackArc: 0.9,
     rearAttackArc: 0.72,
     closeStrikeRange: 48,
-    runnerRangeBonusCm: 28,
+    quickRangeBonusCm: 28,
     visual: qtipVisual(140),
   }),
   chain: {
@@ -145,8 +145,8 @@ export const POMPFEN = {
     attackArc: 1.55,
     rearAttackArc: 0,
     closeStrikeRange: 0,
-    runnerRangeBonus: 0,
-    runnerHitBonus: 0.75,
+    quickRangeBonus: 0,
+    quickHitBonus: 0.75,
     runningAttackPenalty: 0.3,
     shieldBlockBonus: 0,
     canPin: false,
@@ -176,11 +176,11 @@ export function pompfeLabel(pompfe) {
 
 export function attackRangeFor(attacker, target) {
   const profile = pompfeFor(attacker)
-  return profile.attackRange + (target?.role === 'runner' ? profile.runnerRangeBonus : 0)
+  return profile.attackRange + (target?.role === 'quick' ? profile.quickRangeBonus : 0)
 }
 
 export function maxPompfeAttackRange(target = null) {
-  return Math.max(...Object.values(POMPFEN).map((profile) => profile.attackRange + (target?.role === 'runner' ? profile.runnerRangeBonus : 0)))
+  return Math.max(...Object.values(POMPFEN).map((profile) => profile.attackRange + (target?.role === 'quick' ? profile.quickRangeBonus : 0)))
 }
 
 export function attackArcFor(attacker) {

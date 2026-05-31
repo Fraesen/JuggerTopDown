@@ -36,7 +36,7 @@ export function teamLabel(team) {
 }
 
 export function roleText(index) {
-  return index === 0 ? t('role.runner') : t('role.pompfer', { index })
+  return index === 0 ? t('role.quick') : t('role.pompfer', { index })
 }
 
 export function positionText(slot) {

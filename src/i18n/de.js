@@ -92,7 +92,7 @@ export const de = {
   'match.teamSecuresJugg': '{team} sichert den Jugg',
   'match.strategyBreakWithStones': '{label} - Strategiepause {stones} Steine',
 
-  'possession.runner': '{team} Läufer:in',
+  'possession.quick': '{team} Läufer:in',
   'pvp.yourTeamColor': 'Deine Teamfarbe',
   'pvp.opponentTeamColor': 'Teamfarbe Gegenseite',
   'arena.aria': 'Jugger Spielfeld',
@@ -155,7 +155,7 @@ export const de = {
   'formation.slot': 'Slot {slot}',
   'formation.middle': 'Mitte',
 
-  'role.runner': 'Läufer:in',
+  'role.quick': 'Läufer:in',
   'role.pompfer': 'Pompfer:in {index}',
 
   'position.1': 'Oben außen',

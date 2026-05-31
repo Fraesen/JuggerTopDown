@@ -44,11 +44,11 @@ export function cloneStateForCinemaPrecompute({ state, rng }) {
 
   fork.jugg = {
     ...state.jugg,
-    carrier: state.jugg.carrier ? playerMap.get(state.jugg.carrier.id) ?? null : null,
+    quick: state.jugg.quick ? playerMap.get(state.jugg.quick.id) ?? null : null,
     contest: state.jugg.contest
       ? {
           ...state.jugg.contest,
-          runners: state.jugg.contest.runners.map((runner) => playerMap.get(runner.id)).filter(Boolean),
+          quicks: state.jugg.contest.quicks.map((quick) => playerMap.get(quick.id)).filter(Boolean),
         }
       : null,
   }
@@ -96,7 +96,7 @@ function relinkPlayerRefs(source, clone, playerMap) {
 function cloneCallContext(context) {
   if (!context) return null
   const clone = { ...context }
-  for (const key of ['target', 'ally', 'carrier']) {
+  for (const key of ['target', 'ally', 'quick']) {
     if (clone[key]?.id) clone[key] = { id: clone[key].id }
   }
   return clone
@@ -105,7 +105,7 @@ function cloneCallContext(context) {
 function relinkCallContext(context, playerMap) {
   if (!context) return null
   const clone = { ...context }
-  for (const key of ['target', 'ally', 'carrier']) {
+  for (const key of ['target', 'ally', 'quick']) {
     if (context[key]?.id) clone[key] = playerMap.get(context[key].id) ?? null
   }
   return clone

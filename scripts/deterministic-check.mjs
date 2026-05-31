@@ -51,8 +51,8 @@ function compactSnapshot(state) {
     jugg: {
       x: round(state.jugg.x),
       y: round(state.jugg.y),
-      carrier: state.jugg.carrier?.id ?? null,
-      contest: state.jugg.contest?.runners.map((runner) => runner.id).sort() ?? null,
+      quick: state.jugg.quick?.id ?? null,
+      contest: state.jugg.contest?.quicks.map((quick) => quick.id).sort() ?? null,
     },
     players: state.players.map((player) => ({
       id: player.id,

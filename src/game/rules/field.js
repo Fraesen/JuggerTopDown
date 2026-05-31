@@ -68,8 +68,8 @@ export const START_POSITIONS = {
 }
 
 export const POSITION_LABELS = {
-  1: 'Oben auÃŸen',
+  1: 'Oben außen',
   2: 'Oben innen',
   3: 'Unten innen',
-  4: 'Unten auÃŸen',
+  4: 'Unten außen',
 }

@@ -25,8 +25,8 @@ const CHAIN_FOCUS_PADDING = { x: 360, y: 260, minX: 300, minY: 220, minZoom: 1.6
 const PRIORITY = {
   multi_hit_streak: 120,
   alone_vs_two: 100,
-  runner_jugg_against_odds: 95,
-  runner_attack_miss: 80,
+  quick_jugg_against_odds: 95,
+  quick_attack_miss: 80,
 }
 
 export function createCinemaDirector({ state, debug = true }) {
@@ -107,7 +107,7 @@ export function createCinemaDirector({ state, debug = true }) {
       jugg: {
         x: state.jugg.x,
         y: state.jugg.y,
-        carrierId: state.jugg.carrier?.id ?? null,
+        quickId: state.jugg.quick?.id ?? null,
       },
       score: { ...state.score },
     }
@@ -143,19 +143,19 @@ export function createCinemaDirector({ state, debug = true }) {
       if (event.type === 'hit' && event.clearWin) detectAloneVsTwo(event)
     }
 
-    if ((event.type === 'juggPickup' || event.type === 'score') && event.runnerId && event.teammatesActive <= 0 && event.enemiesActive > 0) {
-      enqueueScene(sceneFromEvent('runner_jugg_against_odds', event, {
+    if ((event.type === 'juggPickup' || event.type === 'score') && event.quickId && event.teammatesActive <= 0 && event.enemiesActive > 0) {
+      enqueueScene(sceneFromEvent('quick_jugg_against_odds', event, {
         title: 'Jugg gegen alle',
-        participantIds: [event.runnerId, ...(event.nearbyEnemyIds ?? [])],
-        points: [event.runnerPoint, event.juggPoint, event.malPoint, ...(event.enemyPoints ?? [])].filter(Boolean),
+        participantIds: [event.quickId, ...(event.nearbyEnemyIds ?? [])],
+        points: [event.quickPoint, event.juggPoint, event.malPoint, ...(event.enemyPoints ?? [])].filter(Boolean),
       }))
     }
 
-    if (event.type === 'runnerAttackMiss' && event.attackerId && event.runnerId) {
-      enqueueScene(sceneFromEvent('runner_attack_miss', event, {
+    if (event.type === 'quickAttackMiss' && event.attackerId && event.quickId) {
+      enqueueScene(sceneFromEvent('quick_attack_miss', event, {
         title: 'Läufer:in entkommt',
-        participantIds: [event.attackerId, event.runnerId],
-        points: [event.attackerPoint, event.runnerPoint, event.juggPoint].filter(Boolean),
+        participantIds: [event.attackerId, event.quickId],
+        points: [event.attackerPoint, event.quickPoint, event.juggPoint].filter(Boolean),
       }))
     }
   }
@@ -341,7 +341,7 @@ export function createCinemaDirector({ state, debug = true }) {
   }
 
   function canPlayDuringEndPhase(scene) {
-    return scene?.type === 'runner_jugg_against_odds' && scene.event?.type === 'score' && Boolean(scene.event?.runnerId)
+    return scene?.type === 'quick_jugg_against_odds' && scene.event?.type === 'score' && Boolean(scene.event?.quickId)
   }
 
   function sortScenes(scenes) {
@@ -462,27 +462,27 @@ export function createCinemaDirector({ state, debug = true }) {
     return x * x * (3 - 2 * x)
   }
 
-  function activeTeammateCount(runner) {
-    return state.players.filter((player) => player.team === runner.team && player !== runner && !isInactive(player)).length
+  function activeTeammateCount(quick) {
+    return state.players.filter((player) => player.team === quick.team && player !== quick && !isInactive(player)).length
   }
 
   function activeEnemyCount(player) {
     return state.players.filter((other) => other.team !== player.team && !isInactive(other)).length
   }
 
-  function runnerOddsPayload(runner) {
+  function quickOddsPayload(quick) {
     const enemies = state.players
-      .filter((player) => player.team !== runner.team && !isInactive(player))
-      .sort((a, b) => Math.hypot(a.x - runner.x, a.y - runner.y) - Math.hypot(b.x - runner.x, b.y - runner.y))
+      .filter((player) => player.team !== quick.team && !isInactive(player))
+      .sort((a, b) => Math.hypot(a.x - quick.x, a.y - quick.y) - Math.hypot(b.x - quick.x, b.y - quick.y))
       .slice(0, 3)
     return {
-      runnerId: runner.id,
-      teammatesActive: activeTeammateCount(runner),
-      enemiesActive: activeEnemyCount(runner),
+      quickId: quick.id,
+      teammatesActive: activeTeammateCount(quick),
+      enemiesActive: activeEnemyCount(quick),
       nearbyEnemyIds: enemies.map((enemy) => enemy.id),
-      runnerPoint: { x: runner.x, y: runner.y },
+      quickPoint: { x: quick.x, y: quick.y },
       juggPoint: { x: state.jugg.x, y: state.jugg.y },
-      malPoint: TEAMS[runner.team].attackMal,
+      malPoint: TEAMS[quick.team].attackMal,
       enemyPoints: enemies.map((enemy) => ({ x: enemy.x, y: enemy.y })),
     }
   }
@@ -567,7 +567,7 @@ export function createCinemaDirector({ state, debug = true }) {
     ingestPrecomputedScenes,
     isEnabled,
     reset,
-    runnerOddsPayload,
+    quickOddsPayload,
     setEnabled,
     update,
   }

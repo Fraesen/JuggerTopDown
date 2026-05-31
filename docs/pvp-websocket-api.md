@@ -74,7 +74,7 @@ Konfiguration per Environment:
     { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
   ],
   "positions": [0, 1, 2, 3, 4],
-  "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],,
+  "loadout": ["quick", "shield", "longpompfe", "staff", "chain"],
   "teamStrategy": "standard"
 }
 ```
@@ -85,7 +85,7 @@ Konfiguration per Environment:
 
 - `team`: `blue` oder `red`.
 - `positions`: Index `0` ist immer die Läufer:in und bleibt `0`. Die Indizes `1-4` sind die vier Pompfer:innen-Slots und müssen eine eindeutige Permutation aus `1, 2, 3, 4` sein.
-- `loadout`: Index `0` ist immer `runner`. Indizes `1-4` erlauben `shield`, `longpompfe`, `qtip`, `staff` oder `chain`. Pro Team darf höchstens eine `chain` in den vier Pompfer:innen-Slots vorkommen.
+- `loadout`: Index `0` ist immer `quick`. Indizes `1-4` erlauben `shield`, `longpompfe`, `qtip`, `staff` oder `chain`. Pro Team darf höchstens eine `chain` in den vier Pompfer:innen-Slots vorkommen.
 - `teamStrategy`: `standard`, `wide_line`, `top_defense` oder `bottom_defense`.
 
 ## Client Zu Server
@@ -154,7 +154,7 @@ Wählt oder tauscht die lokale Farbe. Falls beide Personen dieselbe Farbe wollen
       { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
     ],
     "positions": [0, 1, 2, 3, 4],
-    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],,
+    "loadout": ["quick", "shield", "longpompfe", "staff", "chain"],
     "teamStrategy": "standard"
   }
 }
@@ -317,7 +317,7 @@ Optionales Event für Server, die Teamwechsel als eigenes Event broadcasten. Der
       { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
     ],
     "positions": [0, 1, 2, 3, 4],
-    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],,
+    "loadout": ["quick", "shield", "longpompfe", "staff", "chain"],
     "teamStrategy": "standard"
   }
 }

@@ -66,17 +66,17 @@ export function renderTeamSkillPanel(
       const skill = PLAYER_SKILLS[team][index]
       const stats = statsFromSkill(skill)
       const spent = skill.technik + skill.geschwindigkeit + skill.wahrnehmung
-      const isRunner = index === 0
-      const loadoutSummary = isRunner ? roleLabel(index) : pompfeLabel(TEAM_LOADOUTS[team][index])
+      const isQuick = index === 0
+      const loadoutSummary = isQuick ? roleLabel(index) : pompfeLabel(TEAM_LOADOUTS[team][index])
       const slot = PLAYER_POSITIONS[team][index] ?? index
-      const draggable = !isRunner && editPositions && !locked
+      const draggable = !isQuick && editPositions && !locked
       const slotLabel = draggable ? positionText(slot) : ''
       const open = openCards.has(`${team}:${index}`)
       const playerName = playerNameFor(index, playerNames)
 
       return `
         ${slotLabel ? `<div class="position-lane-label">${slotLabel}</div>` : ''}
-        <details class="skill-row player-card ${isRunner ? 'runner-card' : 'pompfer-card'} ${draggable ? 'draggable-card' : ''}" data-player-card data-player="${index}" data-slot="${slot}" data-team="${team}" ${draggable ? 'draggable="true"' : ''} ${open ? 'open' : ''}>
+        <details class="skill-row player-card ${isQuick ? 'quick-card' : 'pompfer-card'} ${draggable ? 'draggable-card' : ''}" data-player-card data-player="${index}" data-slot="${slot}" data-team="${team}" ${draggable ? 'draggable="true"' : ''} ${open ? 'open' : ''}>
           <summary class="player-card-header">
             ${draggable ? '<span class="drag-handle" aria-hidden="true"></span>' : ''}
             <div>
@@ -164,7 +164,7 @@ export function renderFormationPanel(container, state, { team = 'blue', editable
           <${headerTagName}>
             ${draggable ? '<span class="drag-handle" aria-hidden="true"></span>' : ''}
             ${playerIdentity}
-            ${editSkills ? '' : `<strong>${index === 0 ? t('role.runner') : positionText(PLAYER_POSITIONS[team][index])}</strong>`}
+            ${editSkills ? '' : `<strong>${index === 0 ? t('role.quick') : positionText(PLAYER_POSITIONS[team][index])}</strong>`}
             ${editSkills ? `<small><span>${spent}/${SKILL_POINTS_PER_PLAYER}</span><b>${t('formation.skillToggle')}</b></small>` : ''}
           </${headerTagName}>
           <div class="loadout-controls">

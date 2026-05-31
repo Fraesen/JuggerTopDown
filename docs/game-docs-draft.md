@@ -49,7 +49,7 @@ Jede spielende Person hat 6 Skillpunkte. Diese werden auf drei Werte verteilt:
 Die tatsächliche Laufgeschwindigkeit wird aus dem Geschwindigkeitswert berechnet und global gedrosselt. Der aktuelle Code nutzt:
 
 ```text
-speed = (124 + geschwindigkeit * 1.16 + runnerBonus) * 0.6
+speed = (124 + geschwindigkeit * 1.16 + quickBonus) * 0.6
 ```
 
 Die Läufer:in hat dabei einen kleinen konstanten Bonus. Skillpunkte in Geschwindigkeit wirken für alle Spielenden; Läufer:innen profitieren im Spielgefühl besonders, weil sie häufiger Laufwege zum Jugg oder Mal nehmen.

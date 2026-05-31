@@ -62,7 +62,6 @@ const {
   syncPvpRoundBreak,
   setCinemaMode,
   setBluePompfe,
-  setBluePlayerStrategy,
   setBluePosition,
   setBlueSkill,
   setBlueTeamStrategy,
@@ -504,7 +503,7 @@ function currentFormationPlayerNames() {
 }
 
 function defaultFormationPlayerName(index) {
-  return index === 0 ? t('role.runner') : t('role.pompfer', { index })
+  return index === 0 ? t('role.quick') : t('role.pompfer', { index })
 }
 
 function handleFormationPlayerNameInput(event) {

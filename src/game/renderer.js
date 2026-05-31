@@ -1,6 +1,6 @@
 import { CALL_BUBBLE_DURATION, FIELD, FIELD_POLYGON, JUGG_RADIUS, PLAYER_RADIUS, TEAMS, fieldPoint } from './config.js'
 import { clamp } from './geometry.js'
-import { isInactive, isPompfer, isRunner } from './players.js'
+import { isInactive, isPompfer, isQuick } from './players.js'
 import { attackArcFor, pompfeFor, pompfeVisualFor } from './pompfen.js'
 
 
@@ -355,9 +355,9 @@ export function createRenderer({ ctx, state }) {
     ctx.lineWidth = 4
     ctx.lineCap = 'round'
     ctx.setLineDash([4, 5])
-    for (const runner of contest.runners) {
+    for (const quick of contest.quicks) {
       ctx.beginPath()
-      ctx.moveTo(runner.x, runner.y)
+      ctx.moveTo(quick.x, quick.y)
       ctx.lineTo(state.jugg.x, state.jugg.y)
       ctx.stroke()
     }

@@ -288,7 +288,7 @@ function queryHud(root) {
 function ruleRows() {
   return [
     ['match-dot', 'ruleGroup.match', ['rule.1', 'rule.11', 'rule.24', 'rule.28']],
-    ['runner-dot', 'ruleGroup.roles', ['rule.2', 'rule.3', 'rule.7', 'rule.17']],
+    ['quick-dot', 'ruleGroup.roles', ['rule.2', 'rule.3', 'rule.7', 'rule.17']],
     ['technik-dot', 'ruleGroup.duels', ['rule.4', 'rule.5', 'rule.12', 'rule.13', 'rule.14', 'rule.15', 'rule.16']],
     ['pompfer-dot', 'ruleGroup.pompfen', ['rule.8', 'rule.9', 'rule.10', 'rule.19', 'rule.20', 'rule.21', 'rule.22']],
     ['perception-dot', 'ruleGroup.tactics', ['rule.6', 'rule.18', 'rule.23', 'rule.25', 'rule.26']],

@@ -21,8 +21,8 @@ export const PLAYER_SKILLS = {
 }
 
 export const TEAM_LOADOUTS = {
-  blue: ['runner', 'shield', 'qtip', 'staff', 'chain'],
-  red: ['runner', 'shield', 'qtip', 'staff', 'chain'],
+  blue: ['quick', 'shield', 'qtip', 'staff', 'chain'],
+  red: ['quick', 'shield', 'qtip', 'staff', 'chain'],
 }
 
 export const TEAM_STRATEGIES = {

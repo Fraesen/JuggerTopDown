@@ -16,12 +16,12 @@ import {
 import { pompfeLabel } from './pompfen.js'
 import { roleText } from '../i18n/index.js'
 
-export function isRunner(player) {
-  return player.role === 'runner'
+export function isQuick(player) {
+  return player.role === 'quick'
 }
 
 export function isPompfer(player) {
-  return player.role !== 'runner'
+  return player.role !== 'quick'
 }
 
 export function isGrappled(player) {
@@ -69,8 +69,8 @@ const SPEED_RATING_FACTOR = 1.16
 
 export function playerSpeed(role, geschwindigkeit) {
   const speedPoints = Math.max(0, (geschwindigkeit - SPEED_BASE) / SPEED_PER_POINT)
-  const runnerSkillBonus = role === 'runner' ? 5 : 0
-  return (SHARED_MOVEMENT_BASE + geschwindigkeit * SPEED_RATING_FACTOR + runnerSkillBonus) * MOVEMENT_SPEED_FACTOR
+  const quickSkillBonus = role === 'quick' ? 5 : 0
+  return (SHARED_MOVEMENT_BASE + geschwindigkeit * SPEED_RATING_FACTOR + quickSkillBonus) * MOVEMENT_SPEED_FACTOR
 }
 
 export function skillForPlayer(player) {
@@ -81,7 +81,7 @@ export function createPlayer(team, index, role) {
   const stats = statsFromSkill(PLAYER_SKILLS[team][index])
   const positionSlot = PLAYER_POSITIONS[team][index] ?? index
   const spawn = START_POSITIONS[team][positionSlot]
-  const pompfe = TEAM_LOADOUTS[team][index] ?? (role === 'runner' ? 'runner' : 'staff')
+  const pompfe = TEAM_LOADOUTS[team][index] ?? (role === 'quick' ? 'quick' : 'staff')
 
   return {
     id: `${team}-${index}`,
@@ -147,8 +147,8 @@ export function createPlayer(team, index, role) {
     recoveryDashSpeed: 0,
     recoveryDashX: 0,
     recoveryDashY: 0,
-    runnerJuggRetreatTimer: 0,
-    runnerJuggRetreatX: 0,
-    runnerJuggRetreatY: 0,
+    quickJuggRetreatTimer: 0,
+    quickJuggRetreatX: 0,
+    quickJuggRetreatY: 0,
   }
 }

@@ -18,8 +18,8 @@ export const MENU_CINEMA_REELS = [
     blueStrategy: 'standard',
     redStrategy: 'aggressive',
     loadouts: {
-      blue: ['runner', 'staff', 'chain', 'qtip', 'shield'],
-      red: ['runner', 'qtip', 'staff', 'chain', 'shield'],
+      blue: ['quick', 'staff', 'chain', 'qtip', 'shield'],
+      red: ['quick', 'qtip', 'staff', 'chain', 'shield'],
     },
     positions: {
       blue: [0, 4, 2, 1, 3],
@@ -32,8 +32,8 @@ export const MENU_CINEMA_REELS = [
     blueStrategy: 'aggressive',
     redStrategy: 'defensive',
     loadouts: {
-      blue: ['runner', 'shield', 'qtip', 'staff', 'chain'],
-      red: ['runner', 'shield', 'qtip', 'staff', 'chain'],
+      blue: ['quick', 'shield', 'qtip', 'staff', 'chain'],
+      red: ['quick', 'shield', 'qtip', 'staff', 'chain'],
     },
     positions: {
       blue: [0, 4, 2, 1, 3],
@@ -46,8 +46,8 @@ export const MENU_CINEMA_REELS = [
     blueStrategy: 'defensive',
     redStrategy: 'aggressive',
     loadouts: {
-      blue: ['runner', 'shield', 'qtip', 'staff', 'chain'],
-      red: ['runner', 'shield', 'qtip', 'staff', 'chain'],
+      blue: ['quick', 'shield', 'qtip', 'staff', 'chain'],
+      red: ['quick', 'shield', 'qtip', 'staff', 'chain'],
     },
     positions: {
       blue: [0, 4, 2, 1, 3],
@@ -55,13 +55,13 @@ export const MENU_CINEMA_REELS = [
     },
   },
   {
-    seed: 'runner-chaos-standard-standard-51',
+    seed: 'quick-chaos-standard-standard-51',
     durationSeconds: 18,
     blueStrategy: 'standard',
     redStrategy: 'standard',
     loadouts: {
-      blue: ['runner', 'chain', 'qtip', 'staff', 'shield'],
-      red: ['runner', 'shield', 'chain', 'staff', 'qtip'],
+      blue: ['quick', 'chain', 'qtip', 'staff', 'shield'],
+      red: ['quick', 'shield', 'chain', 'staff', 'qtip'],
     },
     positions: {
       blue: [0, 4, 2, 1, 3],

@@ -1,7 +1,7 @@
 import { CAMERA_MAX_ZOOM, CAMERA_MIN_ZOOM, CAMERA_ZOOM_STEP } from '../game/state.js'
 import { FIELD, STONE_SECONDS, TEAM_STRATEGIES } from '../game/config.js'
 import { clamp, distance } from '../game/geometry.js'
-import { isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot, roleLabel, skillForPlayer } from '../game/players.js'
+import { isInactive, isPompfer, isQuick, playerIndex, playerPositionSlot, roleLabel, skillForPlayer } from '../game/players.js'
 import { pompfeFor, pompfeLabel } from '../game/pompfen.js'
 import { teamStrategyLabel } from '../game/strategies.js'
 import { positionText, t, teamLabel } from '../i18n/index.js'
@@ -25,7 +25,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       .map((player) => {
         const x = (player.x / FIELD.width) * 100
         const y = (player.y / FIELD.height) * 100
-        const role = isRunner(player) ? ' runner' : ''
+        const role = isQuick(player) ? ' quick' : ''
         const inactive = isInactive(player) ? ' inactive' : ''
         return `<i class="${player.team}${role}${inactive}" style="left:${x}%;top:${y}%"></i>`
       })
@@ -51,7 +51,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     if (hud.docsNavBtn) hud.docsNavBtn.classList.toggle('active', mode === 'docs')
     updatePvpSetupTimer()
 
-    const possession = state.jugg.carrier ? t('possession.runner', { team: teamLabel(state.jugg.carrier.team) }) : t('status.free')
+    const possession = state.jugg.quick ? t('possession.quick', { team: teamLabel(state.jugg.quick.team) }) : t('status.free')
     const pinCount = state.players.filter((player) => player.pinnedBy).length
     const inactiveCount = state.players.filter((player) => isInactive(player)).length
 
@@ -63,9 +63,9 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     hud.matchState.textContent = matchStateLabel()
     hud.possession.textContent = possession
     if (hud.possessionChip) {
-      hud.possessionChip.classList.toggle('blue-possession', state.jugg.carrier?.team === 'blue')
-      hud.possessionChip.classList.toggle('red-possession', state.jugg.carrier?.team === 'red')
-      hud.possessionChip.classList.toggle('free-possession', !state.jugg.carrier)
+      hud.possessionChip.classList.toggle('blue-possession', state.jugg.quick?.team === 'blue')
+      hud.possessionChip.classList.toggle('red-possession', state.jugg.quick?.team === 'red')
+      hud.possessionChip.classList.toggle('free-possession', !state.jugg.quick)
     }
     hud.pins.textContent = pinCount
     hud.inactive.textContent = inactiveCount
@@ -268,7 +268,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       <div><span>${t('skill.geschwindigkeit')}</span><strong>${player.geschwindigkeit}</strong><small>${skill.geschwindigkeit} ${t('skill.sp')}</small></div>
       <div><span>${t('skill.wahrnehmung')}</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} ${t('skill.sp')}</small></div>
       <div><span>${t('tooltip.pompfe')}</span><strong>${pompfe ? pompfeLabel(pompfe) : t('pompfe.jugg')}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
-      <div><span>${t('tooltip.position')}</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? t('formation.slot', { slot: playerPositionSlot(player) }) : t('role.runner')}</small></div>
+      <div><span>${t('tooltip.position')}</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? t('formation.slot', { slot: playerPositionSlot(player) }) : t('role.quick')}</small></div>
       <div><span>${t('tooltip.strategy')}</span><strong>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</strong><small>${t('formation.teamStrategy')}</small></div>
       <div><span>${t('tooltip.status')}</span><strong>${inactive ? t('status.inactive') : t('status.active')}</strong><small>${statusDetail}</small></div>
     `

@@ -90,7 +90,7 @@ export const en = {
   'match.teamSecuresJugg': '{team} secures the Jugg',
   'match.strategyBreakWithStones': '{label} - strategy break, {stones} stones',
 
-  'possession.runner': '{team} runner',
+  'possession.quick': '{team} quick',
   'pvp.yourTeamColor': 'Your team color',
   'pvp.opponentTeamColor': 'Opponent team color',
   'arena.aria': 'Jugger field',
@@ -153,7 +153,7 @@ export const en = {
   'formation.slot': 'Slot {slot}',
   'formation.middle': 'Middle',
 
-  'role.runner': 'Runner',
+  'role.quick': 'Quick',
   'role.pompfer': 'Pompfer {index}',
 
   'position.1': 'Top outside',
@@ -189,12 +189,12 @@ export const en = {
   'call.mitkommen': 'Come with me!',
 
   'rule.1': 'First to 3 points wins',
-  'rule.2': '1 runner',
+  'rule.2': '1 quick',
   'rule.3': '4 Pompfers',
   'rule.4': 'Technique: 30 + 10 per point',
   'rule.5': 'Speed: movement pace',
   'rule.6': 'Awareness: call chance',
-  'rule.7': 'Only runners carry the Jugg',
+  'rule.7': 'Only quicks carry the Jugg',
   'rule.8': 'Melee Pompfen pin inactive players',
   'rule.9': 'Blue chooses Pompfen, max. 1 chain',
   'rule.10': 'Shields block better from the front',
@@ -203,8 +203,8 @@ export const en = {
   'rule.13': 'Strike 0.1s, double window 0.3s',
   'rule.14': 'Cooldown prevents doubles',
   'rule.15': 'Moving strike: -25 percentage points',
-  'rule.16': 'Runners do not block: +75 percentage points',
-  'rule.17': 'Runner duels for the Jugg use technique',
+  'rule.16': 'Quicks do not block: +75 percentage points',
+  'rule.17': 'Quick duels for the Jugg use technique',
   'rule.18': 'Calls are followed through awareness',
   'rule.19': 'Chains do not pin and do not hit through players',
   'rule.20': 'Chain band blocks while retracting',
@@ -236,7 +236,7 @@ export const en = {
       <section>
         <h2>Relevant Jugger Rules</h2>
         <p>
-          Jugger is played 5 vs 5. Each team has one runner and four Pompfers. Only runners may carry
+          Jugger is played 5 vs 5. Each team has one quick and four Pompfers. Only quicks may carry
           the Jugg and score by placing it in the opponent's goal. Players hit by legal Pompfen strikes
           become inactive for a penalty counted in stones. Inactive players can be pinned by opponents.
         </p>
@@ -254,8 +254,8 @@ export const en = {
       <section>
         <h2>Decision Logic</h2>
         <ul>
-          <li>Runners try to reach the Jugg, score when the route is clear, or retreat when enemy ranges block the path.</li>
-          <li>Pompfers seek duels, protect their runner, attack the opposing runner or pin inactive opponents after enough stones.</li>
+          <li>Quicks try to reach the Jugg, score when the route is clear, or retreat when enemy ranges block the path.</li>
+          <li>Pompfers seek duels, protect their quick, attack the opposing quick or pin inactive opponents after enough stones.</li>
           <li>Players rotate before moving; standing players can turn in place.</li>
           <li>Pinned players do not move, while pinners may move inside the pin radius and still strike.</li>
         </ul>
@@ -293,11 +293,11 @@ export const en = {
         </p>
         <dl>
           <dt>Come with me!</dt>
-          <dd>The runner calls support while carrying the Jugg and facing only one relevant opponent on the way to goal.</dd>
+          <dd>The quick calls support while carrying the Jugg and facing only one relevant opponent on the way to goal.</dd>
           <dt>Goal defense!</dt>
           <dd>Triggered by danger near the own goal. Teammates move toward the goal until the threat is gone.</dd>
           <dt>Help me!</dt>
-          <dd>A runner who grapples or is grappled calls the nearest suitable teammate to strike the opposing runner.</dd>
+          <dd>A quick who grapples or is grappled calls the nearest suitable teammate to strike the opposing quick.</dd>
           <dt>Double pin!</dt>
           <dd>A pinner can take over coverage of a second inactive Pompfer so another teammate can seek a new target.</dd>
           <dt>Numbers!</dt>
@@ -308,8 +308,8 @@ export const en = {
       <section>
         <h2>Hit Calculation And Stats</h2>
         <p>
-          Technique decides hit probability by ratio. Running attacks receive a penalty. Hits against runners get a bonus
-          because runners cannot block. Back hits double the hit chance and remove block chance. Speed controls movement,
+          Technique decides hit probability by ratio. Running attacks receive a penalty. Hits against quicks get a bonus
+          because quicks cannot block. Back hits double the hit chance and remove block chance. Speed controls movement,
           while awareness controls whether calls are understood.
         </p>
       </section>
@@ -320,7 +320,7 @@ export const en = {
           <dt>Standard</dt>
           <dd>Normal opening and situational decisions based on the Jugg, opponents and calls.</dd>
           <dt>Wide line</dt>
-          <dd>Pompfers spread wide toward the center line. The runner initially stays deeper.</dd>
+          <dd>Pompfers spread wide toward the center line. The quick initially stays deeper.</dd>
           <dt>Left/Right pressure</dt>
           <dd>One side plays defensively while the other side plays more aggressively with a smaller double window.</dd>
         </dl>

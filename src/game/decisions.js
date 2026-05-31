@@ -13,11 +13,10 @@ import {
 } from './config.js'
 import { createCallDecisions } from './decisions/calls.js'
 import { createChainDecisions } from './decisions/chain.js'
-import { createFlankDecisions } from './decisions/flank.js'
 import { clamp, distance, normalize } from './geometry.js'
 import { canReceiveNewPin, isGrappling, isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot } from './players.js'
 import { attackRangeFor, canPinWithPompfe, isInAttackArc, maxPompfeAttackRange } from './pompfen.js'
-import { isDefensiveStrategyPlayer, openingStrategyPoint, playerStrategy } from './strategies.js'
+import { isDefensiveStrategyPlayer, openingStrategyPoint } from './strategies.js'
 
 const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
@@ -81,7 +80,6 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       !isInactive(player) &&
       !player.pinTarget &&
       !defensiveBindingActive(player) &&
-      player.flankTimer <= 0 &&
       player.callType !== 'hilfmir' &&
       player.doublePinReleasePause <= 0 &&
       !player.doublePinTrapTarget
@@ -159,15 +157,9 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     return fieldPoint(meterX, lane)
   }
 
-  function runnerWideMiddlePoint(player) {
+  function runnerOpeningPoint(player) {
     const meterX = player.team === 'blue' ? FIELD.lengthMeters * 0.25 : FIELD.lengthMeters * 0.75
     return fieldPoint(meterX, FIELD.widthMeters * 0.5)
-  }
-
-  function runnerOwnLineRetreatPoint(runner) {
-    const meterX = runner.team === 'blue' ? 0.25 : FIELD.lengthMeters - 0.25
-    const meterY = clamp((runner.y - FIELD.originY) / FIELD.scale, 4.8, FIELD.widthMeters - 4.8)
-    return fieldPoint(meterX, meterY)
   }
 
   function openingTarget(point) {
@@ -176,13 +168,8 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   
   function openingRushTarget(player) {
     if (player.openingComplete) return null
-    const runnerStrategy = isRunner(player) ? playerStrategy(player) : null
-    if (runnerStrategy === 'direct_jugg') {
-      player.openingComplete = true
-      return null
-    }
 
-    const strategyPoint = runnerStrategy === 'wide_middle' ? runnerWideMiddlePoint(player) : openingStrategyPoint(player)
+    const strategyPoint = isRunner(player) ? runnerOpeningPoint(player) : openingStrategyPoint(player)
     const openingDuration = strategyPoint ? OPENING_RUSH_SECONDS * 1.25 : OPENING_RUSH_SECONDS
     if (state.roundTime > openingDuration || state.jugg.carrier) {
       player.openingComplete = true
@@ -190,7 +177,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     }
   
     const fanPoint = strategyPoint || openingFanPoint(player)
-    if (runnerStrategy === 'wide_middle') return openingTarget(fanPoint)
+    if (isRunner(player)) return openingTarget(fanPoint)
 
     if (distance(player, fanPoint) <= OPENING_FAN_REACHED_RADIUS) {
       player.openingComplete = true
@@ -528,10 +515,6 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
   const chainGuardPoint = chain.chainGuardPoint
   const chainRetreatPoint = chain.chainRetreatPoint
 
-  const flank = createFlankDecisions({ state, distanceToSegment })
-  const flankPathBlocker = flank.flankPathBlocker
-  const flankStrategyTarget = flank.flankStrategyTarget
-
   function updateAi(player, dt = 0) {
     const team = TEAMS[player.team]
     const ownCarrier = state.jugg.carrier?.team === player.team
@@ -548,14 +531,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       player.sidePressureFailedSide = null
     }
   
-    if (player.flankTimer > 0 && isPompfer(player)) {
-      const flank = flankStrategyTarget(player)
-      target = flank.point
-      faceTarget = flank.enemy || target
-      const blocker = flankPathBlocker(player, flank.point)
-      const strikeTarget = blocker || flank.enemy || nearestActiveEnemy.target
-      if (canStrikeTarget(player, strikeTarget, 8)) attack(player, strikeTarget)
-    } else if (player.pinTarget && player.callType === 'hilfmir' && callTarget) {
+    if (player.pinTarget && player.callType === 'hilfmir' && callTarget) {
       player.pinTarget = null
       target = callTarget
       faceTarget = callTarget
@@ -587,39 +563,25 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
       target = rushTarget
       if (canStrikeTarget(player, rushTarget, 8)) attack(player, rushTarget)
     } else if (isRunner(player)) {
-      const strategy = playerStrategy(player)
-  
       if (state.jugg.carrier === player) {
         const blockers = directMalBlockers(player)
-        if (strategy === 'direct_jugg') {
+        const nearestActivePompfer = nearestEnemy(player, (other) => !isInactive(other) && isPompfer(other))
+        const enoughSpaceForSidePressure = nearestActivePompfer.distance > SIDE_PRESSURE_SAFE_DISTANCE
+        const useSidePressure = blockers.length > 0 && (player.retreatingWithJugg || player.sidePressureSide) && enoughSpaceForSidePressure
+
+        if (blockers.length <= 0) {
+          player.retreatingWithJugg = false
           player.sidePressureSide = null
           player.sidePressureFailedSide = null
-          if (blockers.length <= 0) {
-            player.retreatingWithJugg = false
-            target = team.attackMal
-          } else {
-            player.retreatingWithJugg = true
-            target = runnerOwnLineRetreatPoint(player)
-          }
+          target = team.attackMal
+        } else if (useSidePressure) {
+          player.retreatingWithJugg = false
+          target = sidePressureTargetForRunner(player)
         } else {
-          const nearestActivePompfer = nearestEnemy(player, (other) => !isInactive(other) && isPompfer(other))
-          const enoughSpaceForSidePressure = nearestActivePompfer.distance > SIDE_PRESSURE_SAFE_DISTANCE
-          const useSidePressure = blockers.length > 0 && (player.retreatingWithJugg || player.sidePressureSide) && enoughSpaceForSidePressure
-
-          if (blockers.length <= 0) {
-            player.retreatingWithJugg = false
-            player.sidePressureSide = null
-            player.sidePressureFailedSide = null
-            target = team.attackMal
-          } else if (useSidePressure) {
-            player.retreatingWithJugg = false
-            target = sidePressureTargetForRunner(player)
-          } else {
-            player.retreatingWithJugg = true
-            player.sidePressureSide = null
-            player.sidePressureFailedSide = null
-            target = retreatPointForRunner(player, blockers)
-          }
+          player.retreatingWithJugg = true
+          player.sidePressureSide = null
+          player.sidePressureFailedSide = null
+          target = retreatPointForRunner(player, blockers)
         }
       } else if (enemyCarrier) {
         target = state.jugg.carrier

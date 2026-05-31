@@ -1,0 +1,483 @@
+/* Tactics overlay iteration */
+.play-layout,
+.game-shell.drawer-collapsed .play-layout,
+.game-shell.tactics-open .play-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.command-panel {
+  position: fixed;
+  z-index: 18;
+  top: 76px;
+  left: 50%;
+  right: auto;
+  bottom: 18px;
+  width: min(920px, calc(100vw - 36px));
+  max-height: none;
+  display: none;
+  transform: translateX(-50%);
+  border-color: color-mix(in srgb, var(--gold) 24%, var(--line));
+  border-radius: 14px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--blue) 16%, transparent), transparent 32%),
+    linear-gradient(145deg, color-mix(in srgb, var(--panel-strong) 96%, transparent), color-mix(in srgb, var(--panel-soft) 88%, transparent));
+  backdrop-filter: blur(14px);
+}
+
+.game-shell.tactics-open .command-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 270px);
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+.game-shell.tactics-open .arena-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.drawer-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 247, 215, 0.12);
+  padding-bottom: 10px;
+}
+
+.drawer-heading h1 {
+  font-size: 30px;
+}
+
+#drawer-close {
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.match-tools-panel,
+.status-grid {
+  order: initial;
+}
+
+.skill-panel {
+  grid-column: 1;
+  grid-row: 2 / span 4;
+}
+
+.roster-panel {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.match-tools-panel {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.command-panel > .status-grid {
+  display: none;
+}
+
+.command-panel .skill-list {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.command-panel .team-playbook-card {
+  grid-column: auto;
+}
+
+.command-panel .roster-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.arena-wrap {
+  min-height: 0;
+  justify-items: center;
+}
+
+.arena-wrap canvas {
+  width: min(100%, calc((100vh - 188px) * 2));
+  max-width: 100%;
+  height: auto;
+  max-height: calc(100vh - 188px);
+}
+
+.possession-chip {
+  --possession-tint: rgba(240, 214, 106, 0.1);
+  border-color: color-mix(in srgb, var(--gold) 22%, var(--line));
+  background:
+    linear-gradient(90deg, var(--possession-tint), transparent 72%),
+    var(--panel-overlay);
+}
+
+.possession-chip.blue-possession {
+  --possession-tint: color-mix(in srgb, var(--blue) 28%, transparent);
+  border-color: color-mix(in srgb, var(--blue) 62%, var(--line));
+}
+
+.possession-chip.red-possession {
+  --possession-tint: color-mix(in srgb, var(--red) 28%, transparent);
+  border-color: color-mix(in srgb, var(--red) 62%, var(--line));
+}
+
+.stone-chip {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.stone-chip::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: auto 0 0;
+  height: 4px;
+  width: var(--stone-progress, 0%);
+  background: var(--gold);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--gold) 70%, transparent);
+  transition: width 90ms linear;
+}
+
+.player-card {
+  border-radius: 9px;
+}
+
+.player-card[draggable="true"] {
+  cursor: grab;
+}
+
+.position-lane-label {
+  align-self: end;
+  margin: 6px 6px -4px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.draggable-card {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--gold) 42%, var(--line));
+  overflow: visible;
+  margin-left: 2px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.042), transparent 48%),
+    color-mix(in srgb, var(--panel-soft) 62%, transparent);
+}
+
+.draggable-card::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1px dashed rgba(240, 214, 106, 0.32);
+  border-radius: 11px;
+  pointer-events: none;
+}
+
+.drag-handle {
+  display: inline-grid;
+  width: 20px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(240, 214, 106, 0.14);
+  border-radius: 6px;
+  opacity: 0.72;
+  background:
+    radial-gradient(circle, rgba(240, 214, 106, 0.62) 1.1px, transparent 1.7px) 4px 5px / 5px 5px,
+    rgba(240, 214, 106, 0.035);
+}
+
+.player-card.dragging,
+.formation-row.dragging {
+  opacity: 0.48;
+}
+
+.player-card.drag-over,
+.formation-row.drag-over {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.player-card > summary {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  list-style: none;
+}
+
+.player-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.player-card > summary::after {
+  content: ">";
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.player-card[open] > summary::after {
+  content: "v";
+}
+
+.player-card:not([open]) .player-card-header {
+  border-bottom: 0;
+}
+
+.player-card:not([open]) .player-card-header strong {
+  color: var(--gold);
+}
+
+.player-card-body {
+  padding-top: 8px;
+}
+
+.stat-control {
+  min-height: 34px;
+}
+
+.round-setup-card {
+  width: min(760px, calc(100% - 40px));
+  max-height: calc(100% - 36px);
+}
+
+.round-setup-card > header {
+  align-items: center;
+}
+
+.round-setup-card > header button {
+  min-height: 34px;
+  padding: 0 14px;
+}
+
+.formation-list {
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.formation-list > .position-lane-label {
+  margin-top: 2px;
+}
+
+.formation-row.strategy-row {
+  grid-template-columns: minmax(150px, 0.82fr) minmax(260px, 1.18fr);
+}
+
+.formation-row {
+  gap: 7px;
+  padding: 8px;
+}
+
+.formation-row header span {
+  font-size: 12px;
+}
+
+.formation-row .loadout-controls {
+  grid-template-columns: repeat(2, minmax(124px, 1fr));
+  gap: 6px;
+}
+
+.formation-row .position-control {
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 5px;
+}
+
+.formation-row .position-control select {
+  height: 32px;
+}
+
+@media (max-width: 960px) {
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #app,
+  .game-shell {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .game-shell {
+    overflow: visible;
+    padding: 10px;
+  }
+
+  .score-strip,
+  .play-layout {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .score-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .match-core {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .arena-wrap {
+    min-height: 0;
+  }
+
+  canvas {
+    max-height: none;
+  }
+
+  .command-panel {
+    max-height: none;
+    overflow: visible;
+    order: -1;
+  }
+
+  .game-shell.drawer-collapsed .play-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .game-shell.drawer-collapsed .command-panel {
+    display: none;
+  }
+
+  .match-core {
+    grid-template-columns: 1fr;
+  }
+
+  .top-controls {
+    min-width: 0;
+  }
+
+  .core-hud-row {
+    flex-wrap: wrap;
+  }
+
+  .field-mini-map {
+    width: 210px;
+    height: 104px;
+  }
+
+  .command-panel {
+    top: 64px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+  }
+
+  .command-panel .skill-list,
+  .command-panel .roster-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-menu {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 10px;
+  }
+
+  .theme-control {
+    margin-left: 0;
+  }
+
+  h1 {
+    font-size: 34px;
+  }
+
+  .pvp-skill-setup-grid,
+  .formation-list {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-row,
+  .formation-row.strategy-row {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-manager-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+@media (max-height: 820px) and (min-width: 961px) {
+  .game-shell {
+    gap: 8px;
+    padding: 8px 14px 10px;
+  }
+
+  .team-score,
+  .match-core {
+    min-height: 54px;
+    padding: 8px 14px;
+  }
+
+  .team-score strong,
+  .match-core strong {
+    font-size: 30px;
+  }
+
+  .hud-chip,
+  .drawer-toggle,
+  .rematch-btn {
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+
+  .arena-wrap canvas {
+    width: min(100%, calc((100vh - 158px) * 2));
+    max-height: calc(100vh - 158px);
+  }
+
+  .round-setup-card {
+    width: min(700px, calc(100% - 32px));
+    max-height: calc(100% - 28px);
+  }
+}
+
+@media (max-width: 560px) {
+  .score-strip {
+    gap: 8px;
+  }
+
+  .team-score,
+  .match-core,
+  .command-panel {
+    padding: 12px;
+  }
+
+  .team-score {
+    min-height: 62px;
+  }
+
+  .team-score strong {
+    font-size: 31px;
+  }
+
+  .match-core strong {
+    font-size: 28px;
+  }
+
+  .controls-row,
+  .speed-control,
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .roster-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .roster-grid span {
+    display: none;
+  }
+}

@@ -143,6 +143,9 @@ export const en = {
   'formation.noPresets': 'No saved formation',
   'formation.loadPreset': 'Load',
   'formation.savePreset': 'Save',
+  'formation.loadSuccess': 'Loaded successfully',
+  'formation.saveSuccess': 'Saved successfully',
+  'formation.skillToggle': 'Skills',
   'formation.teamStrategy': 'Team strategy',
   'formation.strategy': 'Strategy',
   'formation.position': 'Position',
@@ -169,10 +172,6 @@ export const en = {
   'strategy.wideLine': 'Wide line',
   'strategy.topDefense': 'Right pressure',
   'strategy.bottomDefense': 'Left pressure',
-  'strategy.none': 'None',
-  'strategy.flank': 'Flank',
-  'strategy.wideMiddle': 'Wide middle',
-  'strategy.directJugg': 'Straight to the Jugg',
 
   'tooltip.pompfe': 'Pompfe',
   'tooltip.position': 'Position',
@@ -188,7 +187,6 @@ export const en = {
   'call.doppelpin': 'Double pin!',
   'call.ueberzahl': 'Advantage!',
   'call.mitkommen': 'Come with me!',
-  'call.umlaufen': 'Flank!',
 
   'rule.1': 'First to 3 points wins',
   'rule.2': '1 runner',
@@ -216,7 +214,6 @@ export const en = {
   'rule.24': 'After points: 20-stone strategy break',
   'rule.25': 'Defensive: harder to hit, but hits worse',
   'rule.26': 'Aggressive: much smaller double window',
-  'rule.27': 'Flank: after a clear first hit, attack from behind',
   'rule.28': 'Cinema Mode: automatic camera and slow motion',
   'ruleGroup.match': 'Match',
   'ruleGroup.roles': 'Roles',
@@ -326,12 +323,6 @@ export const en = {
           <dd>Pompfers spread wide toward the center line. The runner initially stays deeper.</dd>
           <dt>Left/Right pressure</dt>
           <dd>One side plays defensively while the other side plays more aggressively with a smaller double window.</dd>
-          <dt>Wide middle</dt>
-          <dd>Default runner behavior: stay wider/central during the opening, then react to Jugg possession and route safety.</dd>
-          <dt>Straight to the Jugg</dt>
-          <dd>The runner rushes to the Jugg, scores on a clear route, or retreats behind the own line.</dd>
-          <dt>Flank</dt>
-          <dd>After a clear early hit, Pompfers try to curve behind opponents and attack from behind.</dd>
         </dl>
       </section>
     </article>

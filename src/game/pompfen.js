@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js'
+export { POMPFEN_OPTIONS } from './rules/teamSchema.js'
 
 const POMPFEN_RANGE_PIXELS_PER_CM = 70 / 110
 const POMPFEN_VISUAL_PIXELS_PER_CM = 0.42
@@ -158,8 +159,6 @@ export const POMPFEN = {
     },
   },
 }
-
-export const POMPFEN_OPTIONS = ['shield', 'longpompfe', 'staff', 'qtip', 'chain']
 
 export function pompfeFor(player = {}) {
   return POMPFEN[player.pompfe] ?? POMPFEN.staff

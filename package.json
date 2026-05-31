@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node scripts/deterministic-check.mjs",
+    "test": "node scripts/test.mjs",
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed",
     "screenshots:ui": "playwright test --grep @screenshots",

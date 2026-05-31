@@ -31,13 +31,13 @@ export const DOCS_HTML = `
       <h2>Adaption und Spielablauf</h2>
       <p>
         Die App ist ein deterministischer Autobattler. Spielende werden nicht direkt gesteuert, sondern entscheiden pro Tick anhand von Rolle,
-        Pompfe, Strategie, Calls, Jugg-Situation, Nähe zur Gegenseite und Zustand. Gleicher Seed und gleiche Konfiguration führen zu gleichem Ablauf.
+        Pompfe, Teamstrategie, Calls, Jugg-Situation, Nähe zur Gegenseite und Zustand. Gleicher Seed und gleiche Konfiguration führen zu gleichem Ablauf.
       </p>
       <ul>
         <li>Teams starten links und rechts außerhalb der Grundlinie und laufen zum ersten Kontakt an.</li>
         <li>Zwischen Punkten gibt es eine Strategiepause von 20 Steinen. In den letzten 3 Steinen ist die Aufstellung gesperrt und es zählt groß <code>3</code>, <code>2</code>, <code>1</code>, <code>Jugger!</code> herunter.</li>
-        <li>Im Botmodus können Skillung, Pompfen, Positionen und Strategien in der Seitenleiste geändert werden. Im PvP wird die Teamkonfiguration synchron über den Server verteilt.</li>
-        <li>Nach der ersten PvP-Setup-Phase ist die Skillung gesperrt; zwischen Zügen werden nur Aufstellung, Pompfen und Strategien geändert.</li>
+        <li>Im Botmodus können Skillung, Pompfen, Positionen und Teamstrategie in der Seitenleiste geändert werden. Im PvP wird die Teamkonfiguration synchron über den Server verteilt.</li>
+        <li>Nach der ersten PvP-Setup-Phase ist die Skillung gesperrt; zwischen Zügen werden nur Aufstellung, Pompfen und Teamstrategie geändert.</li>
         <li>PvP blendet Cinema Mode, Seed und manuelle Geschwindigkeit aus, damit beide Clients denselben Ablauf simulieren.</li>
         <li>Cinema Mode ist nur im Botmodus verfügbar und steuert Kamera/Slowmotion für erkannte Highlight-Szenen.</li>
       </ul>
@@ -147,15 +147,9 @@ export const DOCS_HTML = `
         <dt>Teamstrategie: Standard</dt>
         <dd>Normales Anlaufen und situatives Entscheiden anhand Jugg, Gegenseite und Calls.</dd>
         <dt>Teamstrategie: Breite Linie</dt>
-        <dd>Pompfer:innen laufen breit gefächert Richtung Mittellinie. Die Läufer:in mit Standard-Läufer:innenstrategie bleibt zuerst bei einem Viertel der Feldlänge.</dd>
+        <dd>Pompfer:innen laufen breit gefächert Richtung Mittellinie. Die Läufer:in bleibt zuerst bei einem Viertel der Feldlänge.</dd>
         <dt>Teamstrategien: Links Druck / Rechts Druck</dt>
-        <dd>Eine Seite bindet defensiv die direkte gegnerische Person bis zum Duell oder bis die gegnerische Läufer:in in die eigene Hälfte kommt. Die andere Seite spielt aggressiver; das Doppelfenster gegen sie wird kleiner.</dd>
-        <dt>Läufer:innenstrategie: Breite Mitte</dt>
-        <dd>Standardverhalten: Die Läufer:in bleibt im Anlaufen breiter/zentraler, reagiert dann auf Jugg-Besitz und Laufweg.</dd>
-        <dt>Läufer:innenstrategie: Direkt zum Jugg</dt>
-        <dd>Die Läufer:in sprintet zum Jugg, nimmt ihn, geht bei freiem direktem Weg zum Mal und zieht sich sonst hinter die eigene Linie zurück.</dd>
-        <dt>Personenstrategie: Umlaufen</dt>
-        <dd>Pompfer:innen versuchen nach einem klaren Ersttreffer früh im Zug, gekrümmt hinter Gegner:innen zu laufen und Rückentreffer zu suchen. Personen im Weg werden trotzdem duelliert.</dd>
+        <dd>Eine Seite bindet defensiv die direkte gegnerische Person bis zum Duell oder bis die gegnerische Läufer:in in die eigene Hälfte kommt. Die andere Seite spielt aggressiver; das Doppelfenster gegen sie wird kleiner.</dd>
         <dt>Defensiv</dt>
         <dd>Schwerer zu treffen, trifft aber selbst schlechter. Entsteht durch Seitendruck-Strategien oder den Überzahl-Call.</dd>
         <dt>Aggressiv</dt>

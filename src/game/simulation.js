@@ -2,8 +2,8 @@ import { createDecisionEngine } from './decisions.js'
 import { createCinemaDirector } from './cinema.js'
 import { CHAIN_STRIKE_VISUAL_DURATION, createChainVisuals } from './chainVisuals.js'
 import {
-  ATTACK_COOLDOWN,
   ATTACK_DURATION,
+  ATTACK_COOLDOWN,
   CHAIN_HIT_STONES,
   DOUBLE_HIT_WINDOW,
   DOUBLE_PIN_RELEASE_PAUSE,
@@ -34,7 +34,6 @@ import {
   TEAM_LOADOUTS,
   TEAM_STRATEGIES,
   TEAMS,
-  PLAYER_STRATEGIES,
   fieldPoint,
 } from './config.js'
 import { clamp, closestPointOnSegment, constrainToField, distance, fieldBoundaryInwardNormal, nearestFieldBoundary, normalize, pointInPolygon } from './geometry.js'
@@ -56,18 +55,14 @@ import { renderTeamSkillPanel } from '../ui/skillPanel.js'
 import {
   AGGRESSIVE_DOUBLE_WINDOW_FACTOR,
   DEFENSIVE_HIT_MODIFIER,
-  FLANK_DURATION,
-  FLANK_TRIGGER_ROUND_TIME,
   doubleWindowFactorFor,
   isAggressiveStrategyPlayer,
   isDefensiveStrategyPlayer,
   normalizeTeamStrategy,
-  playerTechniqueOptionsForIndex,
 } from './strategies.js'
 import {
   exportTeamConfigSnapshot,
   normalizeLoadoutConfig,
-  normalizePlayerStrategiesConfig,
   normalizePositionConfig,
   normalizeSkillConfig,
 } from './teamConfig.js'
@@ -81,6 +76,7 @@ import {
 } from './state.js'
 import { createSeededRng } from './rng.js'
 import { createParticleSystem } from './particles.js'
+import { advanceAttackWindup, advancePlayerTimers } from './playerTimers.js'
 import { cloneStateForCinemaPrecompute, createHeadlessHud } from './cinemaPrecomputeState.js'
 import { t, teamLabel } from '../i18n/index.js'
 
@@ -96,6 +92,7 @@ export function createSimulation({
   onLocalTeamConfigChanged = null,
   onRoundBreakStarted = null,
   onRoundStarted = null,
+  getPlayerNames = null,
 }) {
   const rng = state.rng
   const CHAIN_HIT_COOLDOWN_MULTIPLIER = 2
@@ -219,9 +216,7 @@ export function createSimulation({
   }
   
   function resetStrategyState(player) {
-    player.strategyTriggered = false
     player.defensiveStrategyDone = false
-    player.flankTimer = 0
     player.overzahlDefenseTimer = 0
   }
   
@@ -252,22 +247,6 @@ export function createSimulation({
         player.openingComplete = false
         resetStrategyState(player)
       }
-    }
-    notifyLocalTeamConfigChanged(team)
-    renderSkillPanel()
-    updatePlayerTooltip()
-  }
-  
-  function setBluePlayerStrategy(index, strategy) {
-    const team = editableTeam()
-    if (!canEditTeam(team)) return
-    const availableStrategies = playerTechniqueOptionsForIndex(index)
-    if (!availableStrategies.some((option) => option.id === strategy)) strategy = availableStrategies[0]?.id ?? 'none'
-    PLAYER_STRATEGIES[team][index] = strategy
-    const player = state.players.find((candidate) => candidate.team === team && playerIndex(candidate) === index)
-    if (player) {
-      player.strategy = strategy
-      resetStrategyState(player)
     }
     notifyLocalTeamConfigChanged(team)
     renderSkillPanel()
@@ -316,6 +295,7 @@ export function createSimulation({
       editLoadout: editSetup,
       editPositions: editFormation,
       editStrategies: editFormation,
+      playerNames: getPlayerNames?.(team) ?? [],
     })
     if (hud.opponentSkillPanel && hud.opponentSkillList) {
       const showOpponent = false
@@ -351,9 +331,6 @@ export function createSimulation({
     }
     if (Array.isArray(config.positions)) PLAYER_POSITIONS[team].splice(0, PLAYER_POSITIONS[team].length, ...normalizePositionConfig(team, config.positions))
     if (Array.isArray(config.loadout)) TEAM_LOADOUTS[team].splice(0, TEAM_LOADOUTS[team].length, ...normalizeLoadoutConfig(team, config.loadout))
-    if (Array.isArray(config.playerStrategies)) {
-      PLAYER_STRATEGIES[team].splice(0, PLAYER_STRATEGIES[team].length, ...normalizePlayerStrategiesConfig(team, config.playerStrategies))
-    }
     if (config.teamStrategy) state.nextTeamStrategies[team] = normalizeTeamStrategy(config.teamStrategy)
 
     applyTeamSkills(team)
@@ -363,7 +340,6 @@ export function createSimulation({
       const index = playerIndex(player)
       player.pompfe = TEAM_LOADOUTS[team][index] ?? player.pompfe
       player.pompfeLabel = pompfeLabel(player.pompfe)
-      player.strategy = PLAYER_STRATEGIES[team][index] ?? player.strategy
       resetStrategyState(player)
     }
     renderSkillPanel()
@@ -835,7 +811,6 @@ export function createSimulation({
     player.callBubbleText = ''
     player.callMissTimer = 0
     player.overzahlDefenseTimer = 0
-    player.flankTimer = 0
     player.doublePinTrapTarget = null
     player.doublePinReleaseTarget = null
     player.doublePinReleasePause = 0
@@ -1311,17 +1286,6 @@ export function createSimulation({
     return best
   }
   
-  function triggerFlankStrategy(attacker, target) {
-    if (!attacker || !target || attacker.strategy !== 'flank' || attacker.strategyTriggered) return
-    if (!isPompfer(attacker) || state.roundTime > FLANK_TRIGGER_ROUND_TIME) return
-    if (canDoubleAgainst(target, attacker)) return
-  
-    attacker.strategyTriggered = true
-    attacker.flankTimer = FLANK_DURATION
-    attacker.callBubbleText = t('call.umlaufen')
-    attacker.callBubbleTimer = 1
-  }
-  
   function resolveStrikeEvents(events) {
     const hits = []
   
@@ -1375,7 +1339,6 @@ export function createSimulation({
       if (hit.target.pompfe === 'chain') {
         cancelAttack(hit.target)
       }
-      triggerFlankStrategy(hit.attacker, hit.target)
       if (clearWin) {
         decision.tryIssueOverzahlCall(hit.attacker, hit.target)
       }
@@ -1417,7 +1380,6 @@ export function createSimulation({
         !canPinWithPompfe(pinner) ||
         isInactive(pinner) ||
         defensiveBindingActiveFor(pinner) ||
-        pinner.flankTimer > 0 ||
         pinner.callType === 'hilfmir' ||
         pinner.doublePinReleasePause > 0 ||
         target.team === pinner.team ||
@@ -1437,7 +1399,6 @@ export function createSimulation({
     for (const pinner of state.players) {
       if (!isPompfer(pinner) || !canPinWithPompfe(pinner) || isInactive(pinner)) continue
       if (defensiveBindingActiveFor(pinner)) continue
-      if (pinner.flankTimer > 0) continue
       if (pinner.callType === 'hilfmir') continue
       if (pinner.doublePinReleasePause > 0 || pinner.doublePinTrapTarget) continue
       if (assignedPinners.has(pinner)) continue
@@ -1820,29 +1781,9 @@ export function createSimulation({
   
     for (const player of state.players) {
       try {
-        player.attack = Math.max(0, player.attack - dt)
-        player.doubleWindow = Math.max(0, player.doubleWindow - dt)
-        player.attackCooldown = Math.max(0, player.attackCooldown - dt)
-        player.chainStrikeTimer = Math.max(0, player.chainStrikeTimer - dt)
-        if (player.chainStrikeTimer <= 0) player.chainStrikeTarget = null
-        player.duelCooldown = Math.max(0, player.duelCooldown - dt)
-        player.callCooldown = Math.max(0, player.callCooldown - dt)
-        player.callTimer = Math.max(0, player.callTimer - dt)
-        player.callBubbleTimer = Math.max(0, player.callBubbleTimer - dt)
-        player.callMissTimer = Math.max(0, player.callMissTimer - dt)
-        player.flankTimer = Math.max(0, player.flankTimer - dt)
-        player.overzahlDefenseTimer = Math.max(0, player.overzahlDefenseTimer - dt)
-        player.doublePinReleasePause = Math.max(0, player.doublePinReleasePause - dt)
-        if (player.callBubbleTimer <= 0) player.callBubbleText = ''
-        if (player.callTimer <= 0) {
-          decision.clearCallIntent(player)
-        }
+        advancePlayerTimers(player, dt, { onCallExpired: decision.clearCallIntent })
         if (player.attackWindup > 0) {
-          player.attackWindup = Math.max(0, player.attackWindup - dt)
-          if (player.attackWindup <= 0) {
-            strikeEvents.push(player)
-            player.attackCooldown = ATTACK_COOLDOWN
-          }
+          if (advanceAttackWindup(player, dt)) strikeEvents.push(player)
         } else {
           if (player.attack <= 0) player.attackWhileMoving = false
   
@@ -1907,7 +1848,6 @@ export function createSimulation({
     syncPvpRoundBreak,
     setCinemaMode,
     setBluePompfe,
-    setBluePlayerStrategy,
     setBluePosition,
     setBlueSkill,
     setBlueTeamStrategy,

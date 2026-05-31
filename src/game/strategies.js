@@ -1,4 +1,4 @@
-import { FIELD, PLAYER_POSITIONS, PLAYER_STRATEGIES, TEAM_STRATEGIES, fieldPoint } from './config.js'
+import { FIELD, PLAYER_POSITIONS, TEAM_STRATEGIES, fieldPoint } from './config.js'
 import { t } from '../i18n/index.js'
 
 export const TEAM_STRATEGY_OPTIONS = [
@@ -8,34 +8,11 @@ export const TEAM_STRATEGY_OPTIONS = [
   { id: 'bottom_defense', labelKey: 'strategy.bottomDefense' },
 ]
 
-export const PLAYER_STRATEGY_OPTIONS = [
-  { id: 'none', labelKey: 'strategy.none' },
-  { id: 'flank', labelKey: 'strategy.flank' },
-]
-
-export const RUNNER_STRATEGY_OPTIONS = [
-  { id: 'wide_middle', labelKey: 'strategy.wideMiddle' },
-  { id: 'direct_jugg', labelKey: 'strategy.directJugg' },
-]
-
-export function playerTechniqueOptionsForIndex(index) {
-  return index === 0 ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
-}
-
 export const DEFENSIVE_HIT_MODIFIER = 0.15
 export const AGGRESSIVE_DOUBLE_WINDOW_FACTOR = 0.25
-export const FLANK_DURATION = 6
-export const FLANK_TRIGGER_ROUND_TIME = 14
 
 export function teamStrategy(team) {
   return TEAM_STRATEGIES[team] ?? 'standard'
-}
-
-export function playerStrategy(player) {
-  const index = Number(player.id.split('-')[1])
-  const strategy = player.strategy ?? PLAYER_STRATEGIES[player.team]?.[index]
-  const options = player.role === 'runner' ? RUNNER_STRATEGY_OPTIONS : PLAYER_STRATEGY_OPTIONS
-  return options.some((option) => option.id === strategy) ? strategy : options[0].id
 }
 
 export function teamStrategyLabel(strategy) {
@@ -45,13 +22,6 @@ export function teamStrategyLabel(strategy) {
 
 export function normalizeTeamStrategy(strategy) {
   return TEAM_STRATEGY_OPTIONS.some((option) => option.id === strategy) ? strategy : 'standard'
-}
-
-export function playerStrategyLabel(strategy) {
-  const option =
-    RUNNER_STRATEGY_OPTIONS.find((candidate) => candidate.id === strategy) ??
-    PLAYER_STRATEGY_OPTIONS.find((candidate) => candidate.id === strategy)
-  return option ? t(option.labelKey) : strategy
 }
 
 export function isWideLineStrategy(team) {

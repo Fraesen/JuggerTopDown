@@ -3,7 +3,7 @@ import { FIELD, STONE_SECONDS, TEAM_STRATEGIES } from '../game/config.js'
 import { clamp, distance } from '../game/geometry.js'
 import { isInactive, isPompfer, isRunner, playerIndex, playerPositionSlot, roleLabel, skillForPlayer } from '../game/players.js'
 import { pompfeFor, pompfeLabel } from '../game/pompfen.js'
-import { playerStrategy, playerStrategyLabel, teamStrategyLabel } from '../game/strategies.js'
+import { teamStrategyLabel } from '../game/strategies.js'
 import { positionText, t, teamLabel } from '../i18n/index.js'
 
 export function createHudController({ state, hud, canvas, arenaWrap }) {
@@ -269,7 +269,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       <div><span>${t('skill.wahrnehmung')}</span><strong>${player.wahrnehmung}%</strong><small>${skill.wahrnehmung} ${t('skill.sp')}</small></div>
       <div><span>${t('tooltip.pompfe')}</span><strong>${pompfe ? pompfeLabel(pompfe) : t('pompfe.jugg')}</strong><small>${pompfe ? `${pompfe.lengthCm} cm / ${pompfe.reachCm} cm` : player.pompfe}</small></div>
       <div><span>${t('tooltip.position')}</span><strong>${positionLabel}</strong><small>${isPompfer(player) ? t('formation.slot', { slot: playerPositionSlot(player) }) : t('role.runner')}</small></div>
-      <div><span>${t('tooltip.strategy')}</span><strong>${playerStrategyLabel(playerStrategy(player))}</strong><small>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</small></div>
+      <div><span>${t('tooltip.strategy')}</span><strong>${teamStrategyLabel(TEAM_STRATEGIES[player.team])}</strong><small>${t('formation.teamStrategy')}</small></div>
       <div><span>${t('tooltip.status')}</span><strong>${inactive ? t('status.inactive') : t('status.active')}</strong><small>${statusDetail}</small></div>
     `
     hud.playerTooltip.style.left = `${left}px`

@@ -5,6 +5,12 @@ import { extname, join, normalize, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer } from 'ws'
+import {
+  TEAMS_LIST,
+  cloneTeamConfig,
+  createDefaultTeamConfig,
+  normalizeTeamConfig,
+} from '../src/game/rules/teamSchema.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = resolve(__dirname, '..')
@@ -24,23 +30,6 @@ const roomIdleMs = Number(process.env.PVP_ROOM_IDLE_MS || 5 * 60_000)
 const rateWindowMs = Number(process.env.PVP_RATE_WINDOW_MS || 10_000)
 const maxMessagesPerWindow = Number(process.env.PVP_MAX_MESSAGES_PER_WINDOW || 80)
 const maxCreateRoomsPerWindow = Number(process.env.PVP_MAX_CREATE_ROOMS_PER_WINDOW || 8)
-const skillKeys = ['technik', 'geschwindigkeit', 'wahrnehmung']
-const pompfenOptions = ['shield', 'longpompfe', 'qtip', 'staff', 'chain']
-const runnerStrategies = ['wide_middle', 'direct_jugg']
-const pompferStrategies = ['none', 'flank']
-const teamStrategies = ['standard', 'wide_line', 'top_defense', 'bottom_defense']
-
-const defaultSkills = [
-  { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-  { technik: 2, geschwindigkeit: 3, wahrnehmung: 1 },
-  { technik: 4, geschwindigkeit: 1, wahrnehmung: 1 },
-  { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-  { technik: 3, geschwindigkeit: 2, wahrnehmung: 1 },
-]
-const defaultPositions = [0, 1, 2, 3, 4]
-const defaultLoadout = ['runner', 'shield', 'qtip', 'staff', 'chain']
-const defaultPlayerStrategies = ['wide_middle', 'none', 'none', 'none', 'none']
-
 const rooms = new Map()
 const sockets = new Map()
 
@@ -312,7 +301,7 @@ function selectTeam(ws, team) {
     send(ws, { type: 'error', code: 'match_already_started', message: 'Die Teamwahl ist im Match gesperrt.' })
     return
   }
-  if (!['blue', 'red'].includes(team)) {
+  if (!TEAMS_LIST.includes(team)) {
     send(ws, { type: 'error', code: 'invalid_team', message: 'Dieses Team ist nicht verfuegbar.' })
     return
   }
@@ -647,92 +636,12 @@ function publicPlayers(room) {
 }
 
 function teamConfigs(room) {
-  return [cloneConfig(room.teamConfigs.blue), cloneConfig(room.teamConfigs.red)]
+  return [cloneTeamConfig(room.teamConfigs.blue), cloneTeamConfig(room.teamConfigs.red)]
 }
 
 function availableTeam(room) {
   const taken = new Set(connectedPlayers(room).map((player) => player.team))
   return taken.has('blue') ? 'red' : 'blue'
-}
-
-function createDefaultTeamConfig(team) {
-  return {
-    team,
-    version: 0,
-    skills: defaultSkills.map((skill) => ({ ...skill })),
-    positions: [...defaultPositions],
-    loadout: [...defaultLoadout],
-    playerStrategies: [...defaultPlayerStrategies],
-    teamStrategy: 'standard',
-  }
-}
-
-function normalizeTeamConfig(config, fallback, { allowSkills = true, allowLoadout = true } = {}) {
-  return {
-    team: fallback.team,
-    version: Number.isFinite(Number(config.version)) ? Number(config.version) : fallback.version,
-    skills: allowSkills ? Array.from({ length: 5 }, (_, index) => normalizeSkill(config.skills?.[index], fallback.skills[index])) : fallback.skills.map((skill) => ({ ...skill })),
-    positions: normalizePositions(config.positions ?? fallback.positions),
-    loadout: allowLoadout ? normalizeLoadout(config.loadout ?? fallback.loadout) : [...fallback.loadout],
-    playerStrategies: normalizePlayerStrategies(config.playerStrategies ?? fallback.playerStrategies),
-    teamStrategy: teamStrategies.includes(config.teamStrategy) ? config.teamStrategy : fallback.teamStrategy,
-  }
-}
-
-function normalizeSkill(skill, fallback) {
-  const normalized = Object.fromEntries(
-    skillKeys.map((key) => {
-      const value = Number(skill?.[key])
-      return [key, Number.isInteger(value) && value >= 0 ? value : fallback[key]]
-    }),
-  )
-  const spent = skillKeys.reduce((sum, key) => sum + normalized[key], 0)
-  return spent === 6 ? normalized : { ...fallback }
-}
-
-function normalizePositions(source) {
-  const used = new Set([0])
-  const next = [0]
-  for (let index = 1; index < 5; index += 1) {
-    const candidate = Number(source?.[index])
-    const slot = Number.isInteger(candidate) && candidate >= 1 && candidate <= 4 && !used.has(candidate)
-      ? candidate
-      : [1, 2, 3, 4].find((value) => !used.has(value))
-    next[index] = slot ?? index
-    used.add(next[index])
-  }
-  return next
-}
-
-function normalizeLoadout(source) {
-  const next = ['runner']
-  let chainUsed = false
-  for (let index = 1; index < 5; index += 1) {
-    let pompfe = pompfenOptions.includes(source?.[index]) ? source[index] : 'staff'
-    if (pompfe === 'chain') {
-      if (chainUsed) pompfe = 'staff'
-      chainUsed = true
-    }
-    next[index] = pompfe
-  }
-  return next
-}
-
-function normalizePlayerStrategies(source) {
-  return Array.from({ length: 5 }, (_, index) => {
-    const options = index === 0 ? runnerStrategies : pompferStrategies
-    return options.includes(source?.[index]) ? source[index] : options[0]
-  })
-}
-
-function cloneConfig(config) {
-  return {
-    ...config,
-    skills: config.skills.map((skill) => ({ ...skill })),
-    positions: [...config.positions],
-    loadout: [...config.loadout],
-    playerStrategies: [...config.playerStrategies],
-  }
 }
 
 function nextSeq(room) {

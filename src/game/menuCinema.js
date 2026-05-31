@@ -3,7 +3,6 @@ import {
   FIELD,
   PLAYER_POSITIONS,
   PLAYER_SKILLS,
-  PLAYER_STRATEGIES,
   TEAM_LOADOUTS,
   TEAM_STRATEGIES,
 } from './config.js'
@@ -234,7 +233,6 @@ function snapshotTeamDefaults() {
       blue: PLAYER_SKILLS.blue.map((skill) => ({ ...skill })),
       red: PLAYER_SKILLS.red.map((skill) => ({ ...skill })),
     },
-    playerStrategies: cloneTeamArray(PLAYER_STRATEGIES),
     teamStrategies: { ...TEAM_STRATEGIES },
   }
 }
@@ -244,14 +242,12 @@ function applyReelDefaults(reel) {
   if (reel.redStrategy) TEAM_STRATEGIES.red = reel.redStrategy
   applyTeamArrayOverride(TEAM_LOADOUTS, reel.loadouts)
   applyTeamArrayOverride(PLAYER_POSITIONS, reel.positions)
-  applyTeamArrayOverride(PLAYER_STRATEGIES, reel.playerStrategies)
   applySkillOverride(PLAYER_SKILLS, reel.skills)
 }
 
 function restoreTeamDefaults(snapshot) {
   restoreTeamArray(TEAM_LOADOUTS, snapshot.loadouts)
   restoreTeamArray(PLAYER_POSITIONS, snapshot.playerPositions)
-  restoreTeamArray(PLAYER_STRATEGIES, snapshot.playerStrategies)
   restoreSkillArray(PLAYER_SKILLS, snapshot.playerSkills)
   TEAM_STRATEGIES.blue = snapshot.teamStrategies.blue
   TEAM_STRATEGIES.red = snapshot.teamStrategies.red

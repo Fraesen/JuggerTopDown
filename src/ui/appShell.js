@@ -175,14 +175,7 @@ export function mountAppShell(root = document.querySelector('#app')) {
           </label>
           <div id="formation-manager-presets"></div>
         </div>
-        <section class="formation-player-names">
-          <header>
-            <span data-i18n="formation.playerNames">${t('formation.playerNames')}</span>
-          </header>
-          <div id="formation-player-names"></div>
-        </section>
         <div id="formation-manager-formation" class="formation-list"></div>
-        <div id="formation-manager-skills" class="skill-list formation-manager-skills"></div>
       </div>
     </section>
 
@@ -288,9 +281,7 @@ function queryHud(root) {
     formationBackBtn: root.querySelector('#formation-back-btn'),
     formationPresetName: root.querySelector('#formation-preset-name'),
     formationManagerPresets: root.querySelector('#formation-manager-presets'),
-    formationPlayerNames: root.querySelector('#formation-player-names'),
     formationManagerFormation: root.querySelector('#formation-manager-formation'),
-    formationManagerSkills: root.querySelector('#formation-manager-skills'),
   }
 }
 
@@ -300,7 +291,7 @@ function ruleRows() {
     ['runner-dot', 'ruleGroup.roles', ['rule.2', 'rule.3', 'rule.7', 'rule.17']],
     ['technik-dot', 'ruleGroup.duels', ['rule.4', 'rule.5', 'rule.12', 'rule.13', 'rule.14', 'rule.15', 'rule.16']],
     ['pompfer-dot', 'ruleGroup.pompfen', ['rule.8', 'rule.9', 'rule.10', 'rule.19', 'rule.20', 'rule.21', 'rule.22']],
-    ['perception-dot', 'ruleGroup.tactics', ['rule.6', 'rule.18', 'rule.23', 'rule.25', 'rule.26', 'rule.27']],
+    ['perception-dot', 'ruleGroup.tactics', ['rule.6', 'rule.18', 'rule.23', 'rule.25', 'rule.26']],
   ]
     .map(
       ([className, heading, items]) => `

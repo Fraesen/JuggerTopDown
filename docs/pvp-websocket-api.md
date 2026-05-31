@@ -74,20 +74,18 @@ Konfiguration per Environment:
     { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
   ],
   "positions": [0, 1, 2, 3, 4],
-  "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],
-  "playerStrategies": ["direct_jugg", "flank", "none", "none", "flank"],
+  "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],,
   "teamStrategy": "standard"
 }
 ```
 
-`skills`, `positions`, `loadout` und `playerStrategies` müssen immer die vollen 5 Spielenden enthalten. Jede spielende Person hat genau 6 Skillpunkte verteilt auf `technik`, `geschwindigkeit` und `wahrnehmung`.
+`skills`, `positions` und `loadout` müssen immer die vollen 5 Spielenden enthalten. Jede spielende Person hat genau 6 Skillpunkte verteilt auf `technik`, `geschwindigkeit` und `wahrnehmung`.
 
 ### Team-Config Werte
 
 - `team`: `blue` oder `red`.
 - `positions`: Index `0` ist immer die Läufer:in und bleibt `0`. Die Indizes `1-4` sind die vier Pompfer:innen-Slots und müssen eine eindeutige Permutation aus `1, 2, 3, 4` sein.
 - `loadout`: Index `0` ist immer `runner`. Indizes `1-4` erlauben `shield`, `longpompfe`, `qtip`, `staff` oder `chain`. Pro Team darf höchstens eine `chain` in den vier Pompfer:innen-Slots vorkommen.
-- `playerStrategies`: Index `0` ist die Läufer:innenstrategie und erlaubt `wide_middle` (`Breite Mitte`) oder `direct_jugg` (`Direkt zum Jugg`). Indizes `1-4` sind Pompfer:innenstrategien und erlauben `none` (`Keine`) oder `flank` (`Umlaufen`).
 - `teamStrategy`: `standard`, `wide_line`, `top_defense` oder `bottom_defense`.
 
 ## Client Zu Server
@@ -156,14 +154,13 @@ Wählt oder tauscht die lokale Farbe. Falls beide Personen dieselbe Farbe wollen
       { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
     ],
     "positions": [0, 1, 2, 3, 4],
-    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],
-    "playerStrategies": ["direct_jugg", "flank", "none", "none", "flank"],
+    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],,
     "teamStrategy": "standard"
   }
 }
 ```
 
-Der Server validiert Team-Besitz und Version. Akzeptierte Updates werden als `team_config_changed` an beide Clients gesendet. In der initialen Setup-Phase dürfen Skillung, Pompfen, Positionen und Strategien geändert werden. Nach Matchstart bleibt die Skillung gesperrt; Pompfenwahl, Positionen und Strategien dürfen zwischen den Zügen weiter geändert werden.
+Der Server validiert Team-Besitz und Version. Akzeptierte Updates werden als `team_config_changed` an beide Clients gesendet. In der initialen Setup-Phase dürfen Skillung, Pompfen, Positionen und Teamstrategie geändert werden. Nach Matchstart bleibt die Skillung gesperrt; Pompfenwahl, Positionen und Teamstrategie dürfen zwischen den Zügen weiter geändert werden.
 
 ### `leave_room`
 
@@ -320,8 +317,7 @@ Optionales Event für Server, die Teamwechsel als eigenes Event broadcasten. Der
       { "technik": 3, "geschwindigkeit": 2, "wahrnehmung": 1 }
     ],
     "positions": [0, 1, 2, 3, 4],
-    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],
-    "playerStrategies": ["direct_jugg", "flank", "none", "none", "flank"],
+    "loadout": ["runner", "shield", "longpompfe", "staff", "chain"],,
     "teamStrategy": "standard"
   }
 }

@@ -29,8 +29,3 @@ export const TEAM_STRATEGIES = {
   blue: 'standard',
   red: 'standard',
 }
-
-export const PLAYER_STRATEGIES = {
-  blue: ['wide_middle', 'none', 'none', 'none', 'none'],
-  red: ['wide_middle', 'none', 'none', 'none', 'none'],
-}

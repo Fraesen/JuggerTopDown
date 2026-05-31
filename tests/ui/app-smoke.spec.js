@@ -50,6 +50,27 @@ test.describe('main navigation', () => {
     await expect(page.locator('#pvp-modal')).toBeVisible()
     await expect(page.getByPlaceholder(/Code/)).toBeVisible()
   })
+
+  test('edits formation names inline and expands skills in formation cards', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('#open-formation-btn').click()
+    await expect(page.locator('#formation-manager-formation details[data-player-card]')).toHaveCount(5)
+    const presetName = await page.locator('#formation-preset-name').inputValue()
+    await page.locator('#formation-manager-formation input[data-player-name="1"]').fill('Ada')
+    await page.locator('#formation-manager-presets button[data-save-formation-preset]').click()
+    await expect(page.locator('#formation-manager-presets .formation-preset-feedback')).toContainText(/gespeichert|saved/i)
+    await page.locator('#formation-preset-name').fill('Andere Aufstellung')
+    await page.locator('#formation-manager-presets button[data-load-formation-preset]').click()
+    await expect(page.locator('#formation-manager-presets .formation-preset-feedback')).toContainText(/geladen|loaded/i)
+    await expect(page.locator('#formation-preset-name')).toHaveValue(presetName)
+    await expect(page.locator('#formation-manager-formation input[data-player-name="1"]')).toHaveValue('Ada')
+    const playerCard = page.locator('#formation-manager-formation details[data-player-card][data-player="1"]')
+    await expect(playerCard.locator('summary small')).toContainText(/Skillen|Skills/)
+    await playerCard.locator('summary').click()
+    await expect(playerCard).toHaveAttribute('open', '')
+    await expect(playerCard.locator('.stat-stack')).toBeVisible()
+    await expect(playerCard.locator('.stat-control')).toHaveCount(3)
+  })
 })
 
 test.describe('bot match UI', () => {

@@ -33,9 +33,9 @@ function run(seed) {
   simulation.startMatch()
   for (let index = 0; index < steps; index += 1) {
     simulation.update(dt)
-  }
-  if (String(state.message).includes(':')) {
-    throw new Error(`Simulation meldet Fehlerzustand: ${state.message}`)
+    if (String(state.message).includes(':')) {
+      throw new Error(`Simulation meldet Fehlerzustand: ${state.message}`)
+    }
   }
   return compactSnapshot(state)
 }
@@ -68,7 +68,6 @@ function compactSnapshot(state) {
       grappledBy: player.grappledBy?.id ?? null,
       callType: player.callType,
       pompfe: player.pompfe,
-      strategy: player.strategy,
     })),
   }
 }

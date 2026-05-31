@@ -88,7 +88,6 @@ Hat die Läufer:in den Jugg, prüft er den direkten Weg zum gegnerischen Mal.
 - Wenn er danach weit genug von gegnerischen Pompfer:innen entfernt ist, versucht er über eine Seite Druck aufzubauen. Er bevorzugt die Seite, auf der mehr eigene aktive Spielende stehen.
 - Wenn auch die Seitenroute durch Pompfenreichweite führt, bleibt das Verhalten defensiver und sucht neu.
 
-Die Läufer:innenstrategie `Direkt zum Jugg` verhält sich aggressiver beim Start: direkt Jugg holen, dann entweder direkter Malweg oder Rückzug hinter die eigene Linie.
 
 ### Pompfer:innen
 
@@ -306,7 +305,7 @@ Reaktion:
 
 ## Strategien
 
-Strategien beeinflussen vor allem das Anlaufen und einzelne taktische Entscheidungen. Es gibt Teamstrategien und Einzelstrategien.
+Teamstrategien beeinflussen vor allem das Anlaufen und einzelne taktische Entscheidungen.
 
 ### Teamstrategien
 
@@ -318,7 +317,6 @@ Strategien beeinflussen vor allem das Anlaufen und einzelne taktische Entscheidu
 
 - Pompfer:innen laufen breit gefächert näher an die Mittellinie.
 - Blau orientiert sich etwa bis 17 Meter Feldlänge, Rot etwa bis 23 Meter.
-- Die Läufer:innenstrategie ist davon getrennt.
 
 `Rechts Druck`
 
@@ -341,31 +339,6 @@ Aggressive Seitenstrategie:
 - Die aggressive Person bekommt kein direktes Trefferplus.
 - Ihr Vorteil ist ein stark verkleinertes Doppelfenster bei der gegnerischen Person, wodurch eindeutige Treffer wahrscheinlicher werden.
 
-### Läufer:innenstrategien
-
-`Breite Mitte`
-
-- Standard für Läufer:innen.
-- Die Läufer:in bleibt im Anlaufen etwa auf einem Viertel der Feldlänge und orientiert sich mittig, bevor er auf Jugg und Spielsituation reagiert.
-
-`Direkt zum Jugg`
-
-- Die Läufer:in läuft direkt auf den Jugg.
-- Mit Jugg nimmt er den direkten Weg zum Mal, wenn keine gegnerische Reichweite im Laufweg liegt.
-- Wenn der Weg blockiert ist, zieht er sich hinter die eigene Linie zurück.
-
-### Pompfer:innenstrategien
-
-`Keine`
-
-- Standardverhalten.
-
-`Umlaufen`
-
-- Wenn die spielende Person beim ersten Kontakt einen klaren Treffer erzielt, wird die Strategie ausgelöst.
-- Die spielende Person läuft in einer Kurve hinter die gegnerische Linie.
-- Wenn eine gegnerische Person im Weg steht, nimmt sie trotzdem das Duell.
-- Danach sucht er Rückentreffer; Treffer in den Rücken verdoppeln die Trefferchance und umgehen Schildblock.
 
 ## Zustände
 

@@ -1,0 +1,177 @@
+/* Tabletop HUD rework */
+.main-menu {
+  background:
+    radial-gradient(circle at 18% 18%, var(--shell-gradient-left), transparent 34%),
+    radial-gradient(circle at 82% 80%, var(--shell-gradient-right), transparent 38%),
+    var(--bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-cinema-canvas {
+    opacity: 0.34;
+  }
+}
+
+.main-menu-inner {
+  width: min(760px, 100%);
+  padding: clamp(22px, 4vw, 42px);
+}
+
+.main-menu-inner h1 {
+  font-size: clamp(54px, 9vw, 104px);
+}
+
+.main-menu-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.game-shell {
+  gap: 10px;
+  padding: 10px 14px 14px;
+}
+
+.score-strip {
+  grid-template-columns: minmax(130px, 1fr) minmax(280px, 0.8fr) minmax(130px, 1fr);
+  gap: 8px;
+}
+
+.team-score,
+.match-core {
+  min-height: 62px;
+  padding: 10px 14px;
+}
+
+.team-score strong {
+  font-size: 36px;
+}
+
+.match-core {
+  grid-template-columns: minmax(90px, 1fr) auto;
+  gap: 12px;
+  place-items: stretch;
+  align-items: center;
+  text-align: left;
+}
+
+.match-core strong {
+  font-size: 32px;
+}
+
+.match-clock {
+  display: grid;
+  gap: 4px;
+}
+
+.top-controls {
+  min-width: 230px;
+}
+
+.top-controls button {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.core-hud-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.hud-chip,
+.drawer-toggle,
+.rematch-btn {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 12px;
+  background: var(--panel-overlay);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
+
+.hud-chip {
+  display: flex;
+  min-width: 128px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hud-chip span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hud-chip strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.possession-chip {
+  min-width: min(280px, 42vw);
+}
+
+.drawer-toggle {
+  margin-left: auto;
+  color: var(--gold);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.rematch-btn {
+  color: var(--gold);
+  font-weight: 950;
+}
+
+.play-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 10px;
+}
+
+.field-mini-map {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 4;
+  width: min(280px, 24vw);
+  height: 132px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
+}
+
+.command-panel {
+  gap: 12px;
+  padding: 14px;
+}
+
+.drawer-heading h1 {
+  font-size: 30px;
+}
+
+.game-shell.drawer-collapsed .play-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.game-shell.drawer-collapsed .command-panel {
+  display: none;
+}
+
+.game-shell.drawer-collapsed .drawer-toggle {
+  border-color: rgba(240, 214, 106, 0.5);
+  background: rgba(240, 214, 106, 0.12);
+}
+
+.round-setup-card {
+  padding: 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.round-setup-card > header {
+  margin: -14px -14px 0;
+  border-radius: 12px 12px 0 0;
+  padding: 14px;
+}

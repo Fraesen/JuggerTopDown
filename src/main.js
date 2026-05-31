@@ -9,6 +9,7 @@ import { createPvpClient } from './net/pvpClient.js'
 import { mountAppShell } from './ui/appShell.js'
 import { createHudController } from './ui/hudController.js'
 import { renderFormationPanel, renderTeamSkillPanel } from './ui/skillPanel.js'
+import { readStoredArray, readStoredString, writeStoredJson, writeStoredString } from './ui/persistence.js'
 import { applyTranslations, setLanguage, t, teamLabel } from './i18n/index.js'
 import { getTheme, setTheme, themeOptionsHtml } from './ui/themes.js'
 
@@ -32,6 +33,8 @@ let roundSetupOverlayKey = ''
 let draggedFormationPlayer = null
 let seedPreviewTimer = null
 let formationPresetSurfaceKey = ''
+let formationPlayerNames = []
+let formationPresetFeedback = ''
 const simulation = createSimulation({
   state,
   hud,
@@ -47,6 +50,7 @@ const simulation = createSimulation({
   onRoundStarted: () => {
     if (state.app.mode === 'bot') logMenuCinemaReelSnippet()
   },
+  getPlayerNames: (team) => (team === 'blue' ? currentFormationPlayerNames() : []),
 })
 const {
   applyTeamConfig,
@@ -173,18 +177,18 @@ function bindInput() {
   hud.formationManagerPresets.addEventListener('change', handleTeamConfigChange)
   hud.botFormationPresets.addEventListener('click', handleFormationPresetClick)
   hud.botFormationPresets.addEventListener('change', handleTeamConfigChange)
-  hud.formationManagerSkills.addEventListener('click', (event) => {
+  hud.formationManagerFormation.addEventListener('click', (event) => {
+    if (event.target.closest('input[data-player-name]')) return
+    if (!event.target.closest('button[data-position], button[data-player][data-skill]')) return
     handleTeamConfigClick(event)
     renderFormationManager()
   })
-  hud.formationManagerSkills.addEventListener('change', (event) => {
-    handleTeamConfigChange(event)
-    renderFormationManager()
-  })
   hud.formationManagerFormation.addEventListener('change', (event) => {
+    if (handleFormationPlayerNameChange(event)) return
     handleTeamConfigChange(event)
     renderFormationManager()
   })
+  hud.formationManagerFormation.addEventListener('input', handleFormationPlayerNameInput)
 
   hud.startBtn.addEventListener('click', startMatch)
   hud.pauseBtn.addEventListener('click', togglePause)
@@ -244,9 +248,11 @@ function handleResetClick() {
 
 function bindFormationDrag(container) {
   container.addEventListener('dragstart', (event) => {
+    if (event.target.closest('input, select, button, textarea')) return
     const card = event.target.closest('[data-player-card][draggable="true"]')
     if (!card || Number(card.dataset.player) <= 0) return
     draggedFormationPlayer = Number(card.dataset.player)
+    if ('open' in card) card.open = false
     card.classList.add('dragging')
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', String(draggedFormationPlayer))
@@ -296,10 +302,6 @@ function logMenuCinemaReelSnippet() {
     positions: {
       blue: blue.positions,
       red: red.positions,
-    },
-    playerStrategies: {
-      blue: blue.playerStrategies,
-      red: red.playerStrategies,
     },
     skills: {
       blue: blue.skills,
@@ -414,11 +416,11 @@ function saveFormationPreset() {
     skills: config.skills,
     loadout: config.loadout,
     positions: config.positions,
-    playerStrategies: config.playerStrategies,
     teamStrategy: config.teamStrategy,
     playerNames: collectFormationPlayerNames(),
   })
-  localStorage.setItem(FORMATION_PRESETS_STORAGE_KEY, JSON.stringify(presets.slice(0, 12)))
+  writeStoredJson(FORMATION_PRESETS_STORAGE_KEY, presets.slice(0, 12))
+  showFormationPresetFeedback(t('formation.saveSuccess'))
   renderFormationPresetSurfaces()
   rerenderPvpPreparationModal()
   rerenderRoundSetupOverlay()
@@ -436,27 +438,24 @@ function loadSelectedFormationPreset(name) {
     skills: canLoadPresetSkills() ? preset.skills : undefined,
     loadout: preset.loadout,
     positions: preset.positions,
-    playerStrategies: preset.playerStrategies,
     teamStrategy: preset.teamStrategy,
   })
   renderFormationPlayerNames(preset.playerNames)
+  if (hud.formationPresetName) hud.formationPresetName.value = preset.name
   if (state.app.mode.startsWith('pvp')) pvpClient?.sendTeamConfig(exportTeamConfig(team))
+  showFormationPresetFeedback(t('formation.loadSuccess'))
   renderFormationManager()
+  renderSkillPanel()
   renderFormationPresetSurfaces()
   rerenderPvpPreparationModal()
   rerenderRoundSetupOverlay()
 }
 
 function formationPresets() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(FORMATION_PRESETS_STORAGE_KEY) || '[]')
-    return Array.isArray(parsed) ? parsed.filter((preset) => preset?.name) : []
-  } catch {
-    return []
-  }
+  return readStoredArray(FORMATION_PRESETS_STORAGE_KEY).filter((preset) => preset?.name)
 }
 
-function formationPresetControlsHtml({ allowSave = true } = {}) {
+function formationPresetControlsHtml({ allowSave = true, showFeedback = false } = {}) {
   const presets = formationPresets()
   return `
     <div class="formation-presets">
@@ -467,8 +466,13 @@ function formationPresetControlsHtml({ allowSave = true } = {}) {
       </select>
       <button type="button" data-load-formation-preset="${escapeHtml(presets[0]?.name ?? '')}" ${presets.length ? '' : 'disabled'}>${t('formation.loadPreset')}</button>
       ${allowSave ? `<button type="button" data-save-formation-preset>${t('formation.savePreset')}</button>` : ''}
+      ${showFeedback && formationPresetFeedback ? `<p class="formation-preset-feedback">${escapeHtml(formationPresetFeedback)}</p>` : ''}
     </div>
   `
+}
+
+function showFormationPresetFeedback(message) {
+  formationPresetFeedback = message
 }
 
 function syncFormationPresetLoadButtons(container) {
@@ -486,30 +490,45 @@ function canLoadPresetSkills() {
 }
 
 function collectFormationPlayerNames() {
-  const inputs = hud.formationPlayerNames?.querySelectorAll?.('[data-player-name]')
-  if (!inputs?.length) return []
+  const inputs = hud.formationManagerFormation?.querySelectorAll?.('[data-player-name]')
+  if (!inputs?.length) return currentFormationPlayerNames()
   return [...inputs].map((input) => normalizePlayerName(input.value))
 }
 
 function renderFormationPlayerNames(names = []) {
-  if (!hud.formationPlayerNames) return
-  hud.formationPlayerNames.innerHTML = Array.from({ length: 5 }, (_, index) => {
-    const fallback = index === 0 ? t('role.runner') : t('role.pompfer', { index })
-    return `
-      <label>
-        <span>${fallback}</span>
-        <input type="text" data-player-name="${index}" maxlength="24" value="${escapeHtml(names[index] || fallback)}" />
-      </label>
-    `
-  }).join('')
+  formationPlayerNames = Array.from({ length: 5 }, (_, index) => normalizePlayerName(names[index] || defaultFormationPlayerName(index)))
+}
+
+function currentFormationPlayerNames() {
+  return Array.from({ length: 5 }, (_, index) => normalizePlayerName(formationPlayerNames[index] || defaultFormationPlayerName(index)))
+}
+
+function defaultFormationPlayerName(index) {
+  return index === 0 ? t('role.runner') : t('role.pompfer', { index })
+}
+
+function handleFormationPlayerNameInput(event) {
+  const input = event.target.closest('input[data-player-name]')
+  if (!input) return
+  formationPlayerNames[Number(input.dataset.playerName)] = input.value
+}
+
+function handleFormationPlayerNameChange(event) {
+  const input = event.target.closest('input[data-player-name]')
+  if (!input) return false
+  const index = Number(input.dataset.playerName)
+  formationPlayerNames[index] = normalizePlayerName(input.value) || defaultFormationPlayerName(index)
+  input.value = formationPlayerNames[index]
+  renderFormationManager()
+  return true
 }
 
 function renderFormationPresetSurfaces() {
-  if (hud.formationManagerPresets) hud.formationManagerPresets.innerHTML = formationPresetControlsHtml()
+  if (hud.formationManagerPresets) hud.formationManagerPresets.innerHTML = formationPresetControlsHtml({ showFeedback: true })
   if (hud.botFormationPresets) {
     const show = state.app.mode === 'bot' && (!state.running || state.roundBreakTimer > 0)
     hud.botFormationPresets.hidden = !show
-    hud.botFormationPresets.innerHTML = show ? formationPresetControlsHtml() : ''
+    hud.botFormationPresets.innerHTML = show ? formationPresetControlsHtml({ allowSave: false }) : ''
   }
 }
 
@@ -524,15 +543,13 @@ function renderFormationManager() {
   if (!hud.formationView || state.app.mode !== 'formation') return
   if (!hud.formationPresetName.value) hud.formationPresetName.value = currentPresetName()
   renderFormationPresetSurfaces()
-  if (!hud.formationPlayerNames.innerHTML) renderFormationPlayerNames(formationPresets()[0]?.playerNames)
-  renderFormationPanel(hud.formationManagerFormation, state, { team: 'blue', editable: true })
-  renderTeamSkillPanel(hud.formationManagerSkills, state, {
+  if (!formationPlayerNames.length) renderFormationPlayerNames(formationPresets()[0]?.playerNames)
+  renderFormationPanel(hud.formationManagerFormation, state, {
     team: 'blue',
     editable: true,
+    editNames: true,
     editSkills: true,
-    editLoadout: false,
-    editPositions: false,
-    editStrategies: false,
+    playerNames: currentFormationPlayerNames(),
   })
 }
 
@@ -565,14 +582,6 @@ function handleTeamConfigChange(event) {
     const positionSelect = event.target.closest('select[data-position]')
     if (positionSelect) {
       setBluePosition(Number(positionSelect.dataset.player), Number(positionSelect.value))
-      rerenderPvpPreparationModal()
-      rerenderRoundSetupOverlay()
-      return
-    }
-
-    const playerStrategySelect = event.target.closest('select[data-player-strategy]')
-    if (playerStrategySelect) {
-      setBluePlayerStrategy(Number(playerStrategySelect.dataset.player), playerStrategySelect.value)
       rerenderPvpPreparationModal()
       rerenderRoundSetupOverlay()
       return
@@ -619,7 +628,7 @@ function showFormationManager() {
 }
 
 function initializePlayerName() {
-  const savedName = normalizePlayerName(localStorage.getItem(PLAYER_NAME_STORAGE_KEY))
+  const savedName = normalizePlayerName(readStoredString(PLAYER_NAME_STORAGE_KEY))
   if (savedName) {
     state.pvp.playerName = savedName
     updateProfileNameButton()
@@ -643,7 +652,7 @@ function saveProfileName(event) {
     return
   }
   state.pvp.playerName = name
-  localStorage.setItem(PLAYER_NAME_STORAGE_KEY, name)
+  writeStoredString(PLAYER_NAME_STORAGE_KEY, name)
   hud.profileModal.hidden = true
   updateProfileNameButton()
   if (state.app.mode.startsWith('pvp') || state.pvp.modal) renderPvpModal()
@@ -867,7 +876,7 @@ function renderRoundSetupOverlay(team, stonesLeft) {
         <b id="round-setup-stones">${t('setup.stones', { count: stonesLeft })}</b>
         <button type="button" data-close-round-setup>${t('controls.done')}</button>
       </header>
-      ${state.app.mode === 'pvpMatch' ? formationPresetControlsHtml({ allowSave: false }) : state.app.mode === 'bot' ? formationPresetControlsHtml() : ''}
+      ${state.app.mode === 'pvpMatch' ? formationPresetControlsHtml({ allowSave: false }) : state.app.mode === 'bot' ? formationPresetControlsHtml({ allowSave: false }) : ''}
       <div id="round-formation-list" class="formation-list"></div>
     </section>
   `

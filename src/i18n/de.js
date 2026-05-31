@@ -145,6 +145,9 @@ export const de = {
   'formation.noPresets': 'Keine gespeicherte Aufstellung',
   'formation.loadPreset': 'Laden',
   'formation.savePreset': 'Speichern',
+  'formation.loadSuccess': 'Erfolgreich geladen',
+  'formation.saveSuccess': 'Erfolgreich gespeichert',
+  'formation.skillToggle': 'Skillen',
   'formation.teamStrategy': 'Teamstrategie',
   'formation.strategy': 'Strategie',
   'formation.position': 'Position',
@@ -171,10 +174,6 @@ export const de = {
   'strategy.wideLine': 'Breite Linie',
   'strategy.topDefense': 'Rechts Druck',
   'strategy.bottomDefense': 'Links Druck',
-  'strategy.none': 'Keine',
-  'strategy.flank': 'Umlaufen',
-  'strategy.wideMiddle': 'Breite Mitte',
-  'strategy.directJugg': 'Direkt zum Jugg',
 
   'tooltip.pompfe': 'Pompfe',
   'tooltip.position': 'Position',
@@ -190,7 +189,6 @@ export const de = {
   'call.doppelpin': 'Doppelpin!',
   'call.ueberzahl': 'Überzahl!',
   'call.mitkommen': 'Mitkommen!',
-  'call.umlaufen': 'Umlaufen!',
 
   'rule.1': '3 Punkte gewinnen',
   'rule.2': '1 Läufer:in',
@@ -218,7 +216,6 @@ export const de = {
   'rule.24': 'Nach Punkten: 20 Steine Strategiepause',
   'rule.25': 'Defensiv: schwerer zu treffen, trifft aber schlechter',
   'rule.26': 'Aggressiv: deutlich kleineres Doppelfenster',
-  'rule.27': 'Umlaufen: nach klarem Ersttreffer in den Rücken',
   'rule.28': 'Cinema Mode: automatische Kamera und Slowmotion',
 
   'ruleGroup.match': 'Match',

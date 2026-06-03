@@ -6,6 +6,7 @@ export const en = {
   'nav.home': 'Home',
   'nav.formation': 'Formation',
   'nav.docs': 'Docs',
+  'nav.changelog': 'Changelog',
   'nav.theme': 'Color theme',
   'nav.language': 'Language',
 
@@ -106,6 +107,10 @@ export const en = {
   'modal.invalidCode': 'Please enter a 5-character code using A-Z and 0-9.',
   'modal.joinFailed': 'Failed to join',
   'modal.pvpError': 'PvP error',
+
+  'changelog.title': 'Changelog',
+  'changelog.modalTitle': 'New since your last visit',
+  'changelog.confirm': 'Read',
 
   'setup.skillTeam': 'Skill team',
   'setup.prepareFormation': 'Prepare formation',

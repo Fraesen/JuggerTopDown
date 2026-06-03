@@ -7,6 +7,14 @@ import { ROUND_BREAK_LOCK_STONES, SIMULATION_STEP_SECONDS, createInitialState } 
 import { createSimulation } from './game/simulation.js'
 import { createPvpClient } from './net/pvpClient.js'
 import { mountAppShell } from './ui/appShell.js'
+import {
+  CURRENT_CHANGELOG_LABEL,
+  hasSeenCurrentChangelog,
+  latestChangelogVersion,
+  readSeenChangelogVersion,
+  renderChangelogHtml,
+  writeSeenChangelogVersion,
+} from './ui/changelog.js'
 import { createHudController } from './ui/hudController.js'
 import { renderFormationPanel, renderTeamSkillPanel } from './ui/skillPanel.js'
 import { readStoredArray, readStoredString, writeStoredJson, writeStoredString } from './ui/persistence.js'
@@ -124,6 +132,7 @@ function bindInput() {
   hud.homeNavBtn.addEventListener('click', goHome)
   hud.formationNavBtn.addEventListener('click', showFormationManager)
   hud.docsNavBtn.addEventListener('click', showDocs)
+  hud.changelogNavBtn.addEventListener('click', showChangelog)
   hud.drawerToggle.addEventListener('click', toggleTacticalDrawer)
   hud.drawerClose.addEventListener('click', closeTacticalDrawer)
   hud.languageSelect.addEventListener('change', () => {
@@ -133,6 +142,8 @@ function bindInput() {
   hud.themeSelect.addEventListener('change', () => setTheme(hud.themeSelect.value))
   hud.profileNameBtn.addEventListener('click', openProfileNameDialog)
   hud.profileForm.addEventListener('submit', saveProfileName)
+  hud.changelogModalClose.addEventListener('click', closeChangelogModal)
+  hud.changelogModalConfirm.addEventListener('click', closeChangelogModal)
   hud.pvpModalClose.addEventListener('click', closePvpModal)
   hud.pvpModal.addEventListener('click', (event) => {
     if (event.target === hud.pvpModal && state.app.mode === 'pvpLobby') closePvpModal()
@@ -369,6 +380,8 @@ function syncLanguageUi() {
   }
   const docsShell = hud.docsView?.querySelector('.docs-shell')
   if (docsShell) docsShell.innerHTML = t('docs.html')
+  renderChangelogPage()
+  if (!hud.changelogModal.hidden) openChangelogModal()
   renderSkillPanel()
   renderPublicRooms()
   if (state.pvp.modal) renderPvpModal()
@@ -631,6 +644,7 @@ function initializePlayerName() {
   if (savedName) {
     state.pvp.playerName = savedName
     updateProfileNameButton()
+    maybeOpenChangelogModal()
     return
   }
   state.pvp.playerName = ''
@@ -655,6 +669,7 @@ function saveProfileName(event) {
   hud.profileModal.hidden = true
   updateProfileNameButton()
   if (state.app.mode.startsWith('pvp') || state.pvp.modal) renderPvpModal()
+  maybeOpenChangelogModal()
   updateHud()
 }
 
@@ -696,6 +711,43 @@ function showDocs() {
   state.running = false
   state.paused = false
   updateHud()
+}
+
+function showChangelog() {
+  if (state.app.mode.startsWith('pvp')) pvpClient?.leaveRoom()
+  resetPvpState()
+  state.app.mode = 'changelog'
+  hud.pvpModal.hidden = true
+  hud.changelogModal.hidden = true
+  hud.roundSetupOverlay.hidden = true
+  hud.roundCountdownOverlay.hidden = true
+  state.running = false
+  state.paused = false
+  renderChangelogPage()
+  writeSeenChangelogVersion()
+  updateHud()
+}
+
+function renderChangelogPage() {
+  if (!hud.changelogPageBody) return
+  hud.changelogPageBody.innerHTML = renderChangelogHtml()
+}
+
+function maybeOpenChangelogModal() {
+  if (!hud.changelogModal || !hud.profileModal.hidden || hasSeenCurrentChangelog()) return
+  openChangelogModal()
+}
+
+function openChangelogModal() {
+  const seenVersion = readSeenChangelogVersion()
+  hud.changelogModal.querySelector('#changelog-modal-title').textContent = `${t('changelog.modalTitle')} (${CURRENT_CHANGELOG_LABEL})`
+  hud.changelogModalBody.innerHTML = renderChangelogHtml({ onlyUnseen: true, seenVersion })
+  hud.changelogModal.hidden = false
+}
+
+function closeChangelogModal() {
+  writeSeenChangelogVersion(latestChangelogVersion())
+  hud.changelogModal.hidden = true
 }
 
 function openCreateGameModal() {

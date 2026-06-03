@@ -10,6 +10,7 @@ export function mountAppShell(root = document.querySelector('#app')) {
       <button id="home-nav-btn" type="button" data-i18n="nav.home">${t('nav.home')}</button>
       <button id="formation-nav-btn" type="button" data-i18n="nav.formation">${t('nav.formation')}</button>
       <button id="docs-nav-btn" type="button" data-i18n="nav.docs">${t('nav.docs')}</button>
+      <button id="changelog-nav-btn" type="button" data-i18n="nav.changelog">${t('nav.changelog')}</button>
       <button id="profile-name-btn" class="profile-name-btn" type="button"></button>
       <label class="theme-control menu-select-control">
         <span data-i18n="nav.theme">${t('nav.theme')}</span>
@@ -159,6 +160,16 @@ export function mountAppShell(root = document.querySelector('#app')) {
       </div>
     </section>
 
+    <section id="changelog-view" class="changelog-view" hidden>
+      <div class="changelog-shell">
+        <header class="changelog-page-header">
+          <p class="eyebrow" data-i18n="nav.changelog">${t('nav.changelog')}</p>
+          <h1 data-i18n="changelog.title">${t('changelog.title')}</h1>
+        </header>
+        <div id="changelog-page-body"></div>
+      </div>
+    </section>
+
     <section id="formation-view" class="formation-view" hidden>
       <div class="formation-manager-shell">
         <header>
@@ -203,6 +214,17 @@ export function mountAppShell(root = document.querySelector('#app')) {
         </form>
       </section>
     </div>
+
+    <div id="changelog-modal" class="modal-backdrop" hidden>
+      <section class="modal changelog-modal" role="dialog" aria-modal="true" aria-labelledby="changelog-modal-title">
+        <header>
+          <h2 id="changelog-modal-title">${t('changelog.modalTitle')}</h2>
+          <button id="changelog-modal-close" type="button" aria-label="${t('modal.close')}">x</button>
+        </header>
+        <div id="changelog-modal-body"></div>
+        <button id="changelog-modal-confirm" class="primary" type="button" data-i18n="changelog.confirm">${t('changelog.confirm')}</button>
+      </section>
+    </div>
   `
 
   applyTranslations(root)
@@ -221,10 +243,13 @@ function queryHud(root) {
     menuCinemaCanvas: root.querySelector('#menu-cinema'),
     gameShell: root.querySelector('.game-shell'),
     docsView: root.querySelector('#docs-view'),
+    changelogView: root.querySelector('#changelog-view'),
+    changelogPageBody: root.querySelector('#changelog-page-body'),
     formationView: root.querySelector('#formation-view'),
     homeNavBtn: root.querySelector('#home-nav-btn'),
     formationNavBtn: root.querySelector('#formation-nav-btn'),
     docsNavBtn: root.querySelector('#docs-nav-btn'),
+    changelogNavBtn: root.querySelector('#changelog-nav-btn'),
     profileNameBtn: root.querySelector('#profile-name-btn'),
     themeSelect: root.querySelector('#theme-select'),
     languageSelect: root.querySelector('#language-select'),
@@ -278,6 +303,10 @@ function queryHud(root) {
     profileModal: root.querySelector('#profile-modal'),
     profileForm: root.querySelector('#profile-form'),
     profileNameInput: root.querySelector('#profile-name-input'),
+    changelogModal: root.querySelector('#changelog-modal'),
+    changelogModalBody: root.querySelector('#changelog-modal-body'),
+    changelogModalClose: root.querySelector('#changelog-modal-close'),
+    changelogModalConfirm: root.querySelector('#changelog-modal-confirm'),
     formationBackBtn: root.querySelector('#formation-back-btn'),
     formationPresetName: root.querySelector('#formation-preset-name'),
     formationManagerPresets: root.querySelector('#formation-manager-presets'),

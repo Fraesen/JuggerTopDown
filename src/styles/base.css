@@ -156,6 +156,7 @@ body {
 .main-menu[hidden],
 .game-shell[hidden],
 .docs-view[hidden],
+.changelog-view[hidden],
 .formation-view[hidden],
 .drawer-toggle[hidden],
 .rematch-btn[hidden],
@@ -423,7 +424,8 @@ kbd {
   box-shadow: var(--shadow);
 }
 
-.docs-view {
+.docs-view,
+.changelog-view {
   min-height: 0;
   flex: 1;
   overflow: auto;
@@ -501,6 +503,86 @@ kbd {
 .docs-shell {
   width: min(980px, 100%);
   margin: 0 auto;
+}
+
+.changelog-shell {
+  display: grid;
+  width: min(980px, 100%);
+  margin: 0 auto;
+  gap: 18px;
+}
+
+.changelog-page-header,
+.changelog-entry {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  background: var(--panel-overlay);
+  box-shadow: var(--shadow);
+}
+
+.changelog-page-header h1 {
+  margin: 4px 0 0;
+}
+
+.changelog-article {
+  display: grid;
+  gap: 14px;
+}
+
+.changelog-entry {
+  display: grid;
+  gap: 14px;
+}
+
+.changelog-entry header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  align-items: start;
+}
+
+.changelog-entry header .eyebrow {
+  grid-column: 1 / -1;
+}
+
+.changelog-entry h2,
+.changelog-group h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.changelog-entry header span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--gold);
+  background: var(--panel-muted);
+  font-weight: 900;
+}
+
+.changelog-group {
+  display: grid;
+  gap: 8px;
+}
+
+.changelog-group h3 {
+  color: var(--gold);
+  font-size: 15px;
+}
+
+.changelog-group ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.changelog-modal {
+  width: min(720px, 100%);
+}
+
+.changelog-modal > button {
+  width: 100%;
+  margin-top: 14px;
 }
 
 .docs-article {

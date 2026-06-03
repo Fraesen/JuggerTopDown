@@ -8,6 +8,7 @@ export const de = {
   'nav.home': 'Home',
   'nav.formation': 'Aufstellung',
   'nav.docs': 'Docs',
+  'nav.changelog': 'Changelog',
   'nav.theme': 'Farbkonzept',
   'nav.language': 'Sprache',
 
@@ -108,6 +109,10 @@ export const de = {
   'modal.invalidCode': 'Bitte einen 5-stelligen Code aus A-Z und 0-9 eingeben.',
   'modal.joinFailed': 'Beitritt fehlgeschlagen',
   'modal.pvpError': 'PvP-Fehler',
+
+  'changelog.title': 'Changelog',
+  'changelog.modalTitle': 'Neu seit deinem letzten Besuch',
+  'changelog.confirm': 'Gelesen',
 
   'setup.skillTeam': 'Team skillen',
   'setup.prepareFormation': 'Aufstellung vorbereiten',

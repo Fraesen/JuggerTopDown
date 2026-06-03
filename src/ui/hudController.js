@@ -38,7 +38,7 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
     const mode = state.app.mode
     const inPvp = mode.startsWith('pvp')
     if (hud.mainMenu) hud.mainMenu.hidden = mode !== 'menu' && mode !== 'pvpLobby'
-    if (hud.gameShell) hud.gameShell.hidden = mode === 'menu' || mode === 'pvpLobby' || mode === 'docs'
+    if (hud.gameShell) hud.gameShell.hidden = mode === 'menu' || mode === 'pvpLobby' || mode === 'docs' || mode === 'changelog'
     if (hud.formationView) hud.formationView.hidden = mode !== 'formation'
     if (hud.gameShell && mode === 'formation') hud.gameShell.hidden = true
     if (hud.gameShell && inPvp) {
@@ -46,9 +46,11 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       hud.gameShell.classList.add('drawer-collapsed')
     }
     if (hud.docsView) hud.docsView.hidden = mode !== 'docs'
+    if (hud.changelogView) hud.changelogView.hidden = mode !== 'changelog'
     if (hud.homeNavBtn) hud.homeNavBtn.classList.toggle('active', mode === 'menu' || mode === 'pvpLobby')
     if (hud.formationNavBtn) hud.formationNavBtn.classList.toggle('active', mode === 'formation')
     if (hud.docsNavBtn) hud.docsNavBtn.classList.toggle('active', mode === 'docs')
+    if (hud.changelogNavBtn) hud.changelogNavBtn.classList.toggle('active', mode === 'changelog')
     updatePvpSetupTimer()
 
     const possession = state.jugg.quick ? t('possession.quick', { team: teamLabel(state.jugg.quick.team) }) : t('status.free')

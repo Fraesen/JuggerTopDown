@@ -4,6 +4,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   if (testInfo.title.includes('first visit')) return
   await page.addInitScript(() => {
     window.localStorage.setItem('juggerTopDown.playerName', 'Testspieler')
+    window.localStorage.setItem('juggerTopDown.seenChangelogVersion', '1')
   })
 })
 
@@ -21,11 +22,16 @@ test.describe('main navigation', () => {
     await page.locator('#profile-name-input').fill('Ada')
     await page.getByRole('button', { name: /Speichern/ }).click()
     await expect(page.locator('#profile-modal')).toBeHidden()
+    await expect(page.locator('#changelog-modal')).toBeVisible()
+    await page.locator('#changelog-modal-confirm').click()
+    await expect(page.locator('#changelog-modal')).toBeHidden()
     const storedName = await page.evaluate(() => window.localStorage.getItem('juggerTopDown.playerName'))
     expect(storedName).toBe('Ada')
+    const seenChangelog = await page.evaluate(() => window.localStorage.getItem('juggerTopDown.seenChangelogVersion'))
+    expect(seenChangelog).toBe('1')
   })
 
-  test('shows menu actions, theme switcher and docs', async ({ page }) => {
+  test('shows menu actions, theme switcher, docs and changelog', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('#menu-cinema')).toBeVisible()
     await expect(page.getByRole('button', { name: /Spiel gegen Bots|Play against bots/ })).toBeVisible()
@@ -37,6 +43,24 @@ test.describe('main navigation', () => {
     await page.getByRole('button', { name: /Docs/ }).click()
     await expect(page.locator('.docs-view')).toBeVisible()
     await expect(page.getByRole('heading', { name: /JuggerTopDown|Jugger Autobattler/ })).toBeVisible()
+
+    await page.getByRole('button', { name: /Changelog/ }).click()
+    await expect(page.locator('#changelog-view')).toBeVisible()
+    await expect(page.locator('#changelog-page-body')).toContainText('1.0.0')
+  })
+
+  test('shows unseen changelog after returning visits', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('juggerTopDown.seenChangelogVersion', '0')
+    })
+    await page.goto('/')
+    await expect(page.locator('#profile-modal')).toBeHidden()
+    await expect(page.locator('#changelog-modal')).toBeVisible()
+    await expect(page.locator('#changelog-modal-body')).toContainText('1.0.0')
+    await page.locator('#changelog-modal-close').click()
+    await expect(page.locator('#changelog-modal')).toBeHidden()
+    const seenChangelog = await page.evaluate(() => window.localStorage.getItem('juggerTopDown.seenChangelogVersion'))
+    expect(seenChangelog).toBe('1')
   })
 
   test('opens create and join PvP modals', async ({ page }) => {

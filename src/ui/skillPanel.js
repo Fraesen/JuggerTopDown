@@ -13,6 +13,7 @@ import {
   teamStrategyLabel,
 } from '../game/strategies.js'
 import { positionText, t } from '../i18n/index.js'
+import { escapeHtml } from './html.js'
 
 export const BLUE_POMPFEN_OPTIONS = POMPFEN_OPTIONS
 
@@ -204,15 +205,6 @@ export function renderFormationPanel(container, state, { team = 'blue', editable
 
 function playerNameFor(index, playerNames) {
   return String(playerNames[index] || roleLabel(index))
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
 }
 
 function renderLoadoutControls(team, index, chainOwner, locks) {

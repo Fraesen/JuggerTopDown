@@ -2,6 +2,7 @@ import { CALL_BUBBLE_DURATION, FIELD, FIELD_POLYGON, JUGG_RADIUS, PLAYER_RADIUS,
 import { clamp } from './geometry.js'
 import { isInactive, isPompfer, isQuick } from './players.js'
 import { attackArcFor, pompfeFor, pompfeVisualFor } from './pompfen.js'
+import { t } from '../i18n/index.js'
 
 
 export function createRenderer({ ctx, state }) {
@@ -552,7 +553,8 @@ export function createRenderer({ ctx, state }) {
   function drawOverlay() {
     if (state.running && state.messageTimer <= 0) return
     if (state.roundBreakTimer > 0 && state.roundBreakLocked) return
-    if (state.message === 'Neuer Zug' && state.messageTimer > 0.85) return
+    if (state.roundBreakTimer > 0 && state.roundSetupOpen && !state.roundBreakLocked) return
+    if (state.message === t('match.newRound')) return
   
     ctx.save()
     ctx.fillStyle = 'rgba(8,12,15,0.2)'

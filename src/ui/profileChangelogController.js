@@ -96,6 +96,7 @@ export function createProfileChangelogController({
     initializePlayerName,
     markChangelogPageSeen,
     maybeOpenChangelogModal,
+    openChangelogModal,
     openProfileNameDialog,
     renderChangelogPage,
     saveProfileName,

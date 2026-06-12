@@ -1,4 +1,5 @@
 import { getLanguage } from '../i18n/index.js'
+import { escapeHtml } from './html.js'
 
 export const CURRENT_CHANGELOG_VERSION = 1
 export const CURRENT_CHANGELOG_LABEL = '1.0.0'
@@ -100,11 +101,3 @@ function changelogListHtml(title, items = []) {
   `
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}

@@ -5,6 +5,7 @@ import { isInactive, isPompfer, isQuick, playerIndex, playerPositionSlot, roleLa
 import { pompfeFor, pompfeLabel } from '../game/pompfen.js'
 import { teamStrategyLabel } from '../game/strategies.js'
 import { positionText, t, teamLabel } from '../i18n/index.js'
+import { escapeHtml } from './html.js'
 
 export function createHudController({ state, hud, canvas, arenaWrap }) {
   function formatClock(seconds) {
@@ -166,15 +167,6 @@ export function createHudController({ state, hud, canvas, arenaWrap }) {
       </div>
       <small>${t('panel.opponent')}: ${escapeHtml(opponentName)} (${teamLabel(other)})</small>
     `
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
   }
 
   function canvasScreenPointFromEvent(event) {

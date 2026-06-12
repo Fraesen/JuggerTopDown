@@ -228,106 +228,154 @@ export const en = {
 
   'docs.html': `
     <article class="docs-article">
-      <header>
+      <header class="docs-hero">
         <p class="eyebrow">Documentation</p>
-        <h1>Jugger Autobattler</h1>
+        <h1>JuggerTopDown</h1>
         <p>
-          This page explains the in-game adaptation of Jugger, the player decision logic,
-          Pompfen, calls, stats and strategies. The current official rule set is available at
+          This documentation describes the simulation, not the complete tournament rule set.
+          The current rules for the real sport are available at
           <a href="https://www.jugger.org/downloads" target="_blank" rel="noreferrer">jugger.org/downloads</a>.
         </p>
       </header>
 
       <section>
-        <h2>Relevant Jugger Rules</h2>
+        <h2>Relevant Jugger Rules In Brief</h2>
         <p>
-          Jugger is played 5 vs 5. Each team has one quick and four Pompfers. Only quicks may carry
-          the Jugg and score by placing it in the opponent's goal. Players hit by legal Pompfen strikes
-          become inactive for a penalty counted in stones. Inactive players can be pinned by opponents.
+          Jugger is played 5 vs 5: each team has one quick and four Pompfers.
+          The quick is the only player who may carry the Jugg and score at the opponent's goal.
+          Pompfers keep opponents away from their quick with Pompfen or pin players who have already been hit.
         </p>
-      </section>
-
-      <section>
-        <h2>In-game Adaptation</h2>
-        <p>
-          The game is an autobattler: players are not controlled directly. A match is won at 3 points.
-          Between points there is a 20-stone strategy break. During the last 3 stones, the setup locks
-          and the countdown is shown on the field.
-        </p>
-      </section>
-
-      <section>
-        <h2>Decision Logic</h2>
         <ul>
-          <li>Quicks try to reach the Jugg, score when the route is clear, or retreat when enemy ranges block the path.</li>
-          <li>Pompfers seek duels, protect their quick, attack the opposing quick or pin inactive opponents after enough stones.</li>
-          <li>Players rotate before moving; standing players can turn in place.</li>
-          <li>Pinned players do not move, while pinners may move inside the pin radius and still strike.</li>
+          <li>A match ends at 3 points ("best of five").</li>
+          <li>The Jugg starts free in the center and is picked up or contested by quicks.</li>
+          <li>Hit players kneel for a penalty. Normal hits give 5 stones, chain hits give 8 stones. One stone equals 1.5 seconds.</li>
+          <li>Pinned players stay down until the pin is released. In the simulation, exactly one player can pin one opposing player.</li>
+          <li>If both quicks contest the Jugg at the same time, possession is decided by technique. If both succeed, the Jugg is held in place.</li>
+          <li>Scoring at the goal is not possible while the Jugg is contested or the quick is grappling.</li>
         </ul>
       </section>
 
       <section>
-        <h2>Pompfen</h2>
+        <h2>Adaptation And Match Flow</h2>
         <p>
-          Relative in-game ranges are derived from the rule measurements: shield/short Pompfe 85 cm,
-          staff 110 cm, long Pompfe 140 cm, Q-tip 140 cm and chain 320 cm.
+          "Jugger Topdown" is an autobattler. Players are not controlled directly; every tick they decide based on role,
+          Pompfe, team strategy, calls, Jugg situation, distance to opponents and current state. The same seed and the same
+          configuration produce the same match flow.
         </p>
-        <dl>
-          <dt>Staff</dt>
-          <dd>A solid melee Pompfe with medium range and pin capability.</dd>
-          <dt>Long Pompfe</dt>
-          <dd>A long one-sided melee Pompfe with high frontal reach and pin capability. It has Q-tip-like reach, but no rear hit area.</dd>
-          <dt>Q-tip</dt>
-          <dd>A long double-ended melee Pompfe with high reach and a small rear hit area.</dd>
-          <dt>Shield</dt>
-          <dd>A shorter melee Pompfe. The shield improves frontal blocking; back hits bypass that block.</dd>
-          <dt>Chain</dt>
-          <dd>
-            Chains cannot pin. Chain hits give 8 penalty stones and cause a longer cooldown after successful hits.
-            Chain attacks can be blocked by players in the way, and the chain band blocks movement while retracting.
-            If a chain player is hit, the current chain attack is cancelled.
-          </dd>
-        </dl>
-      </section>
-
-      <section>
-        <h2>Calls</h2>
-        <p>
-          Calls appear as speech bubbles. Whether a teammate reacts is decided by awareness.
-          Missed calls show a small question mark above the player.
-        </p>
-        <dl>
-          <dt>Come with me!</dt>
-          <dd>The quick calls support while carrying the Jugg and facing only one relevant opponent on the way to goal.</dd>
-          <dt>Goal defense!</dt>
-          <dd>Triggered by danger near the own goal. Teammates move toward the goal until the threat is gone.</dd>
-          <dt>Help me!</dt>
-          <dd>A quick who grapples or is grappled calls the nearest suitable teammate to strike the opposing quick.</dd>
-          <dt>Double pin!</dt>
-          <dd>A pinner can take over coverage of a second inactive Pompfer so another teammate can seek a new target.</dd>
-          <dt>Numbers!</dt>
-          <dd>A player who has won a duel can help a nearby duel, while the called teammate briefly takes a defensive stance.</dd>
-        </dl>
+        <ul>
+          <li>Teams start left and right outside the ground line and run toward first contact.</li>
+          <li>Between points there is a 20-stone strategy break. During the last 3 stones, the setup locks and the game counts down <code>3</code>, <code>2</code>, <code>1</code>, <code>Jugger!</code>.</li>
+          <li>In bot mode, skills, Pompfen, positions and team strategy can be changed under "Tactics". In PvP, team configuration is synchronized through the server.</li>
+          <li>After the first PvP setup phase, skills are locked; between rounds only formation, Pompfen and team strategy can be changed.</li>
+          <li>Bot mode offers additional options such as faster playback and Cinema Mode. Cinema Mode controls camera and slow motion for detected highlight scenes.</li>
+        </ul>
       </section>
 
       <section>
         <h2>Hit Calculation And Stats</h2>
         <p>
-          Technique decides hit probability by ratio. Running attacks receive a penalty. Hits against quicks get a bonus
-          because quicks cannot block. Back hits double the hit chance and remove block chance. Speed controls movement,
-          while awareness controls whether calls are understood.
+          Each player has 6 skill points distributed across technique, speed and awareness.
+          Technique starts at 30 and increases by 10 per point. Speed starts at 40 and increases by 8 per point.
+          Awareness starts at 30 percent and increases by 10 percentage points per point.
+          Quicks use the shared speed calculation, but receive a small constant movement bonus.
         </p>
+        <ul>
+          <li>Base chance: attacker's technique / (attacker's technique + defender's technique + possible shield bonus).</li>
+          <li>Hit chance against quicks is much higher because quicks do not block.</li>
+          <li>Running attacks are allowed, but receive a Pompfe-specific penalty.</li>
+          <li>Back hits double the chance and cannot be shield-blocked.</li>
+          <li>Attacks take 0.1 seconds. If two players hit within the same 0.3-second window, it becomes a double. There is a 0.66-second cooldown between attacks; players in cooldown cannot create a double.</li>
+        </ul>
       </section>
 
       <section>
-        <h2>Strategies And States</h2>
+        <h2>Basic Decision Logic</h2>
+        <ul>
+          <li>Quicks run to the Jugg, carry it toward the opposing goal, or retreat when the direct route crosses enemy ranges.</li>
+          <li>If the Jugg-carrying quick has space, they can look for pressure through one side. The simulation checks a curved route through the upper or lower third.</li>
+          <li>Pompfers bind active opponents, protect their own quick, attack opposing quicks or look for opponents who have been sitting long enough to pin.</li>
+          <li>Chains seek active opponents. If there are no active opponents, they guard inactive opponents from a distance.</li>
+          <li>Pinners may move inside the pin radius when that brings them closer to relevant opponents, and they do not have to face the pinned player.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Pompfen, Hit Areas And Special Rules</h2>
+        <p>
+          Ranges are visually adapted and are not intended as a scale-accurate top-down drawing of real Pompfen lengths.
+          The hit calculation uses ranges derived from the rule measurements: shield/short Pompfe 85 cm, staff 110 cm,
+          long Pompfe 140 cm, Q-tip 140 cm and chain 320 cm.
+          Hits are only checked when target, range and facing angle match.
+        </p>
         <dl>
-          <dt>Standard</dt>
+          <dt>Staff</dt>
+          <dd>A melee Pompfe with medium range and a frontal hit arc.</dd>
+          <dt>Long Pompfe</dt>
+          <dd>A long one-sided melee Pompfe with high range and a frontal hit arc. It shares its reach with the Q-tip, but has no rear hit area.</dd>
+          <dt>Q-tip</dt>
+          <dd>A long double-ended melee Pompfe with high range. It also has a small rear hit area, keeping it mechanically distinct from the long Pompfe.</dd>
+          <dt>Shield</dt>
+          <dd>A shorter melee Pompfe. The shield increases the defender's frontal block effect; back hits bypass that block.</dd>
+          <dt>Chain</dt>
+          <dd>
+            Very high range with a minimum hit distance. A taut chain band cannot be crossed by other players.
+            Chains cannot pin, give 8 penalty stones on hit and receive double cooldown after a successful hit.
+            Attacks can be blocked by players in the way.
+            If a chain player is hit, the current chain attack is cancelled. Melee Pompfen always hit chains when range and angle match.
+            Each team can choose at most one chain.
+          </dd>
+        </dl>
+      </section>
+
+      <section>
+        <h2>Penalty Time, Pinning And Grappling</h2>
+        <p>
+          Stones tick globally for all players at the same time. After the penalty expires, the player performs a short recovery dash
+          whose length depends on their speed. During this dash they cannot strike, but they can be hit.
+        </p>
+        <ul>
+          <li>Pins are only taken once an opposing player has served at least 3 counted stones.</li>
+          <li>Chains cannot pin. Other Pompfen can pin exactly one target, and each target has at most one pinner.</li>
+          <li>Pinners may move inside the pin radius. They may turn toward active opponents and keep striking.</li>
+          <li>Quicks can grapple at the Jugg. While grappling, both quicks stand still and no point can be scored at the goal.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Calls</h2>
+        <p>
+          Calls appear as speech bubbles above the calling player. Whether a receiving player reacts is rolled against awareness.
+          If the caller is also an active receiver, they understand their own call automatically.
+          Players who miss a call briefly show a small question mark above their head.
+          Inactive players are currently skipped as receivers. The "Goal defense!" call can still be triggered by an inactive teammate.
+        </p>
+        <p>Current calls are:</p>
+        <dl>
+          <dt>Come with me!</dt>
+          <dd>Trigger: the own quick carries the Jugg and exactly one relevant opponent is in the lane to the goal. Reaction: a teammate supports the run toward the opposing goal. Ends when the quick kneels.</dd>
+          <dt>Goal defense!</dt>
+          <dd>Trigger: an opposing quick with the Jugg moves through the own half toward the own goal, or the free Jugg is within 10 meters of the own goal. No goal defense is called if that quick is pinned. Reaction: perceiving teammates move to the own goal and stop once the threat is gone.</dd>
+          <dt>Help me!</dt>
+          <dd>Trigger: a quick is grappling or being grappled. Reaction: the nearest suitable teammate releases their own pin and tries to hit the opposing quick.</dd>
+          <dt>Double pin!</dt>
+          <dd>Trigger: a pinning Pompfer can cover a second player who is about to stand up within 95 percent of their own Pompfe range. Reaction: another pin is released on the next stone, and the caller moves to intercept.</dd>
+          <dt>Numbers!</dt>
+          <dd>Trigger: a Pompfer wins a duel while another duel is happening nearby. Reaction: the called teammate takes a defensive stance for 2 stones, reducing hit chances both for and against that player, while the caller joins the shared attack.</dd>
+        </dl>
+      </section>
+
+      <section>
+        <h2>Strategies</h2>
+        <p>
+          Teams can choose different strategies that influence behavior after the opening run until the first line situation.
+        </p>
+        <dl>
+          <dt>Team strategy: Standard</dt>
           <dd>Normal opening and situational decisions based on the Jugg, opponents and calls.</dd>
-          <dt>Wide line</dt>
-          <dd>Pompfers spread wide toward the center line. The quick initially stays deeper.</dd>
-          <dt>Left/Right pressure</dt>
-          <dd>One side plays defensively while the other side plays more aggressively with a smaller double window.</dd>
+          <dt>Team strategy: Wide line</dt>
+          <dd>Pompfers spread wide toward the center line. The quick initially stays around one quarter of the field length.</dd>
+          <dt>Team strategies: Top pressure / Bottom pressure</dt>
+          <dd>One side defensively binds its direct opponent until a duel happens or the opposing quick enters the own half. Defensive stance reduces hit chances both for and against those players. The other side plays more aggressively by using a much smaller double window.</dd>
         </dl>
       </section>
     </article>

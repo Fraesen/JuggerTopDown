@@ -20,7 +20,7 @@ export const PIN_ORBIT_SPEED_FACTOR = 0.36
 
 export const ATTACK_DURATION = 0.1
 export const DOUBLE_HIT_WINDOW = 0.3
-export const ATTACK_COOLDOWN = 0.72
+export const ATTACK_COOLDOWN = 0.66
 export const RUNNING_ATTACK_SPEED_THRESHOLD = 12
 
 export const OPENING_RUSH_SECONDS = 2.8

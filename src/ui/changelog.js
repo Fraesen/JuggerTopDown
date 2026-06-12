@@ -5,35 +5,62 @@ export const CURRENT_CHANGELOG_VERSION = 1
 export const CURRENT_CHANGELOG_LABEL = '1.0.0'
 export const CHANGELOG_STORAGE_KEY = 'juggerTopDown.seenChangelogVersion'
 
+const CHANGELOG_GROUP_TITLES = {
+  features: {
+    de: 'Features',
+    en: 'Features',
+  },
+  balancing: {
+    de: 'Balancing',
+    en: 'Balancing',
+  },
+  misc: {
+    de: 'Sonstiges',
+    en: 'Misc',
+  },
+}
+
 export const CHANGELOG_RELEASES = [
   {
     version: 1,
     label: '1.0.0',
-    date: '2026-05-31',
+    date: '2026-06-12',
     title: {
-      de: 'Open-Source-Grundlage',
-      en: 'Open source foundation',
+      de: 'Version 1.0',
+      en: 'Version 1.0',
+    },
+    versionText: {
+      de: 'Diese erste Version enthält eine ganze Reihe von Features, genaueres kann unter "Docs" nachgelesen werden. Für Feedback oder Vorschläge kontaktiert mich gerne auf Discord: zensider',
+      en: 'This first version includes a broad set of features; more details are available under "Docs". For feedback or suggestions, feel free to contact me on Discord: zensider',
     },
     features: {
       de: [
-        'Changelog-Seite und Release-Hinweise eingefuehrt.',
-        'Aufstellungsverwaltung, Skillkarten und Presets fuer den ersten oeffentlichen Stand stabilisiert.',
-        'Projekt um README, MIT-Lizenz und klarere Build-Hinweise ergaenzt.',
+        'Jugger gegen Bots und PVP',
+        'Vorgefertigte Aufstellungen die in PVP und PVE geladen werden können',
+        'Im Bot-Modus können Spiele schneller oder langsamer gemacht werden. Außerdem gibt es einen Cinema-Modus der Highlight-Situationen ranzoomen sollte',
       ],
       en: [
-        'Added changelog page and release notes.',
-        'Stabilized formation management, skill cards and presets for the first public version.',
-        'Added README, MIT license and clearer build notes.',
+        'Jugger against bots and PvP',
+        'Prebuilt formations that can be loaded in PvP and PvE',
+        'In bot mode, matches can be sped up or slowed down. There is also a Cinema Mode that should zoom in on highlight moments.',
       ],
     },
     balancing: {
       de: [
-        'Englische Rollenbezeichnung auf Quick vereinheitlicht.',
-        'Jugg-Besitz wird intern direkt ueber die Quick referenziert.',
+        'Die Spielversion ist ein erster Wurf, der sich erstmal beim Testen gut angefühlt hat.',
+        'Für Balancingvorschläge, schreibt mir gerne auf Discord: zensider',
       ],
       en: [
-        'Unified the English role name to Quick.',
-        'Jugg possession is now represented directly by the Quick in code.',
+        'This version is a first pass that has felt good in testing so far.',
+        'For balancing suggestions, feel free to write me on Discord: zensider',
+      ],
+    },
+    misc: {
+      de: [
+        'Dieses Projekt ist ein reines Hobbyprojekt und hat keine Gewinnabsichten. Die Fortführung hängt vom Feedback und meiner Freizeit ab :)',
+      ],
+      en: [
+        'This project is purely a hobby project and has no profit motive. Continued development depends on feedback and my free time :)',
       ],
     },
   },
@@ -78,6 +105,7 @@ export function renderChangelogHtml({ onlyUnseen = false, seenVersion = readSeen
 function changelogEntryHtml(entry) {
   const language = getLanguage()
   const title = entry.title[language] ?? entry.title.de
+  const versionText = entry.versionText?.[language] ?? entry.versionText?.de
   return `
     <section class="changelog-entry">
       <header>
@@ -85,10 +113,16 @@ function changelogEntryHtml(entry) {
         <h2>${escapeHtml(entry.label)} - ${escapeHtml(title)}</h2>
         <span>#${entry.version}</span>
       </header>
-      ${changelogListHtml('Features', entry.features[language] ?? entry.features.de)}
-      ${changelogListHtml('Balancing', entry.balancing[language] ?? entry.balancing.de)}
+      ${versionText ? `<p class="changelog-version-text">${escapeHtml(versionText)}</p>` : ''}
+      ${changelogListHtml(groupTitle('features', language), entry.features[language] ?? entry.features.de)}
+      ${changelogListHtml(groupTitle('balancing', language), entry.balancing[language] ?? entry.balancing.de)}
+      ${changelogListHtml(groupTitle('misc', language), entry.misc?.[language] ?? entry.misc?.de)}
     </section>
   `
+}
+
+function groupTitle(group, language) {
+  return CHANGELOG_GROUP_TITLES[group]?.[language] ?? CHANGELOG_GROUP_TITLES[group]?.de ?? group
 }
 
 function changelogListHtml(title, items = []) {

@@ -52,7 +52,7 @@ export function createProfileChangelogController({
   }
 
   function updateProfileNameButton() {
-    if (hud.profileNameBtn) hud.profileNameBtn.textContent = state.pvp.playerName || 'Name'
+    if (hud.profileNameBtn) hud.profileNameBtn.textContent = `Name: ${state.pvp.playerName || '-'}`
   }
 
   function normalizePlayerName(value) {

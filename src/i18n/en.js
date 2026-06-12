@@ -63,6 +63,7 @@ export const en = {
   'status.pvpMatch': 'PvP match',
   'status.matchStartingSoon': 'Match starts shortly',
   'status.pvpConnectionLost': 'PvP connection interrupted',
+  'status.opponentLeftWin': 'The opponent left the match. You win the match.',
   'status.noPvpServer': 'No connection to the PvP server',
   'status.serverMissing': 'The PvP WebSocket is not reachable yet.',
   'status.otherPlayerLeft': 'The second player is no longer connected.',
@@ -107,6 +108,9 @@ export const en = {
   'modal.invalidCode': 'Please enter a 5-character code using A-Z and 0-9.',
   'modal.joinFailed': 'Failed to join',
   'modal.pvpError': 'PvP error',
+  'modal.pvpForfeitTitle': 'Match won',
+  'modal.pvpForfeitBody': 'The other player left the running PvP match. The match counts as a win for you.',
+  'modal.backToHome': 'Back to home',
 
   'changelog.title': 'Changelog',
   'changelog.modalTitle': 'New since your last visit',
@@ -122,7 +126,7 @@ export const en = {
   'setup.stones': '{count} stones',
 
   'panel.skillTitle': 'Skill {team}',
-  'panel.pointsPerPlayer': '6 points per player',
+  'panel.pointsPerPlayer': '12 points per player',
   'panel.teamRoles': 'Team roles',
   'panel.rules': 'Rules',
   'panel.opponent': 'Opponent',
@@ -196,7 +200,7 @@ export const en = {
   'rule.1': 'First to 3 points wins',
   'rule.2': '1 quick',
   'rule.3': '4 Pompfers',
-  'rule.4': 'Technique: 30 + 10 per point',
+  'rule.4': 'Technique: 30 + 5 per point',
   'rule.5': 'Speed: movement pace',
   'rule.6': 'Awareness: call chance',
   'rule.7': 'Only quicks carry the Jugg',
@@ -264,6 +268,7 @@ export const en = {
         </p>
         <ul>
           <li>Teams start left and right outside the ground line and run toward first contact.</li>
+          <li>The large HUD clock shows the remaining match time in minutes and seconds. During a strategy break, this match time remains visible; the actual break countdown uses the remaining stones.</li>
           <li>Between points there is a 20-stone strategy break. During the last 3 stones, the setup locks and the game counts down <code>3</code>, <code>2</code>, <code>1</code>, <code>Jugger!</code>.</li>
           <li>In bot mode, skills, Pompfen, positions and team strategy can be changed under "Tactics". In PvP, team configuration is synchronized through the server.</li>
           <li>After the first PvP setup phase, skills are locked; between rounds only formation, Pompfen and team strategy can be changed.</li>
@@ -274,9 +279,9 @@ export const en = {
       <section>
         <h2>Hit Calculation And Stats</h2>
         <p>
-          Each player has 6 skill points distributed across technique, speed and awareness.
-          Technique starts at 30 and increases by 10 per point. Speed starts at 40 and increases by 8 per point.
-          Awareness starts at 30 percent and increases by 10 percentage points per point.
+          Each player has 12 skill points distributed across technique, speed and awareness.
+          Technique starts at 30 and increases by 5 per point. Speed starts at 40 and increases by 4 per point.
+          Awareness starts at 30 percent and increases by 5 percentage points per point.
           Quicks use the shared speed calculation, but receive a small constant movement bonus.
         </p>
         <ul>

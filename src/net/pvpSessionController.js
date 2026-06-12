@@ -1,4 +1,4 @@
-import { t } from '../i18n/index.js'
+import { t, teamLabel } from '../i18n/index.js'
 
 export function createPvpSessionController({
   state,
@@ -237,12 +237,34 @@ export function createPvpSessionController({
     }
     if (message.localTeam) selectLocalTeamFromServer(message.localTeam)
     if (Array.isArray(message.teamConfigs)) message.teamConfigs.forEach((config) => applyTeamConfig(config, { remote: true }))
-    if (wasConnected && !state.pvp.connected && (state.app.mode === 'pvpSetup' || state.app.mode === 'pvpMatch')) {
+    if (wasConnected && !state.pvp.connected && state.app.mode === 'pvpMatch') applyForfeitWin()
+    if (wasConnected && !state.pvp.connected && state.app.mode === 'pvpSetup') {
       state.running = false
       state.paused = true
       state.pvp.statusText = t('status.pvpConnectionLost')
       state.pvp.error = t('status.otherPlayerLeft')
     }
+  }
+
+  function applyForfeitWin() {
+    const winner = state.pvp.localTeam
+    const loser = state.pvp.opponentTeam
+    state.running = false
+    state.paused = true
+    state.roundBreakTimer = 0
+    state.roundBreakLabel = ''
+    state.roundBreakLocked = false
+    state.roundSetupOpen = false
+    state.score[winner] = 3
+    state.score[loser] = Math.min(state.score[loser] ?? 0, 2)
+    state.timeLeft = 0
+    state.message = t('match.teamWins', { team: teamLabel(winner) })
+    state.messageTimer = 2.5
+    state.pvp.statusText = t('status.opponentLeftWin')
+    state.pvp.error = ''
+    state.pvp.modal = 'forfeitWin'
+    pvpSetup.resetRenderState()
+    pvpSetup.renderModal()
   }
 
   function applyTeamSelection(message) {

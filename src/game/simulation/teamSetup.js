@@ -10,6 +10,7 @@ import { POMPFEN_OPTIONS, pompfeLabel } from '../pompfen.js'
 import { renderTeamSkillPanel } from '../../ui/skillPanel.js'
 import { normalizeTeamStrategy } from '../strategies.js'
 import {
+  createDefaultTeamConfig,
   exportTeamConfigSnapshot,
   normalizeLoadoutConfig,
   normalizePositionConfig,
@@ -249,9 +250,10 @@ export function createTeamSetupSystem({
     state.pvp.teamVersions[team] = Math.max(state.pvp.teamVersions[team] ?? 0, incomingVersion)
 
     if (Array.isArray(config.skills)) {
+      const defaultSkills = createDefaultTeamConfig(team).skills
       config.skills.forEach((skill, index) => {
         if (!PLAYER_SKILLS[team][index]) return
-        PLAYER_SKILLS[team][index] = normalizeSkillConfig(skill, PLAYER_SKILLS[team][index])
+        PLAYER_SKILLS[team][index] = normalizeSkillConfig(skill, defaultSkills[index])
       })
     }
     if (Array.isArray(config.positions)) PLAYER_POSITIONS[team].splice(0, PLAYER_POSITIONS[team].length, ...normalizePositionConfig(team, config.positions))

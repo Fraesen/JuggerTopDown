@@ -5,18 +5,18 @@ export const PLAYER_POSITIONS = {
 
 export const PLAYER_SKILLS = {
   blue: [
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 2, geschwindigkeit: 3, wahrnehmung: 1 },
-    { technik: 4, geschwindigkeit: 1, wahrnehmung: 1 },
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 3, geschwindigkeit: 2, wahrnehmung: 1 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
   ],
   red: [
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 2, geschwindigkeit: 3, wahrnehmung: 1 },
-    { technik: 4, geschwindigkeit: 1, wahrnehmung: 1 },
-    { technik: 2, geschwindigkeit: 2, wahrnehmung: 2 },
-    { technik: 3, geschwindigkeit: 2, wahrnehmung: 1 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
+    { technik: 4, geschwindigkeit: 4, wahrnehmung: 4 },
   ],
 }
 

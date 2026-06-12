@@ -10,9 +10,15 @@ import {
 const fallback = createDefaultTeamConfig('blue')
 
 assert.deepEqual(
-  normalizeSkillConfig({ technik: 6, geschwindigkeit: 0, wahrnehmung: 0 }, fallback.skills[0]),
-  { technik: 6, geschwindigkeit: 0, wahrnehmung: 0 },
+  normalizeSkillConfig({ technik: 12, geschwindigkeit: 0, wahrnehmung: 0 }, fallback.skills[0]),
+  { technik: 12, geschwindigkeit: 0, wahrnehmung: 0 },
   'valid skill spreads are preserved',
+)
+
+assert.deepEqual(
+  normalizeSkillConfig({ technik: 2, geschwindigkeit: 2, wahrnehmung: 2 }, fallback.skills[0]),
+  fallback.skills[0],
+  'legacy six-point skill totals fall back',
 )
 
 assert.deepEqual(
@@ -38,7 +44,7 @@ assert.deepEqual(
     {
       team: 'blue',
       version: 7,
-      skills: [{ technik: 6, geschwindigkeit: 0, wahrnehmung: 0 }],
+      skills: [{ technik: 12, geschwindigkeit: 0, wahrnehmung: 0 }],
       loadout: ['quick', 'staff', 'staff', 'staff', 'staff'],
       teamStrategy: 'wide_line',
     },

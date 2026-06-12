@@ -69,6 +69,10 @@ export function bindAppInput({
   hud.changelogModalConfirm.addEventListener('click', closeChangelogModal)
   hud.pvpModalClose.addEventListener('click', pvpSession.closeModal)
   hud.pvpModal.addEventListener('click', (event) => {
+    if (event.target.closest('[data-pvp-home]')) {
+      goHome()
+      return
+    }
     if (event.target === hud.pvpModal && state.app.mode === 'pvpLobby') pvpSession.closeModal()
     formationPresets.handlePresetClick(event)
     const finishSkillButton = event.target.closest('[data-finish-skill-setup]')

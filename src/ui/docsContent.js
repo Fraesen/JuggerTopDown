@@ -35,6 +35,7 @@ export const DOCS_HTML = `
       </p>
       <ul>
         <li>Teams starten links und rechts außerhalb der Grundlinie und laufen zum ersten Kontakt an.</li>
+        <li>Die große Uhr im HUD zeigt die verbleibende Matchzeit in Minuten und Sekunden. Während einer Strategiepause bleibt diese Matchzeit sichtbar; der eigentliche Pausen-Countdown läuft über die verbleibenden Steine.</li>
         <li>Zwischen Punkten gibt es eine Strategiepause von 20 Steinen. In den letzten 3 Steinen ist die Aufstellung gesperrt und es zählt groß <code>3</code>, <code>2</code>, <code>1</code>, <code>Jugger!</code> herunter.</li>
         <li>Im Botmodus können Skillung, Pompfen, Positionen und Teamstrategie über "Taktik" angepasst werden, solange die jeweilige Phase Änderungen erlaubt. Im PvP wird die Teamkonfiguration synchron über den Server verteilt.</li>
         <li>Nach der ersten PvP-Setup-Phase ist die Skillung gesperrt; zwischen Zügen werden nur Aufstellung, Pompfen und Teamstrategie geändert.</li>
@@ -45,9 +46,9 @@ export const DOCS_HTML = `
     <section>
       <h2>Trefferberechnung und Stats</h2>
       <p>
-        Jede spielende Person hat 6 Skillpunkte auf Technik, Geschwindigkeit und Wahrnehmung.
-        Technik startet bei 30 und steigt um 10 pro Punkt. Geschwindigkeit startet bei 40 und steigt um 8 pro Punkt.
-        Wahrnehmung startet bei 30 Prozent und steigt um 10 Prozentpunkte pro Punkt.
+        Jede spielende Person hat 12 Skillpunkte auf Technik, Geschwindigkeit und Wahrnehmung.
+        Technik startet bei 30 und steigt um 5 pro Punkt. Geschwindigkeit startet bei 40 und steigt um 4 pro Punkt.
+        Wahrnehmung startet bei 30 Prozent und steigt um 5 Prozentpunkte pro Punkt.
         Läufer:innen nutzen keine komplett eigene Geschwindigkeitsformel, haben aber einen kleinen konstanten Bonus in der gemeinsamen Speed-Berechnung.
       </p>
       <ul>

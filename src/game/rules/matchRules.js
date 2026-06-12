@@ -34,13 +34,13 @@ export const QUICK_JUGG_CONTEST_PRESSURE_RANGE = 140
 export const QUICK_GRAPPLE_RANGE = 42
 export const QUICK_GRAPPLE_BREAK_RANGE = 68
 
-export const SKILL_POINTS_PER_PLAYER = 6
+export const SKILL_POINTS_PER_PLAYER = 12
 export const TECHNIK_BASE = 30
-export const TECHNIK_PER_POINT = 10
+export const TECHNIK_PER_POINT = 5
 export const SPEED_BASE = 40
-export const SPEED_PER_POINT = 8
+export const SPEED_PER_POINT = 4
 export const WAHRNEHMUNG_BASE = 30
-export const WAHRNEHMUNG_PER_POINT = 10
+export const WAHRNEHMUNG_PER_POINT = 5
 
 export const CALL_DURATION = 1.8
 export const CALL_BUBBLE_DURATION = 1.15

@@ -77,6 +77,10 @@ export function createPvpSetupController({
   }
 
   function renderModal() {
+    if (state.pvp.modal === 'forfeitWin') {
+      renderForfeitWinModal()
+      return
+    }
     if (state.app.mode === 'pvpMatch' && state.pvp.modal !== 'teamSetup') {
       hideModal()
       return
@@ -91,6 +95,20 @@ export function createPvpSetupController({
     hud.pvpModalClose.hidden = false
     hud.pvpModalTitle.textContent = isCreate ? t('modal.createTitle') : t('modal.joinTitle')
     hud.pvpModalBody.innerHTML = isCreate ? createRoomModalHtml() : joinRoomModalHtml()
+  }
+
+  function renderForfeitWinModal() {
+    hud.pvpModal.hidden = false
+    hud.pvpModal.classList.remove('setup-modal')
+    hud.pvpModalClose.hidden = true
+    hud.pvpModalTitle.textContent = t('modal.pvpForfeitTitle')
+    hud.pvpModalBody.innerHTML = `
+      <div class="modal-body-grid">
+        <p class="modal-status">${t('modal.pvpForfeitBody')}</p>
+        <p class="modal-status">${t('status.opponentLeftWin')}</p>
+        <button class="primary" type="button" data-pvp-home>${t('modal.backToHome')}</button>
+      </div>
+    `
   }
 
   function hideModal() {

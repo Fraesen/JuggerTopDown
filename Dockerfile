@@ -15,6 +15,7 @@ ENV PORT=3000
 COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/src/game/rules ./src/game/rules
 COPY --chown=node:node server ./server
 
 EXPOSE 3000

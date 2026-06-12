@@ -1,4 +1,10 @@
 @import './styles/base.css';
+@import './styles/app-views.css';
+@import './styles/game-hud.css';
+@import './styles/modals.css';
+@import './styles/formation.css';
+@import './styles/pvp-setup.css';
+@import './styles/skill-panels.css';
 @import './styles/tabletop-hud.css';
 @import './styles/bench-rulebook.css';
 @import './styles/tactics-overlay.css';

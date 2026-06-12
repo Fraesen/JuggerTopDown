@@ -1,0 +1,216 @@
+.collapsible-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.panel-heading::-webkit-details-marker {
+  display: none;
+}
+
+.panel-heading::marker {
+  content: "";
+}
+
+.panel-heading::after {
+  content: "v";
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 900;
+  transform: rotate(0deg);
+  transition: transform 150ms ease;
+}
+
+.collapsible-panel:not([open]) .panel-heading::after {
+  content: ">";
+  transform: none;
+}
+
+.collapsible-panel:not([open]) {
+  gap: 0;
+}
+
+.panel-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel-heading strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.skill-list {
+  display: grid;
+  gap: 8px;
+}
+
+.skill-row {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--panel-muted);
+}
+
+.skill-row header,
+.skill-control {
+  display: grid;
+  align-items: center;
+}
+
+.skill-row header {
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.skill-row header span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.skill-row header strong {
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.loadout-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.position-control {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.position-control span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.position-control select {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--text);
+  background: var(--control);
+  font: 800 12px/1 var(--font);
+}
+
+.position-control select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.skill-control {
+  grid-template-columns: 18px 30px 24px 30px 1fr;
+  gap: 6px;
+}
+
+.skill-control span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.skill-control button {
+  min-height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.skill-control strong,
+.skill-control small {
+  text-align: center;
+}
+
+.skill-control strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.skill-control small {
+  justify-self: end;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 10px 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.roster-grid span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.roster-grid strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.quick-dot {
+  background: var(--gold);
+}
+
+.match-dot {
+  background: #fff7d7;
+}
+
+.pompfer-dot {
+  background: #e7dfc6;
+}
+
+.technik-dot {
+  background: #a4d65e;
+}
+
+.speed-dot {
+  background: #62b6ff;
+}
+
+.perception-dot {
+  background: #d58cff;
+}
+
+.jugg-dot {
+  background: #7b5420;
+}
+
+.pin-dot {
+  background: #f0d66a;
+  box-shadow: 0 0 0 4px rgba(240, 214, 106, 0.15);
+}
+

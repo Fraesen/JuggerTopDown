@@ -7,24 +7,16 @@ import { ROUND_BREAK_LOCK_STONES, SIMULATION_STEP_SECONDS, createInitialState } 
 import { createSimulation } from './game/simulation.js'
 import { createPvpClient } from './net/pvpClient.js'
 import { mountAppShell } from './ui/appShell.js'
-import {
-  CURRENT_CHANGELOG_LABEL,
-  hasSeenCurrentChangelog,
-  latestChangelogVersion,
-  readSeenChangelogVersion,
-  renderChangelogHtml,
-  writeSeenChangelogVersion,
-} from './ui/changelog.js'
 import { createHudController } from './ui/hudController.js'
 import { renderFormationPanel, renderTeamSkillPanel } from './ui/skillPanel.js'
-import { readStoredArray, readStoredString, writeStoredJson, writeStoredString } from './ui/persistence.js'
+import { readStoredArray, writeStoredJson } from './ui/persistence.js'
+import { createProfileChangelogController } from './ui/profileChangelogController.js'
 import { applyTranslations, setLanguage, t, teamLabel } from './i18n/index.js'
 import { getTheme, setTheme, themeOptionsHtml } from './ui/themes.js'
 
 const { canvas, ctx, arenaWrap, hud } = mountAppShell()
 
 const state = createInitialState()
-const PLAYER_NAME_STORAGE_KEY = 'juggerTopDown.playerName'
 const FORMATION_PRESETS_STORAGE_KEY = 'juggerTopDown.formationPresets'
 
 const renderer = createRenderer({ ctx, state })
@@ -84,6 +76,26 @@ pvpClient = createPvpClient({
   onEvent: handlePvpEvent,
   onStatus: handlePvpStatus,
 })
+
+const profileChangelog = createProfileChangelogController({
+  state,
+  hud,
+  updateHud,
+  onProfileSaved: () => {
+    if (state.app.mode.startsWith('pvp') || state.pvp.modal) renderPvpModal()
+  },
+})
+const {
+  closeChangelogModal,
+  currentPlayerName,
+  initializePlayerName,
+  markChangelogPageSeen,
+  maybeOpenChangelogModal,
+  openProfileNameDialog,
+  renderChangelogPage,
+  saveProfileName,
+  updateProfileNameButton,
+} = profileChangelog
 function loop(time) {
   const elapsedDt = (time - state.lastTime) / 1000 || 0
   const inPvpMatch = state.app.mode === 'pvpMatch'
@@ -639,53 +651,6 @@ function showFormationManager() {
   updateHud()
 }
 
-function initializePlayerName() {
-  const savedName = normalizePlayerName(readStoredString(PLAYER_NAME_STORAGE_KEY))
-  if (savedName) {
-    state.pvp.playerName = savedName
-    updateProfileNameButton()
-    maybeOpenChangelogModal()
-    return
-  }
-  state.pvp.playerName = ''
-  openProfileNameDialog()
-}
-
-function openProfileNameDialog() {
-  hud.profileNameInput.value = state.pvp.playerName || ''
-  hud.profileModal.hidden = false
-  setTimeout(() => hud.profileNameInput.focus(), 0)
-}
-
-function saveProfileName(event) {
-  event.preventDefault()
-  const name = normalizePlayerName(hud.profileNameInput.value)
-  if (!name) {
-    hud.profileNameInput.focus()
-    return
-  }
-  state.pvp.playerName = name
-  writeStoredString(PLAYER_NAME_STORAGE_KEY, name)
-  hud.profileModal.hidden = true
-  updateProfileNameButton()
-  if (state.app.mode.startsWith('pvp') || state.pvp.modal) renderPvpModal()
-  maybeOpenChangelogModal()
-  updateHud()
-}
-
-function updateProfileNameButton() {
-  if (hud.profileNameBtn) hud.profileNameBtn.textContent = state.pvp.playerName || 'Name'
-}
-
-function normalizePlayerName(value) {
-  return String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, 24)
-}
-
-function currentPlayerName() {
-  if (!state.pvp.playerName) initializePlayerName()
-  return state.pvp.playerName || 'Spieler'
-}
-
 function goHome() {
   if (state.app.mode.startsWith('pvp')) pvpClient?.leaveRoom()
   resetPvpState()
@@ -724,30 +689,8 @@ function showChangelog() {
   state.running = false
   state.paused = false
   renderChangelogPage()
-  writeSeenChangelogVersion()
+  markChangelogPageSeen()
   updateHud()
-}
-
-function renderChangelogPage() {
-  if (!hud.changelogPageBody) return
-  hud.changelogPageBody.innerHTML = renderChangelogHtml()
-}
-
-function maybeOpenChangelogModal() {
-  if (!hud.changelogModal || !hud.profileModal.hidden || hasSeenCurrentChangelog()) return
-  openChangelogModal()
-}
-
-function openChangelogModal() {
-  const seenVersion = readSeenChangelogVersion()
-  hud.changelogModal.querySelector('#changelog-modal-title').textContent = `${t('changelog.modalTitle')} (${CURRENT_CHANGELOG_LABEL})`
-  hud.changelogModalBody.innerHTML = renderChangelogHtml({ onlyUnseen: true, seenVersion })
-  hud.changelogModal.hidden = false
-}
-
-function closeChangelogModal() {
-  writeSeenChangelogVersion(latestChangelogVersion())
-  hud.changelogModal.hidden = true
 }
 
 function openCreateGameModal() {

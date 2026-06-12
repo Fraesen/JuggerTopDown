@@ -1,0 +1,165 @@
+.round-countdown-overlay {
+  position: absolute;
+  z-index: 9;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: #fff7d7;
+  font-size: clamp(76px, 16vw, 190px);
+  font-weight: 950;
+  letter-spacing: 0;
+  text-shadow:
+    0 8px 0 rgba(0, 0, 0, 0.32),
+    0 0 34px rgba(247, 218, 91, 0.45);
+}
+
+.setup-modal .modal {
+  width: min(760px, 100%);
+}
+
+.pvp-setup-modal {
+  display: grid;
+  gap: 14px;
+}
+
+.pvp-setup-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(247, 218, 91, 0.32);
+  border-radius: 7px;
+  padding: 12px;
+  background: rgba(247, 218, 91, 0.08);
+}
+
+.pvp-setup-status div {
+  display: grid;
+  gap: 3px;
+}
+
+.pvp-setup-status span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pvp-setup-status strong,
+.pvp-setup-status b {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.pvp-setup-status b {
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.pvp-skill-setup-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pvp-setup-save {
+  justify-self: end;
+  min-width: 220px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.status-grid div {
+  min-height: 76px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--panel-muted);
+}
+
+.status-grid strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.mini-map {
+  position: relative;
+  height: 136px;
+  overflow: hidden;
+  border: 1px solid rgba(242, 234, 209, 0.18);
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(242, 234, 209, 0.16) 50%, transparent calc(50% + 1px)),
+    var(--minimap-bg);
+}
+
+.mini-map::before,
+.mini-map::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 38px;
+  border: 2px solid rgba(242, 234, 209, 0.32);
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.mini-map::before {
+  left: 8px;
+}
+
+.mini-map::after {
+  right: 8px;
+}
+
+.mini-map i,
+.mini-map b,
+.mini-map em {
+  position: absolute;
+}
+
+.mini-map i,
+.mini-map b {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.mini-map i.blue {
+  background: var(--blue);
+}
+
+.mini-map i.red {
+  background: var(--red);
+}
+
+.mini-map i.controlled {
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff7d7;
+}
+
+.mini-map b {
+  width: 10px;
+  height: 10px;
+  background: var(--gold);
+}
+
+.mini-map em.camera-view {
+  z-index: 1;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(13, 18, 23, 0.55),
+    inset 0 0 0 1px rgba(13, 18, 23, 0.45);
+  pointer-events: none;
+}

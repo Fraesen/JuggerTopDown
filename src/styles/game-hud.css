@@ -1,0 +1,292 @@
+.team-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.team-score span,
+.match-core span,
+.status-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.team-score strong {
+  font-size: 42px;
+  line-height: 1;
+}
+
+.team-score-blue {
+  border-left: 5px solid var(--blue);
+}
+
+.team-score-red {
+  border-right: 5px solid var(--red);
+}
+
+.match-core {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.match-core strong {
+  color: var(--gold);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.play-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.arena-wrap {
+  position: relative;
+  display: grid;
+  min-height: 520px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-bg);
+  box-shadow: var(--shadow);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  max-height: calc(100vh - 128px);
+  object-fit: contain;
+  background: var(--arena-bg);
+}
+
+.player-tooltip {
+  position: absolute;
+  z-index: 5;
+  width: 190px;
+  border: 1px solid rgba(255, 247, 215, 0.26);
+  border-radius: 7px;
+  padding: 10px;
+  color: var(--text);
+  background: var(--tooltip-bg);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.36);
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+}
+
+.player-tooltip[hidden] {
+  display: none;
+}
+
+.player-tooltip header,
+.player-tooltip div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+.player-tooltip header {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 247, 215, 0.14);
+}
+
+.player-tooltip header span,
+.player-tooltip div span,
+.player-tooltip small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.player-tooltip header strong {
+  color: var(--gold);
+  font-size: 14px;
+}
+
+.player-tooltip div {
+  margin-top: 6px;
+}
+
+.player-tooltip div strong {
+  font-size: 16px;
+}
+
+.player-tooltip small {
+  grid-column: 1 / -1;
+  justify-self: end;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.command-panel {
+  display: flex;
+  min-height: 0;
+  max-height: 100%;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--panel-overlay);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 7px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 46px;
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.pvp-status-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--panel-muted);
+}
+
+.pvp-status-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pvp-status-panel strong {
+  color: var(--text);
+}
+
+.pvp-team-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pvp-team-choice button.active {
+  color: #122024;
+  border-color: transparent;
+  background: var(--gold);
+}
+
+.speed-control {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px;
+  background: var(--panel-muted);
+}
+
+.speed-control button {
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.speed-control button.active,
+.speed-control button[aria-pressed="true"] {
+  color: #122024;
+  border-color: transparent;
+  background: var(--gold);
+}
+
+.speed-control button:disabled {
+  cursor: not-allowed;
+  color: rgba(255, 247, 215, 0.48);
+  border-color: rgba(255, 247, 215, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.seed-control {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--panel-muted);
+}
+
+.seed-control input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid rgba(255, 247, 215, 0.18);
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: var(--text);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+  background: var(--input);
+}
+
+.seed-control input:focus {
+  outline: 2px solid rgba(247, 218, 91, 0.55);
+  outline-offset: 1px;
+}
+
+.cinema-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--panel-muted);
+}
+
+.cinema-control input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
+}
+

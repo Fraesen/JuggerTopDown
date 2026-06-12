@@ -1,0 +1,198 @@
+.round-setup-card {
+  display: grid;
+  gap: 12px;
+  width: min(760px, calc(100% - 40px));
+  max-height: calc(100% - 36px);
+  overflow: auto;
+  border: 1px solid rgba(247, 218, 91, 0.34);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-overlay);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+}
+
+.round-setup-card > header {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -12px -12px 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 8px 8px 0 0;
+  padding: 12px;
+  background: color-mix(in srgb, var(--panel-strong) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.round-setup-card > header span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.round-setup-card > header strong {
+  display: block;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.round-setup-card > header b {
+  color: var(--gold);
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.formation-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.formation-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.82fr) minmax(260px, 1.18fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px;
+  background: var(--panel-muted);
+}
+
+.formation-row header {
+  align-self: center;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+}
+
+.formation-player-card > summary {
+  align-self: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.formation-player-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.draggable-formation-row header {
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+
+.draggable-formation-row > summary {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+}
+
+.draggable-formation-row .drag-handle {
+  align-self: center;
+}
+
+.draggable-formation-row header strong {
+  display: none;
+}
+
+.formation-row header span,
+.formation-player-card > summary span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.formation-card-title {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.formation-card-title span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.formation-card-title b {
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.player-name-control {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.player-name-control input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 7px;
+  color: var(--text);
+  background: var(--input);
+  font: 900 13px/1 var(--font);
+  letter-spacing: 0;
+}
+
+.player-name-control input:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.formation-row header strong,
+.formation-player-card > summary strong {
+  color: var(--gold);
+  font-size: 11px;
+}
+
+.formation-player-card > summary small {
+  display: grid;
+  min-width: 70px;
+  border: 1px solid rgba(240, 214, 106, 0.28);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #122024;
+  background: var(--gold);
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.formation-player-card > summary small b {
+  color: inherit;
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.78;
+  text-transform: uppercase;
+}
+
+.formation-player-card > summary small span {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.formation-card-body {
+  grid-column: 1 / -1;
+  padding: 4px 0 0;
+}
+
+.formation-player-card .loadout-controls {
+  grid-column: 1 / -1;
+}

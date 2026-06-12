@@ -1,0 +1,162 @@
+.modal-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--modal-backdrop);
+}
+
+.modal {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+}
+
+.modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.modal h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.modal form,
+.modal-body-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-name-control {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pvp-player-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--panel-muted);
+}
+
+.pvp-player-list span,
+.pvp-player-list strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.pvp-player-list span {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.pvp-player-list strong {
+  color: var(--gold);
+  text-align: right;
+}
+
+.formation-presets {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px;
+  background: var(--panel-muted);
+}
+
+.formation-presets select {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--control);
+  font: 800 12px/1 var(--font);
+}
+
+.formation-presets button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.formation-preset-feedback {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.room-code {
+  display: grid;
+  min-height: 70px;
+  place-items: center;
+  border: 1px solid rgba(247, 218, 91, 0.45);
+  border-radius: 7px;
+  color: var(--gold);
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  background: rgba(247, 218, 91, 0.08);
+}
+
+.modal input {
+  min-height: 42px;
+  border: 1px solid rgba(255, 247, 215, 0.18);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  font: inherit;
+  background: var(--input);
+}
+
+.modal-status,
+.modal-error {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.modal-error {
+  color: #ffb2a5;
+}
+
+.round-setup-overlay {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: auto;
+  max-height: none;
+  overflow: hidden;
+  padding: 18px;
+  pointer-events: none;
+}
+

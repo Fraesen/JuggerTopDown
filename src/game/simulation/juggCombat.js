@@ -16,6 +16,7 @@ import {
 } from '../config.js'
 import { constrainToField, distance, normalize } from '../geometry.js'
 import { canReceiveNewPin, isInactive, isPompfer, isQuick } from '../players.js'
+import { canPinTargetForJuggState } from '../pinRules.js'
 import { attackRangeFor, canPinWithPompfe, isInAttackArc } from '../pompfen.js'
 import { t, teamLabel } from '../../i18n/index.js'
 
@@ -238,6 +239,7 @@ export function createJuggCombatSystem({
         pinner.callType === 'hilfmir' ||
         pinner.doublePinReleasePause > 0 ||
         target.team === pinner.team ||
+        !canPinTargetForJuggState(pinner, target, state) ||
         distance(pinner, target) > PIN_RANGE
       ) {
         continue
@@ -261,7 +263,14 @@ export function createJuggCombatSystem({
       let best = null
       let bestDistance = Infinity
       for (const target of state.players) {
-        if (target.team === pinner.team || !canReceiveNewPin(target) || assignedTargets.has(target)) continue
+        if (
+          target.team === pinner.team ||
+          !canReceiveNewPin(target) ||
+          !canPinTargetForJuggState(pinner, target, state) ||
+          assignedTargets.has(target)
+        ) {
+          continue
+        }
         const d = distance(pinner, target)
         if (d <= PIN_RANGE && d < bestDistance) {
           best = target

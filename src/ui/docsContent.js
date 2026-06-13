@@ -37,6 +37,7 @@ export const DOCS_HTML = `
         <li>Teams starten links und rechts außerhalb der Grundlinie und laufen zum ersten Kontakt an.</li>
         <li>Die große Uhr im HUD zeigt die verbleibende Matchzeit in Minuten und Sekunden. Während einer Strategiepause bleibt diese Matchzeit sichtbar; der eigentliche Pausen-Countdown läuft über die verbleibenden Steine.</li>
         <li>Zwischen Punkten gibt es eine Strategiepause von 20 Steinen. In den letzten 3 Steinen ist die Aufstellung gesperrt und es zählt groß <code>3</code>, <code>2</code>, <code>1</code>, <code>Jugger!</code> herunter.</li>
+        <li>Die gewählte Teamstrategie bleibt zwischen Zügen vorausgewählt und kann in der Strategiepause für den nächsten Zug geändert werden.</li>
         <li>Im Botmodus können Skillung, Pompfen, Positionen und Teamstrategie über "Taktik" angepasst werden, solange die jeweilige Phase Änderungen erlaubt. Im PvP wird die Teamkonfiguration synchron über den Server verteilt.</li>
         <li>Nach der ersten PvP-Setup-Phase ist die Skillung gesperrt; zwischen Zügen werden nur Aufstellung, Pompfen und Teamstrategie geändert.</li>
         <li>Der Bot-Modus bietet einige zusätzliche Optionen wie schnellere Spiele oder den "Cinema Mode". Dieser steuert Kamera/Slowmotion für erkannte Highlight-Szenen.</li>
@@ -66,7 +67,8 @@ export const DOCS_HTML = `
         <li>Läufer:innen laufen zum Jugg, tragen ihn zum gegnerischen Mal oder ziehen sich zurück, wenn der direkte Weg durch gegnerische Reichweiten führt.</li>
         <li>Trägt die laufende Person den Jugg und hat Raum, kann sie Druck über eine Seite suchen. Dabei wird eine gekrümmte Route durch oberes oder unteres Drittel gesucht.</li>
         <li>Pompfer:innen binden aktive Personen der Gegenseite, schützen die eigene Läufer:in, greifen gegnerische Läufer:innen an oder suchen nach ausreichend lange sitzenden Personen zum Pinnen.</li>
-        <li>Ketten suchen aktive Personen der Gegenseite. Gibt es keine aktiven Gegner:innen, bewachen sie mit Abstand inaktive Gegner:innen.</li>
+        <li>Gegnerische Läufer:innen werden nur gepinnt, wenn der Jugg frei innerhalb von 5 Metern bei ihnen liegt oder der freie Jugg im eigenen Drittel liegt.</li>
+        <li>Ketten suchen aktive Personen der Gegenseite. Gibt es keine aktiven Gegner:innen, bewachen sie mit Abstand inaktive Gegner:innen. Sobald wieder ein aktiver Gegner steht, brechen sie das Bewachen ab.</li>
         <li>Pinnende Spielende dürfen sich im Pinradius bewegen, wenn sie dadurch näher an relevante Gegner:innen kommen, und müssen die gepinnte Person nicht anschauen.</li>
       </ul>
     </section>
@@ -93,6 +95,7 @@ export const DOCS_HTML = `
           Sehr große Reichweite mit Mindestabstand für Treffer. Ein gespanntes Kettenband kann nicht von anderen Spielen durchquert werden.
           Ketten können nicht pinnen, geben bei Treffern 8 Strafsteine und bekommen nach erfolgreichem Treffer doppelte Nachladezeit.
           Angriffe können durch Spielende im Weg blockiert werden.
+          Wenn keine aktiven Gegner:innen stehen, bewachen Ketten inaktive ungepinnte Gegner:innen; bei neuen aktiven Gegner:innen suchen sie wieder aktive Ziele.
           Wird eine Kette getroffen, bricht ihr laufender Angriff ab. Nahpompfen treffen Ketten immer, sofern Reichweite/Winkel stimmen.
           Pro Team kann höchstens eine Kette gewählt werden.
         </dd>
@@ -108,6 +111,7 @@ export const DOCS_HTML = `
       <ul>
         <li>Pins werden erst genommen, wenn eine gegnerische Person mindestens 3 Steine abgesessen hat.</li>
         <li>Ketten können nicht pinnen. Andere Pompfen können genau ein Ziel pinnen, und jedes Ziel hat höchstens eine pinnende Person.</li>
+        <li>Gegnerische Läufer:innen sind nur Pin-Ziele, wenn der Jugg frei bis 5 Meter entfernt liegt oder frei im eigenen Drittel liegt. Getragener oder umkämpfter Jugg verhindert Läufer:innen-Pins.</li>
         <li>Pinnenden Spielenden ist Bewegung im Pinradius erlaubt. Sie dürfen sich zu aktiven Gegner:innen ausrichten und weiterhin schlagen.</li>
         <li>Läufer:innen können sich am Jugg klammern. Dabei stehen beide Läufer:innen still und am Mal kann kein Punkt gemacht werden.</li>
       </ul>
@@ -142,6 +146,7 @@ export const DOCS_HTML = `
       <h2>Strategien</h2>
       <p>
         Teams können verschiedene Strategien verfolgen, die das Verhalten nach dem Anlaufen bis zur ersten Liniensituation beeinflussen.
+        Die gewählte Teamstrategie bleibt zwischen Zügen erhalten und kann in der Strategiepause überschrieben werden.
       </p>
       <dl>
         <dt>Teamstrategie: Standard</dt>

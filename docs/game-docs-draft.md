@@ -33,6 +33,7 @@ Ein Match läuft aktuell so:
 - Die Teams starten links und rechts außerhalb der Grundlinie und laufen ins Feld.
 - Der Jugg startet in der Mitte.
 - Nach einem Punkt beginnt eine Strategiepause von 20 Steinen. Die letzten 3 Steine sind gesperrt und werden als großer Countdown angezeigt.
+- Die gewählte Teamstrategie bleibt zwischen den Zügen vorausgewählt und wird erst geändert, wenn die nutzende Person eine andere Strategie auswählt.
 - Im Botmodus können Speed, Seed und Cinema Mode genutzt werden.
 - Im PvP sind Cinema Mode, Seed und Spielgeschwindigkeit ausgeblendet; der Server synchronisiert Setup, Zugstart und Zugpausen.
 
@@ -100,7 +101,7 @@ Pompfer:innen priorisieren je nach Situation:
 - auf Calls reagieren,
 - als Kette aktive Ziele suchen oder bewachen.
 
-Wenn keine aktiven Gegner:innen mehr stehen, suchen Pompfer:innen ohne Kette nach inaktiven, pinbaren Gegner:innen. Pins werden erst genommen, wenn die gegnerische Person mindestens 3 Steine abgesessen hat.
+Wenn keine aktiven Gegner:innen mehr stehen, suchen Pompfer:innen ohne Kette nach inaktiven, pinbaren Gegner:innen. Pins werden erst genommen, wenn die gegnerische Person mindestens 3 Steine abgesessen hat. Gegnerische Läufer:innen werden nur als Pin-Ziel genommen, wenn der Jugg frei innerhalb von 5 Metern bei ihnen liegt oder der freie Jugg im eigenen Drittel liegt.
 
 ## Pompfen
 
@@ -166,6 +167,7 @@ Die Kette ist visuell und taktisch besonders:
 - Der Kettenangriff wird blockiert, wenn eine andere Person zwischen Kette und Ziel steht. Dabei wird etwas mehr als der Spielenden-Körper als Hindernis gerechnet.
 - Das Kettenband ist während des Angriffs ein Hindernis: andere Spielende werden davon abgedrängt und können nicht frei durchlaufen.
 - Ketten pinnen nicht und sollen keine bereits gepinnten Personen bewachen. Wenn keine aktiven Ziele da sind, bewacht die Kette eine geeignete inaktive, ungepinnte Person aus etwa 90% ihrer Reichweite.
+- Sobald wieder ein aktiver Gegner steht, bricht die Kette das Bewachen ab und sucht wieder aktive Ziele.
 - Während ihres Cooldowns weicht die Kette zurück, wenn ein gegnerischer Pompfer:innen auf sie zulauft.
 
 Pro Team darf höchstens eine Kette gewählt werden. Keine Kette ist erlaubt.
@@ -205,6 +207,7 @@ Pinnen:
 - Nur Pompfer:innen mit pinfähiger Pompfe können pinnen.
 - Ketten können nicht pinnen.
 - Eine gegnerische Person kann erst gepinnt werden, wenn sie mindestens 3 Steine abgesessen hat.
+- Gegnerische Läufer:innen können nur gepinnt werden, wenn der Jugg frei in ihrer Nähe liegt (bis 5 Meter) oder frei im eigenen Drittel liegt. Wenn der Jugg getragen oder umkämpft ist, sind gegnerische Läufer:innen keine Pin-Ziele.
 - Pro Ziel gibt es nur einen pinnende Person.
 - Ein pinnende Person kann nur ein Ziel pinnen.
 - Pinnende Spielende dürfen um die gepinnte Person kreisen, müssen ihn aber nicht anschauen.
@@ -306,6 +309,7 @@ Reaktion:
 ## Strategien
 
 Teamstrategien beeinflussen vor allem das Anlaufen und einzelne taktische Entscheidungen.
+Die aktuell gewählte Teamstrategie bleibt zwischen Zügen bestehen; in der Strategiepause kann sie für den nächsten Zug geändert werden.
 
 ### Teamstrategien
 

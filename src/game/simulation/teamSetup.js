@@ -127,6 +127,7 @@ export function createTeamSetupSystem({
       player.doubleWindow = 0
       player.chainStrikeTimer = 0
       player.chainStrikeTarget = null
+      player.chainGuardTarget = null
       for (const target of state.players) {
         if (target.pinnedBy === player) {
           target.pinnedBy = null
@@ -157,9 +158,10 @@ export function createTeamSetupSystem({
     }
   }
   
-  function resetNextTeamStrategies() {
-    state.nextTeamStrategies.blue = 'standard'
-    state.nextTeamStrategies.red = 'standard'
+  function resetNextTeamStrategies({ toDefaults = false } = {}) {
+    for (const team of Object.keys(state.nextTeamStrategies)) {
+      state.nextTeamStrategies[team] = toDefaults ? 'standard' : normalizeTeamStrategy(TEAM_STRATEGIES[team])
+    }
   }
   
   function setBlueTeamStrategy(strategy) {

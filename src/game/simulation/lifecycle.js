@@ -140,9 +140,9 @@ export function createMatchLifecycle({
     state.rng = rng
     state.frameAccumulator = 0
     cinema?.reset({ preserveEnabled: true })
-    resetNextTeamStrategies()
     TEAM_STRATEGIES.blue = 'standard'
     TEAM_STRATEGIES.red = 'standard'
+    resetNextTeamStrategies({ toDefaults: true })
     state.score.blue = 0
     state.score.red = 0
     state.timeLeft = MATCH_SECONDS

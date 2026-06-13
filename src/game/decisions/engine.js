@@ -24,6 +24,7 @@ const SIDE_PRESSURE_SAFE_DISTANCE = (FIELD.lengthMeters * FIELD.scale) / 4
 const SIDE_PRESSURE_REACHED_DISTANCE = 42
 const SIDE_PRESSURE_CURVE_STEPS = 9
 const CHAIN_GUARD_RANGE_FACTOR = 0.9
+const CHAIN_ACTIVE_ENGAGE_RANGE_FACTOR = 0.64
 const POMPFER_DUEL_SEEK_RANGE = 260
 const PIN_TARGET_SEEK_RANGE = 260
 const OVERZAHL_DURATION = STONE_SECONDS * 2
@@ -346,7 +347,7 @@ export function createDecisionEngine({ state, attack, rng = state.rng }) {
     if (typeof target?.stopDistance === 'number') return target.stopDistance
     if (target === state.jugg) return isQuick(player) ? 0 : 46
     if (!target || !target.radius) return 18
-    if (isChain(player) && target.team !== player.team && !isInactive(target)) return attackRangeFor(player, target) * CHAIN_GUARD_RANGE_FACTOR
+    if (isChain(player) && target.team !== player.team && !isInactive(target)) return attackRangeFor(player, target) * CHAIN_ACTIVE_ENGAGE_RANGE_FACTOR
     if (isPompfer(player) && target.team !== player.team && !isInactive(target)) return attackRangeFor(player, target) * 0.78
     if (isPompfer(player) && target.team !== player.team && isInactive(target)) return PIN_RANGE * 0.7
     if (isQuick(player) && target.team !== player.team) return QUICK_DUEL_RANGE * 0.72

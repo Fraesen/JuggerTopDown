@@ -143,11 +143,14 @@ export function createAiUpdater({
         target = chainRetreatPoint(player, chainThreat)
         faceTarget = chainThreat
       } else if (exposedChain) {
+        player.chainGuardTarget = null
         target = exposedChain
       } else if (isChain(player) && enemy.target) {
+        player.chainGuardTarget = null
         target = enemy.target
       } else if (isChain(player) && !enemy.target) {
         const watched = nearestUnpinnedInactiveEnemy(player).target
+        player.chainGuardTarget = watched
         target = watched ? chainGuardPoint(player, watched) : player
         faceTarget = watched || target
       } else if (inactive.target && (inactive.distance < pinTargetSeekRange || !enemy.target) && !enemyQuick) {

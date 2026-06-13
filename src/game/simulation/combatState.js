@@ -99,6 +99,7 @@ export function createCombatStateSystem({
     player.chainStrikeTarget = null
     player.chainStrikeX = 0
     player.chainStrikeY = 0
+    player.chainGuardTarget = null
   }
 
   function startRecoveryDash(player) {

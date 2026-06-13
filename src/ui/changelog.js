@@ -1,8 +1,8 @@
 import { getLanguage } from '../i18n/index.js'
 import { escapeHtml } from './html.js'
 
-export const CURRENT_CHANGELOG_VERSION = 1
-export const CURRENT_CHANGELOG_LABEL = '1.0.0'
+export const CURRENT_CHANGELOG_VERSION = 2
+export const CURRENT_CHANGELOG_LABEL = '1.0.1'
 export const CHANGELOG_STORAGE_KEY = 'juggerTopDown.seenChangelogVersion'
 
 const CHANGELOG_GROUP_TITLES = {
@@ -13,6 +13,10 @@ const CHANGELOG_GROUP_TITLES = {
   balancing: {
     de: 'Balancing',
     en: 'Balancing',
+  },
+  fixes: {
+    de: 'Fehlerbehebungen',
+    en: 'Fixes',
   },
   misc: {
     de: 'Sonstiges',
@@ -55,6 +59,12 @@ export const CHANGELOG_RELEASES = [
         'For balancing suggestions, feel free to write me on Discord: zensider',
       ],
     },
+    fixes: {
+      de: [
+      ],
+      en: [
+      ],
+    },
     misc: {
       de: [
         'Dieses Projekt ist ein reines Hobbyprojekt und hat keine Gewinnabsichten. Die Fortführung hängt vom Feedback und meiner Freizeit ab :)',
@@ -64,6 +74,49 @@ export const CHANGELOG_RELEASES = [
       ],
     },
   },
+  {
+    version: 2,
+    label: '1.0.1',
+    date: '2026-06-13',
+    title: {
+      de: 'Version 1.0.1',
+      en: 'Version 1.0.1',
+    },
+    versionText: {
+      de: 'Nach der ersten Welle Feedback gibt es ein paar schnell gemachte Fixes.',
+      en: 'After the first wave of feedback, this release adds a few quick fixes.',
+    },
+    features: {
+      de: [
+        'Die aktuelle Strategie wird nun zwischen den Runden erhalten',
+        'Läufer:innen werden nur gepinnt, wenn der Jugg innerhalb von 5 Metern oder im eigenen Drittel frei liegt',
+      ],
+      en: [
+        'The current strategy is now preserved between rounds.',
+        'Quicks are only pinned when the Jugg is free within 5 meters or free in the own third.',
+      ],
+    },
+    balancing: {
+      de: [
+      ],
+      en: [
+      ],
+    },
+    fixes: {
+      de: [
+        'Ketten, die kniende Pompfen bewachten haben manchmal keine neuen Ziele attackiert, was dazu führte, dass alle nur noch rumstanden. Das ist nun gefixt',
+      ],
+      en: [
+        'Chains guarding kneeling Pompfers sometimes failed to attack new targets, which could leave everyone standing around. This is now fixed.',
+      ],
+    },
+    misc: {
+      de: [
+      ],
+      en: [
+      ],
+    },
+  }
 ]
 
 export function latestChangelogVersion() {
@@ -116,6 +169,7 @@ function changelogEntryHtml(entry) {
       ${versionText ? `<p class="changelog-version-text">${escapeHtml(versionText)}</p>` : ''}
       ${changelogListHtml(groupTitle('features', language), entry.features[language] ?? entry.features.de)}
       ${changelogListHtml(groupTitle('balancing', language), entry.balancing[language] ?? entry.balancing.de)}
+      ${changelogListHtml(groupTitle('fixes', language), entry.fixes?.[language] ?? entry.fixes?.de)}
       ${changelogListHtml(groupTitle('misc', language), entry.misc?.[language] ?? entry.misc?.de)}
     </section>
   `

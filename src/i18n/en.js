@@ -270,6 +270,7 @@ export const en = {
           <li>Teams start left and right outside the ground line and run toward first contact.</li>
           <li>The large HUD clock shows the remaining match time in minutes and seconds. During a strategy break, this match time remains visible; the actual break countdown uses the remaining stones.</li>
           <li>Between points there is a 20-stone strategy break. During the last 3 stones, the setup locks and the game counts down <code>3</code>, <code>2</code>, <code>1</code>, <code>Jugger!</code>.</li>
+          <li>The selected team strategy stays preselected between rounds and can be changed during the strategy break for the next round.</li>
           <li>In bot mode, skills, Pompfen, positions and team strategy can be changed under "Tactics". In PvP, team configuration is synchronized through the server.</li>
           <li>After the first PvP setup phase, skills are locked; between rounds only formation, Pompfen and team strategy can be changed.</li>
           <li>Bot mode offers additional options such as faster playback and Cinema Mode. Cinema Mode controls camera and slow motion for detected highlight scenes.</li>
@@ -299,7 +300,8 @@ export const en = {
           <li>Quicks run to the Jugg, carry it toward the opposing goal, or retreat when the direct route crosses enemy ranges.</li>
           <li>If the Jugg-carrying quick has space, they can look for pressure through one side. The simulation checks a curved route through the upper or lower third.</li>
           <li>Pompfers bind active opponents, protect their own quick, attack opposing quicks or look for opponents who have been sitting long enough to pin.</li>
-          <li>Chains seek active opponents. If there are no active opponents, they guard inactive opponents from a distance.</li>
+          <li>Opposing quicks are only pin targets when the free Jugg is within 5 meters of them or when the free Jugg lies in the own third.</li>
+          <li>Chains seek active opponents. If there are no active opponents, they guard inactive opponents from a distance. As soon as an active opponent stands again, they stop guarding.</li>
           <li>Pinners may move inside the pin radius when that brings them closer to relevant opponents, and they do not have to face the pinned player.</li>
         </ul>
       </section>
@@ -326,6 +328,7 @@ export const en = {
             Very high range with a minimum hit distance. A taut chain band cannot be crossed by other players.
             Chains cannot pin, give 8 penalty stones on hit and receive double cooldown after a successful hit.
             Attacks can be blocked by players in the way.
+            If no active opponents are standing, chains guard inactive unpinned opponents; when active opponents return, they seek active targets again.
             If a chain player is hit, the current chain attack is cancelled. Melee Pompfen always hit chains when range and angle match.
             Each team can choose at most one chain.
           </dd>
@@ -341,6 +344,7 @@ export const en = {
         <ul>
           <li>Pins are only taken once an opposing player has served at least 3 counted stones.</li>
           <li>Chains cannot pin. Other Pompfen can pin exactly one target, and each target has at most one pinner.</li>
+          <li>Opposing quicks are only pin targets when the Jugg is free within 5 meters or free in the own third. Carried or contested Jugg prevents quick pins.</li>
           <li>Pinners may move inside the pin radius. They may turn toward active opponents and keep striking.</li>
           <li>Quicks can grapple at the Jugg. While grappling, both quicks stand still and no point can be scored at the goal.</li>
         </ul>
@@ -373,6 +377,7 @@ export const en = {
         <h2>Strategies</h2>
         <p>
           Teams can choose different strategies that influence behavior after the opening run until the first line situation.
+          The selected team strategy persists between rounds and can be overridden during the strategy break.
         </p>
         <dl>
           <dt>Team strategy: Standard</dt>

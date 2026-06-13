@@ -116,6 +116,7 @@ export function createPlayer(team, index, role) {
     chainStrikeTarget: null,
     chainStrikeX: 0,
     chainStrikeY: 0,
+    chainGuardTarget: null,
     duelCooldown: 0,
     grappleTarget: null,
     grappledBy: null,

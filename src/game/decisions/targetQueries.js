@@ -1,6 +1,7 @@
 import { FIELD } from '../config.js'
 import { distance } from '../geometry.js'
 import { canReceiveNewPin, isInactive, isPompfer, isQuick, playerIndex } from '../players.js'
+import { canPinTargetForJuggState } from '../pinRules.js'
 import { canPinWithPompfe } from '../pompfen.js'
 import { isDefensiveStrategyPlayer } from '../strategies.js'
 
@@ -57,7 +58,10 @@ export function createTargetQueries({ state }) {
   }
 
   function nearestClaimablePinTarget(player) {
-    return nearestEnemy(player, (other) => canReceiveNewPin(other) && bestPinnerForTarget(other, player.team) === player)
+    return nearestEnemy(
+      player,
+      (other) => canReceiveNewPin(other) && canPinTargetForJuggState(player, other, state) && bestPinnerForTarget(other, player.team) === player,
+    )
   }
 
   function bestPinApproacherForTarget(target, team) {
@@ -69,7 +73,11 @@ export function createTargetQueries({ state }) {
   function nearestApproachablePinTarget(player) {
     return nearestEnemy(
       player,
-      (other) => other.penaltyStones > 0 && !other.pinnedBy && bestPinApproacherForTarget(other, player.team) === player,
+      (other) =>
+        other.penaltyStones > 0 &&
+        !other.pinnedBy &&
+        canPinTargetForJuggState(player, other, state) &&
+        bestPinApproacherForTarget(other, player.team) === player,
     )
   }
 
